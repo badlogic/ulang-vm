@@ -101,7 +101,7 @@ static uint32_t next_utf8_character(const char *data, uint32_t *index) {
 		character <<= 6;
 		character += data[(*index)++];
 		sz++;
-	} while (data[*index] && !(((data[*index]) & 0xC0) != 0x80));
+	} while (((data[*index]) & 0xC0) == 0x80 && data[*index]);
 	character -= utf8Offsets[sz - 1];
 
 	return character;
@@ -160,35 +160,35 @@ static ulang_bool match_digit(ulang_character_stream *stream, ulang_bool consume
 	return ULANG_FALSE;
 }
 
-static ulang_bool match_hex(ulang_character_stream *stream, ulang_bool consume) {
+static ulang_bool match_hex(ulang_character_stream *stream) {
 	if (!has_more(stream)) return ULANG_FALSE;
 	char c = stream->data->data[stream->index];
 	if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
-		if (consume) stream->index++;
+		stream->index++;
 		return ULANG_TRUE;
 	}
 	return ULANG_FALSE;
 }
 
-static ulang_bool match_identifier_start(ulang_character_stream *stream, ulang_bool consume) {
+static ulang_bool match_identifier_start(ulang_character_stream *stream) {
 	if (!has_more(stream)) return ULANG_FALSE;
 	uint32_t idx = stream->index;
 	const char *sourceData = stream->data->data;
 	uint32_t c = next_utf8_character(sourceData, &idx);
 	if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c >= 0xc0) {
-		if (consume) stream->index = idx;
+		stream->index = idx;
 		return ULANG_TRUE;
 	}
 	return ULANG_FALSE;
 }
 
-static ulang_bool match_identifier_part(ulang_character_stream *stream, ulang_bool consume) {
+static ulang_bool match_identifier_part(ulang_character_stream *stream) {
 	if (!has_more(stream)) return ULANG_FALSE;
 	uint32_t idx = stream->index;
 	const char *sourceData = stream->data->data;
 	uint32_t c = next_utf8_character(sourceData, &idx);
 	if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || (c >= '0' && c <= '9') || c >= 0x80) {
-		if (consume) stream->index = idx;
+		stream->index = idx;
 		return ULANG_TRUE;
 	}
 	return ULANG_FALSE;
@@ -324,7 +324,6 @@ void ulang_error_print(ulang_error *error) {
 }
 
 typedef enum ulang_token_type {
-	ULANG_TOKEN_LITERAL,
 	ULANG_TOKEN_INTEGER,
 	ULANG_TOKEN_FLOAT,
 	ULANG_TOKEN_STRING,
@@ -356,7 +355,7 @@ static ulang_bool next_token(ulang_character_stream *stream, ulang_token *token,
 	if (match(stream, "-", ULANG_TRUE) || match_digit(stream, ULANG_FALSE)) {
 		token->type = ULANG_TOKEN_INTEGER;
 		if (match(stream, "0x", ULANG_TRUE)) {
-			while (match_hex(stream, ULANG_TRUE));
+			while (match_hex(stream));
 		} else {
 			while (match_digit(stream, ULANG_TRUE));
 			if (match(stream, ".", ULANG_TRUE)) {
@@ -404,8 +403,8 @@ static ulang_bool next_token(ulang_character_stream *stream, ulang_token *token,
 	}
 
 	// Identifier or keyword
-	if (match_identifier_start(stream, ULANG_TRUE)) {
-		while (match_identifier_part(stream, ULANG_TRUE));
+	if (match_identifier_start(stream)) {
+		while (match_identifier_part(stream));
 		token->type = ULANG_TOKEN_IDENTIFIER;
 		token->span = end_span(stream);
 		return ULANG_TRUE;
@@ -463,12 +462,12 @@ ulang_opcode opcodes[] = {
 		{ULANG_STR_OBJ("shl"),                {UL_REG, UL_REG, UL_REG}},
 		{ULANG_STR_OBJ("shr"),                {UL_REG, UL_REG, UL_REG}},
 		{ULANG_STR_OBJ("jump"),               {UL_VAL}},
-		{ULANG_STR_OBJ("jupm_equal"),         {UL_REG, UL_VAL}},
-		{ULANG_STR_OBJ("jupm_not_equal"),     {UL_REG, UL_VAL}},
-		{ULANG_STR_OBJ("jupm_less"),          {UL_REG, UL_VAL}},
-		{ULANG_STR_OBJ("jupm_greater"),       {UL_REG, UL_VAL}},
-		{ULANG_STR_OBJ("jupm_less_equal"),    {UL_REG, UL_VAL}},
-		{ULANG_STR_OBJ("jupm_greater_equal"), {UL_REG, UL_VAL}},
+		{ULANG_STR_OBJ("jump_equal"),         {UL_REG, UL_VAL}},
+		{ULANG_STR_OBJ("jump_not_equal"),     {UL_REG, UL_VAL}},
+		{ULANG_STR_OBJ("jump_less"),          {UL_REG, UL_VAL}},
+		{ULANG_STR_OBJ("jump_greater"),       {UL_REG, UL_VAL}},
+		{ULANG_STR_OBJ("jump_less_equal"),    {UL_REG, UL_VAL}},
+		{ULANG_STR_OBJ("jump_greater_equal"), {UL_REG, UL_VAL}},
 		{ULANG_STR_OBJ("move"),               {UL_REG, UL_REG}},
 		{ULANG_STR_OBJ("move"),               {UL_VAL, UL_REG}},
 		{ULANG_STR_OBJ("load"),               {UL_VAL, UL_OFF, UL_REG}},
@@ -554,17 +553,17 @@ static ulang_opcode *matches_opcode(ulang_span *span) {
 	return NULL;
 }
 
-#define NEXT_TOKEN_CHECK(stream, token, error) if (!next_token(&stream, &token, error)) goto _compilation_error;
+#define NEXT_TOKEN_CHECK(stream, token, error) if (!next_token(&(stream), &(token), error)) goto _compilation_error;
 
 #define EXPECT_TOKEN_CHECK(stream, str, error) { \
     ulang_token _token; \
-    if (!next_token(&stream, &_token, error)) goto _compilation_error; \
+    if (!next_token(&(stream), &_token, error)) goto _compilation_error; \
     if (_token.type == ULANG_TOKEN_EOF) { \
-        ulang_error_init(error, stream.data, _token.span, "Unexpected end of file, expected '%.*s'", str.length, str.data); \
+        ulang_error_init(error, (stream).data, _token.span, "Unexpected end of file, expected '%.*s'", (str).length, (str).data); \
         goto _compilation_error; \
     } \
-    if (!span_matches(&_token.span, str.data, str.length)) { \
-        ulang_error_init(error, stream.data, _token.span, "Expected %.*s", str.length, str.data); \
+    if (!span_matches(&_token.span, (str).data, (str).length)) { \
+        ulang_error_init(error, (stream).data, _token.span, "Expected %.*s", (str).length, (str).data); \
         goto _compilation_error; \
     } \
 }
@@ -594,7 +593,7 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 
 	while (has_more_tokens(&stream)) {
 		ulang_token token;
-		NEXT_TOKEN_CHECK(stream, token, error);
+		NEXT_TOKEN_CHECK(stream, token, error)
 
 		ulang_opcode *opcode = matches_opcode(&token.span);
 		if (!opcode) {
@@ -604,8 +603,8 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 			}
 
 			if (peek(&stream) == ':') {
-				EXPECT_TOKEN_CHECK(stream, ULANG_STR_OBJ(":"), error);
-				ulang_label label = {token.span, code->size};
+				EXPECT_TOKEN_CHECK(stream, ULANG_STR_OBJ(":"), error)
+				ulang_label label = {token.span, (int) code->size};
 				ulang_label_array_add(labels, label);
 			}
 
@@ -614,7 +613,7 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 			for (int i = 0; i < opcode->numOperands; i++) {
 				ulang_token *operand = &operands[i];
 				ulang_operand_type operandType = opcode->operands[i];
-				NEXT_TOKEN_CHECK(stream, *operand, error);
+				NEXT_TOKEN_CHECK(stream, *operand, error)
 				if (operand->type == ULANG_TOKEN_EOF) {
 					ulang_error_init(error, file, operand->span, "Expected an operand");
 					goto _compilation_error;
@@ -637,20 +636,20 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 					goto _compilation_error;
 				}
 
-				if (i < opcode->numOperands - 1) EXPECT_TOKEN_CHECK(stream, ULANG_STR_OBJ(","), error);
+				if (i < opcode->numOperands - 1) EXPECT_TOKEN_CHECK(stream, ULANG_STR_OBJ(","), error)
 			}
 		}
 	}
 
 	ulang_patch_array_dispose(patches);
 	ulang_label_array_dispose(labels);
-	ulang_label_array_dispose(code);
+	ulang_byte_array_dispose(code);
 	return ULANG_TRUE;
 
 	_compilation_error:
 	ulang_patch_array_dispose(patches);
 	ulang_label_array_dispose(labels);
-	ulang_label_array_dispose(code);
+	ulang_byte_array_dispose(code);
 	return ULANG_FALSE;
 }
 
