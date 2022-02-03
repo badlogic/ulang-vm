@@ -7,12 +7,51 @@
 
 #include "sokol_time.h"
 
-void *ulang_alloc(int numBytes) {
+#define ULANG_STR(str) str, sizeof(str) - 1
+#define ULANG_STR_OBJ(str) (ulang_string){ str, sizeof(str) - 1 }
+#define ULANG_MAX(a, b) (a > b ? a : b)
+
+#define ULANG_ARRAY_IMPLEMENT(name, itemType) \
+    typedef struct name { size_t size; size_t capacity; itemType* items; } name; \
+    name* name##_new(size_t initialCapacity) { \
+        name* array = (name *)ulang_alloc(sizeof(name)); \
+        array->size = 0; \
+        array->capacity = initialCapacity; \
+        array->items = (itemType*)ulang_alloc(sizeof(itemType) * initialCapacity); \
+        return array; \
+    } \
+    void name##_dispose(name *self) { \
+        ulang_free(self->items); \
+        ulang_free(self); \
+    } \
+    void name##_add(name* self, itemType value) { \
+        if (self->size == self->capacity) { \
+            self->capacity = ULANG_MAX(8, (size_t)(self->size * 1.75f)); \
+            self->items = (itemType*)ulang_realloc(self->items, sizeof(itemType) * self->capacity); \
+        } \
+        self->items[self->size++] = value; \
+    }
+
+static int allocs = 0;
+static int frees = 0;
+
+void *ulang_alloc(size_t numBytes) {
+	allocs++;
 	return malloc(numBytes);
 }
 
+void *ulang_realloc(void *old, size_t numBytes) {
+	return realloc(old, numBytes);
+}
+
 void ulang_free(void *ptr) {
+	if (!ptr) return;
+	frees++;
 	free(ptr);
+}
+
+void ulang_print_memory() {
+	printf("Allocations: %i\nFrees: %i\n", allocs, frees);
 }
 
 ulang_bool ulang_file_read(const char *fileName, ulang_file *file) {
@@ -298,24 +337,328 @@ void ulang_error_print(ulang_error *error) {
 	}
 }
 
+typedef enum ulang_token_type {
+	ULANG_TOKEN_LITERAL,
+	ULANG_TOKEN_INTEGER,
+	ULANG_TOKEN_FLOAT,
+	ULANG_TOKEN_STRING,
+	ULANG_TOKEN_IDENTIFIER,
+	ULANG_TOKEN_SPECIAL_CHAR,
+	ULANG_TOKEN_EOF
+} ulang_token_type;
+
+typedef struct {
+	ulang_span span;
+	ulang_token_type type;
+} ulang_token;
+
 ulang_bool has_more_tokens(ulang_character_stream *stream) {
 	if (!has_more(stream)) return ULANG_FALSE;
 	skip_white_space(stream);
-	if (has_more(stream)) return ULANG_TRUE;
+	return has_more(stream);
 }
 
-ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *error) {
-	(void) program;
+ulang_bool next_token(ulang_character_stream *stream, ulang_token *token, ulang_error *error) {
+	if (!has_more_tokens(stream)) {
+		token->span.startLine = 0;
+		token->span.endLine = 0;
+		token->type = ULANG_TOKEN_EOF;
+		return ULANG_TRUE;
+	}
+	start_span(stream);
 
-	error->message.data = NULL;
+	if (match(stream, "-", ULANG_TRUE) || match_digit(stream, ULANG_FALSE)) {
+		token->type = ULANG_TOKEN_INTEGER;
+		if (match(stream, "0x", ULANG_TRUE)) {
+			while (match_hex(stream, ULANG_TRUE));
+		} else {
+			while (match_digit(stream, ULANG_TRUE));
+			if (match(stream, ".", ULANG_TRUE)) {
+				token->type = ULANG_TOKEN_FLOAT;
+				while (match_digit(stream, ULANG_TRUE));
+			}
+		}
+		if (match(stream, "b", ULANG_TRUE)) {
+			if (token->type == ULANG_TOKEN_FLOAT) {
+				ulang_error_init(error, stream->data, end_span(stream), "Byte literal can not have a decimal point.");
+				return ULANG_FALSE;
+			}
+			token->type = ULANG_TOKEN_INTEGER;
+		}
+		token->span = end_span(stream);
+		return ULANG_TRUE;
+	}
+
+	// String literal
+	if (match(stream, "\"", ULANG_TRUE)) {
+		ulang_bool matchedEndQuote = ULANG_FALSE;
+		token->type = ULANG_TOKEN_STRING;
+		while (has_more(stream)) {
+			// Note: escape sequences like \n are parsed in the AST
+			if (match(stream, "\\", ULANG_TRUE)) {
+				consume(stream);
+			}
+			if (match(stream, "\"", ULANG_TRUE)) {
+				matchedEndQuote = ULANG_TRUE;
+				break;
+			}
+			if (match(stream, "\n", ULANG_FALSE)) {
+				ulang_error_init(error, stream->data, end_span(stream),
+								 "String literal is not closed by double quote");
+				return ULANG_FALSE;
+			}
+			consume(stream);
+		}
+		if (!matchedEndQuote) {
+			ulang_error_init(error, stream->data, end_span(stream), "String literal is not closed by double quote");
+			return ULANG_FALSE;
+		}
+		token->span = end_span(stream);
+		return ULANG_TRUE;
+	}
+
+	// Identifier or keyword
+	if (match_identifier_start(stream, ULANG_TRUE)) {
+		while (match_identifier_part(stream, ULANG_TRUE));
+		token->type = ULANG_TOKEN_IDENTIFIER;
+		token->span = end_span(stream);
+		return ULANG_TRUE;
+	}
+
+	// Else check for "simple" tokens made up of
+	// 1 character literals, like ".", ",", or ";",
+	consume(stream);
+	token->type = ULANG_TOKEN_SPECIAL_CHAR;
+	token->span = end_span(stream);
+	return ULANG_TRUE;
+}
+
+typedef enum ulang_operand_type {
+	UL_NIL = 0,  // No operand
+	UL_REG, // Register
+	UL_VAL, // Label or value
+	UL_OFF, // Offset
+} ulang_operand_type;
+
+typedef struct ulang_opcode {
+	ulang_string name;
+	ulang_operand_type operands[3];
+	int numOperands;
+	int code;
+} ulang_opcode;
+
+ulang_opcode opcodes[] = {
+		{ULANG_STR_OBJ("halt")},
+		{ULANG_STR_OBJ("add"),                {UL_REG, UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("sub"),                {UL_REG, UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("mul"),                {UL_REG, UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("div"),                {UL_REG, UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("div_unsigned"),       {UL_REG, UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("remainder"),          {UL_REG, UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("remainder_unsigned"), {UL_REG, UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("add_float"),          {UL_REG, UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("sub_float"),          {UL_REG, UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("mul_float"),          {UL_REG, UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("div_float"),          {UL_REG, UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("cos_float"),          {UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("sin_float"),          {UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("atan2_float"),        {UL_REG, UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("sqrt_float"),         {UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("pow_float"),          {UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("int_to_float"),       {UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("float_to_int"),       {UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("cmp"),                {UL_REG, UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("cmp_unsigned"),       {UL_REG, UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("cmp_float"),          {UL_REG, UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("not"),                {UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("and"),                {UL_REG, UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("or"),                 {UL_REG, UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("xor"),                {UL_REG, UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("shl"),                {UL_REG, UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("shr"),                {UL_REG, UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("jump"),               {UL_VAL}},
+		{ULANG_STR_OBJ("jupm_equal"),         {UL_REG, UL_VAL}},
+		{ULANG_STR_OBJ("jupm_not_equal"),     {UL_REG, UL_VAL}},
+		{ULANG_STR_OBJ("jupm_less"),          {UL_REG, UL_VAL}},
+		{ULANG_STR_OBJ("jupm_greater"),       {UL_REG, UL_VAL}},
+		{ULANG_STR_OBJ("jupm_less_equal"),    {UL_REG, UL_VAL}},
+		{ULANG_STR_OBJ("jupm_greater_equal"), {UL_REG, UL_VAL}},
+		{ULANG_STR_OBJ("move"),               {UL_REG, UL_REG}},
+		{ULANG_STR_OBJ("move"),               {UL_VAL, UL_REG}},
+		{ULANG_STR_OBJ("load"),               {UL_VAL, UL_OFF, UL_REG}},
+		{ULANG_STR_OBJ("load"),               {UL_REG, UL_OFF, UL_REG}},
+		{ULANG_STR_OBJ("store"),              {UL_REG, UL_VAL, UL_OFF}},
+		{ULANG_STR_OBJ("store"),              {UL_REG, UL_REG, UL_OFF}},
+		{ULANG_STR_OBJ("load_byte"),          {UL_VAL, UL_OFF, UL_REG}},
+		{ULANG_STR_OBJ("load_byte"),          {UL_REG, UL_OFF, UL_REG}},
+		{ULANG_STR_OBJ("store_byte"),         {UL_REG, UL_VAL, UL_OFF}},
+		{ULANG_STR_OBJ("store_byte"),         {UL_REG, UL_REG, UL_OFF}},
+		{ULANG_STR_OBJ("load_short"),         {UL_VAL, UL_OFF, UL_REG}},
+		{ULANG_STR_OBJ("load_short"),         {UL_REG, UL_OFF, UL_REG}},
+		{ULANG_STR_OBJ("store_short"),        {UL_REG, UL_VAL, UL_OFF}},
+		{ULANG_STR_OBJ("store_short"),        {UL_REG, UL_REG, UL_OFF}},
+		{ULANG_STR_OBJ("push"),               {UL_VAL, UL_NIL}},
+		{ULANG_STR_OBJ("push"),               {UL_REG, UL_NIL}},
+		{ULANG_STR_OBJ("stackalloc"),         {UL_OFF, UL_NIL}},
+		{ULANG_STR_OBJ("pop"),                {UL_REG, UL_NIL}},
+		{ULANG_STR_OBJ("pop"),                {UL_OFF, UL_NIL}},
+		{ULANG_STR_OBJ("call"),               {UL_VAL}},
+		{ULANG_STR_OBJ("call"),               {UL_REG}},
+		{ULANG_STR_OBJ("return"),             {UL_OFF}},
+		{ULANG_STR_OBJ("port_write"),         {UL_REG, UL_OFF}},
+		{ULANG_STR_OBJ("port_write"),         {UL_VAL, UL_OFF}},
+		{ULANG_STR_OBJ("port_read"),          {UL_OFF, UL_REG}},
+		{ULANG_STR_OBJ("port_read"),          {UL_REG, UL_REG}},
+};
+
+typedef struct ulang_register {
+	ulang_string name;
+	int index;
+} ulang_register;
+
+ulang_register registers[] = {
+		{{ULANG_STR("r1")}},
+		{{ULANG_STR("r2")}},
+		{{ULANG_STR("r3")}},
+		{{ULANG_STR("r4")}},
+		{{ULANG_STR("r5")}},
+		{{ULANG_STR("r6")}},
+		{{ULANG_STR("r7")}},
+		{{ULANG_STR("r8")}},
+		{{ULANG_STR("r9")}},
+		{{ULANG_STR("r10")}},
+		{{ULANG_STR("r11")}},
+		{{ULANG_STR("r12")}},
+		{{ULANG_STR("r13")}},
+		{{ULANG_STR("r14")}},
+		{{ULANG_STR("pc")}},
+		{{ULANG_STR("sp")}}
+};
+
+void init_opcodes_and_registers() {
+	for (int i = 0; i < (int) (sizeof(opcodes) / sizeof(ulang_opcode)); i++) {
+		ulang_opcode *opcode = &opcodes[i];
+		opcode->code = i;
+		for (int j = 0; j < 3; j++) {
+			if (opcode->operands[j] == UL_NIL) break;
+			opcode->numOperands++;
+		}
+	}
+
+	for (int i = 0; i < (int) (sizeof(registers) / sizeof(ulang_register)); i++) {
+		registers[i].index = i;
+	}
+}
+
+ulang_register *matches_register(ulang_span *span) {
+	for (int i = 0; i < (int) (sizeof(registers) / sizeof(ulang_register)); i++) {
+		if (span_matches(span, registers[i].name.data, registers[i].name.length)) {
+			return &registers[i];
+		}
+	}
+	return NULL;
+}
+
+ulang_opcode *matches_opcode(ulang_span *span) {
+	for (int i = 0; i < (int) (sizeof(opcodes) / sizeof(ulang_opcode)); i++) {
+		if (span_matches(span, opcodes[i].name.data, opcodes[i].name.length)) {
+			return &opcodes[i];
+		}
+	}
+	return NULL;
+}
+
+#define NEXT_TOKEN_CHECK(stream, token, error) if (!next_token(&stream, &token, error)) goto _compilation_error;
+
+#define EXPECT_TOKEN_CHECK(stream, str, error) { \
+    ulang_token _token; \
+    if (!next_token(&stream, &_token, error)) goto _compilation_error; \
+    if (_token.type == ULANG_TOKEN_EOF) { \
+        ulang_error_init(error, stream.data, _token.span, "Unexpected end of file, expected '%.*s'", str.length, str.data); \
+        goto _compilation_error; \
+    } \
+    if (!span_matches(&_token.span, str.data, str.length)) { \
+        ulang_error_init(error, stream.data, _token.span, "Expected %.*s", str.length, str.data); \
+        goto _compilation_error; \
+    } \
+}
+
+typedef struct ulang_patch {
+	ulang_span label;
+	int patchAddress;
+} ulang_patch;
+ULANG_ARRAY_IMPLEMENT(ulang_patch_array, ulang_patch)
+
+typedef struct ulang_label {
+	ulang_span label;
+	int codeAddress;
+} ulang_label;
+ULANG_ARRAY_IMPLEMENT(ulang_label_array, ulang_label)
+
+ULANG_ARRAY_IMPLEMENT(ulang_byte_array, int32_t)
+
+ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *error) {
 	ulang_character_stream stream;
 	ulang_character_stream_init(&stream, file);
+	init_opcodes_and_registers();
 
-	error->file = file;
+	ulang_patch_array *patches = ulang_patch_array_new(16);
+	ulang_label_array *labels = ulang_label_array_new(16);
+	ulang_byte_array *code = ulang_byte_array_new(16);
+
+	while (has_more_tokens(&stream)) {
+		ulang_token inst;
+		NEXT_TOKEN_CHECK(stream, inst, error);
+
+		ulang_opcode *opcode = matches_opcode(&inst.span);
+		if (!opcode) {
+			if (inst.type != ULANG_TOKEN_IDENTIFIER) {
+				ulang_error_init(error, file, inst.span, "Expected a label or data definition");
+				goto _compilation_error;
+			}
+		} else {
+			ulang_token operands[3];
+			for (int i = 0; i < opcode->numOperands; i++) {
+				ulang_token *operand = &operands[i];
+				ulang_operand_type operandType = opcode->operands[i];
+				NEXT_TOKEN_CHECK(stream, *operand, error);
+				if (inst.type == ULANG_TOKEN_EOF) {
+					ulang_error_init(error, file, inst.span, "Expected an operand");
+					goto _compilation_error;
+				}
+
+				if (operandType == UL_REG && !matches_register(&operand->span)) {
+					ulang_error_init(error, file, operand->span, "Expected a register");
+					goto _compilation_error;
+				}
+
+				if (operandType == UL_VAL &&
+					!(operand->type == ULANG_TOKEN_INTEGER || operand->type == ULANG_TOKEN_FLOAT ||
+					  operand->type == ULANG_TOKEN_IDENTIFIER)) {
+					ulang_error_init(error, file, operand->span, "Expected a number or a label");
+					goto _compilation_error;
+				}
+
+				if (operandType == UL_OFF && operand->type != ULANG_TOKEN_INTEGER) {
+					ulang_error_init(error, file, operand->span, "Expected a number");
+					goto _compilation_error;
+				}
+
+				if (i < opcode->numOperands - 1) EXPECT_TOKEN_CHECK(stream, ULANG_STR_OBJ(","), error);
+			}
+		}
+	}
+
+	ulang_patch_array_dispose(patches);
+	ulang_label_array_dispose(labels);
+	return ULANG_TRUE;
+
+	_compilation_error:
+	ulang_patch_array_dispose(patches);
+	ulang_label_array_dispose(labels);
 	return ULANG_FALSE;
 }
 
 void ulang_program_free(ulang_program *program) {
-	ulang_free(program->data);
 	ulang_free(program->code);
 }

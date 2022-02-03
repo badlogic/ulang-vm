@@ -46,14 +46,17 @@ typedef struct ulang_file {
 } ulang_file;
 
 typedef struct ulang_program {
-	uint8_t *data;
 	uint8_t *code;
 } ulang_program;
 
 // memory
-void *ulang_alloc(int num_bytes);
+void *ulang_alloc(size_t num_bytes);
+
+void *ulang_realloc(void *old, size_t num_bytes);
 
 void ulang_free(void *ptr);
+
+void ulang_print_memory();
 
 // i/o
 ulang_bool ulang_file_read(const char *fileName, ulang_file *file);

@@ -1,1 +1,5 @@
-add r1, r2, r1
+# this is a comment
+label:
+jump -123
+halt
+add r1, r2, r3

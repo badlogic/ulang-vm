@@ -13,8 +13,8 @@ int main(int argc, char **argv) {
 		return -1;
 	}
 
-	ulang_error error;
-	ulang_program program;
+	ulang_error error = {};
+	ulang_program program = {};
 	if (!ulang_compile(&file, &program, &error)) {
 		ulang_error_print(&error);
 		ulang_error_free(&error);
@@ -24,5 +24,6 @@ int main(int argc, char **argv) {
 
 	ulang_file_free(&file);
 	ulang_program_free(&program);
+	ulang_print_memory();
 	return 0;
 }
