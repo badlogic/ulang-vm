@@ -1,11 +1,8 @@
 #include <ulang.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include <stdarg.h>
-
-#define SOKOL_IMPL
-
-#include "sokol_time.h"
 
 #define ULANG_STR(str) str, sizeof(str) - 1
 #define ULANG_STR_OBJ(str) (ulang_string){ str, sizeof(str) - 1 }
@@ -90,17 +87,6 @@ void ulang_file_free(ulang_file *file) {
 		file->lines = NULL;
 		file->numLines = 0;
 	}
-}
-
-static ulang_bool isTimeSetup = ULANG_FALSE;
-
-double ulang_time_millis() {
-	if (!isTimeSetup) {
-		stm_setup();
-		isTimeSetup = ULANG_TRUE;
-	}
-	uint64_t time = stm_now();
-	return stm_ms(time);
 }
 
 static uint32_t next_utf8_character(const char *data, uint32_t *index) {
@@ -263,7 +249,7 @@ static ulang_bool span_matches(ulang_span *span, const char *needle, size_t leng
 	return ULANG_TRUE;
 }
 
-void ulang_error_init(ulang_error *error, ulang_file *file, ulang_span span, const char *msg, ...) {
+static void ulang_error_init(ulang_error *error, ulang_file *file, ulang_span span, const char *msg, ...) {
 	va_list args;
 	va_start(args, msg);
 	char scratch[1];
@@ -352,13 +338,13 @@ typedef struct {
 	ulang_token_type type;
 } ulang_token;
 
-ulang_bool has_more_tokens(ulang_character_stream *stream) {
+static ulang_bool has_more_tokens(ulang_character_stream *stream) {
 	if (!has_more(stream)) return ULANG_FALSE;
 	skip_white_space(stream);
 	return has_more(stream);
 }
 
-ulang_bool next_token(ulang_character_stream *stream, ulang_token *token, ulang_error *error) {
+static ulang_bool next_token(ulang_character_stream *stream, ulang_token *token, ulang_error *error) {
 	if (!has_more_tokens(stream)) {
 		token->span.startLine = 0;
 		token->span.endLine = 0;
@@ -535,7 +521,7 @@ ulang_register registers[] = {
 		{{ULANG_STR("sp")}}
 };
 
-void init_opcodes_and_registers() {
+static void init_opcodes_and_registers() {
 	for (int i = 0; i < (int) (sizeof(opcodes) / sizeof(ulang_opcode)); i++) {
 		ulang_opcode *opcode = &opcodes[i];
 		opcode->code = i;
@@ -550,7 +536,7 @@ void init_opcodes_and_registers() {
 	}
 }
 
-ulang_register *matches_register(ulang_span *span) {
+static ulang_register *matches_register(ulang_span *span) {
 	for (int i = 0; i < (int) (sizeof(registers) / sizeof(ulang_register)); i++) {
 		if (span_matches(span, registers[i].name.data, registers[i].name.length)) {
 			return &registers[i];
@@ -559,7 +545,7 @@ ulang_register *matches_register(ulang_span *span) {
 	return NULL;
 }
 
-ulang_opcode *matches_opcode(ulang_span *span) {
+static ulang_opcode *matches_opcode(ulang_span *span) {
 	for (int i = 0; i < (int) (sizeof(opcodes) / sizeof(ulang_opcode)); i++) {
 		if (span_matches(span, opcodes[i].name.data, opcodes[i].name.length)) {
 			return &opcodes[i];

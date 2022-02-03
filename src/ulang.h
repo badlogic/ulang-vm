@@ -63,11 +63,11 @@ ulang_bool ulang_file_read(const char *fileName, ulang_file *file);
 
 void ulang_file_free(ulang_file *file);
 
-double ulang_time_millis();
-
 void ulang_error_print(ulang_error *error);
 
 void ulang_error_free(ulang_error *error);
+
+// compilation
 
 ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *error);
 
