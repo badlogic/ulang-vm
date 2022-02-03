@@ -593,23 +593,30 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 	ulang_byte_array *code = ulang_byte_array_new(16);
 
 	while (has_more_tokens(&stream)) {
-		ulang_token inst;
-		NEXT_TOKEN_CHECK(stream, inst, error);
+		ulang_token token;
+		NEXT_TOKEN_CHECK(stream, token, error);
 
-		ulang_opcode *opcode = matches_opcode(&inst.span);
+		ulang_opcode *opcode = matches_opcode(&token.span);
 		if (!opcode) {
-			if (inst.type != ULANG_TOKEN_IDENTIFIER) {
-				ulang_error_init(error, file, inst.span, "Expected a label or data definition");
+			if (token.type != ULANG_TOKEN_IDENTIFIER) {
+				ulang_error_init(error, file, token.span, "Expected a label or data definition");
 				goto _compilation_error;
 			}
+
+			if (peek(&stream) == ':') {
+				EXPECT_TOKEN_CHECK(stream, ULANG_STR_OBJ(":"), error);
+				ulang_label label = {token.span, code->size};
+				ulang_label_array_add(labels, label);
+			}
+
 		} else {
 			ulang_token operands[3];
 			for (int i = 0; i < opcode->numOperands; i++) {
 				ulang_token *operand = &operands[i];
 				ulang_operand_type operandType = opcode->operands[i];
 				NEXT_TOKEN_CHECK(stream, *operand, error);
-				if (inst.type == ULANG_TOKEN_EOF) {
-					ulang_error_init(error, file, inst.span, "Expected an operand");
+				if (operand->type == ULANG_TOKEN_EOF) {
+					ulang_error_init(error, file, operand->span, "Expected an operand");
 					goto _compilation_error;
 				}
 
@@ -637,11 +644,13 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 
 	ulang_patch_array_dispose(patches);
 	ulang_label_array_dispose(labels);
+	ulang_label_array_dispose(code);
 	return ULANG_TRUE;
 
 	_compilation_error:
 	ulang_patch_array_dispose(patches);
 	ulang_label_array_dispose(labels);
+	ulang_label_array_dispose(code);
 	return ULANG_FALSE;
 }
 
