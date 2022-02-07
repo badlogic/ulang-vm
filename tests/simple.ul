@@ -1,5 +1,11 @@
 # this is a comment
-label:
-jump -123
-halt
-add r1, r2, r3
+jump start
+
+x: byte 123, 45, 73 @ 3, 0xff, -120, "hello world 😃💁" @ 3
+y: short 4567
+z: int 891011, -1891011
+u: float 123.4 @ 3
+
+start:
+    halt
+    add r1, r2, r3

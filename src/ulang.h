@@ -35,6 +35,7 @@ typedef struct ulang_error {
 	struct ulang_file *file;
 	ulang_span span;
 	ulang_string message;
+	ulang_bool is_set;
 } ulang_error;
 
 typedef struct ulang_file {
