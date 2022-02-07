@@ -9,3 +9,45 @@ u: float 123.4 @ 3
 start:
     halt
     add r1, r2, r3
+    sub r1, r2, r3
+    mul r1, r2, r3
+    div r14, pc, sp
+    div_unsigned r1, r2, r3
+    remainder r1, r2, r3
+    remainder_unsigned r1, r2, r3
+    add_float r1, r2, r3
+    sub_float r1, r2, r3
+    mul_float r1, r2, r3
+    div_float r1, r2, r3
+    cos_float r1, r2
+    sin_float r1, r2
+    atan2_float r1, r2, r3
+    sqrt_float r1, r2
+    pow_float r1, r2
+    int_to_float r1, r2
+    float_to_int r1, r2
+    cmp r1, r2, r3
+    cmp_unsigned r1, r2, r3
+    cmp_float r1, r2, r3
+    not r1, r2
+    and r1, r2, r3
+    or r1, r2, r3
+    xor r1, r2, r3
+    shl r1, r2, r3
+    shr r1, r2, r3
+    jump 0xdeadbeef
+    jump_equal r1, start
+    jump_not_equal r1, start
+    jump_less r1, 0xdeadbeef
+    jump_greater pc, 0xdeadbeef
+    jump_less_equal sp, 0xdeadbeef
+    jump_greater_equal sp, 0xdeadbeef
+    move r1, r2
+    move 1, r2
+    move start, r2
+    load start, 1, r2
+    load r1, 23, r2
+    store r1, 0xdeadbeef, 0x2
+    store r1, r2, 0xf
+
+
