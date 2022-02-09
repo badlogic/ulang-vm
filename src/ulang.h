@@ -46,8 +46,16 @@ typedef struct ulang_file {
 	size_t numLines;
 } ulang_file;
 
+typedef struct ulang_label {
+	ulang_span label;
+	size_t codeAddress;
+} ulang_label;
+
 typedef struct ulang_program {
 	uint8_t *code;
+	size_t codeLength;
+	ulang_label *labels;
+	size_t labelsLength;
 } ulang_program;
 
 // memory

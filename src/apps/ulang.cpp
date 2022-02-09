@@ -1,4 +1,4 @@
-#include <stdio.h>
+#include <cstdio>
 #include <ulang.h>
 
 int main(int argc, char **argv) {

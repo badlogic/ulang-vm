@@ -49,5 +49,13 @@ start:
     load r1, 23, r2
     store r1, 0xdeadbeef, 0x2
     store r1, r2, 0xf
+    load_byte start, 1, r2
+    load_byte r1, 23, r2
+    store_byte r1, 0xdeadbeef, 0x2
+    store_byte r1, r2, 0xf
+    load_short start, 1, r2
+    load_short r1, 23, r2
+    store_short r1, 0xdeadbeef, 0x2
+    store_short r1, r2, 0xf
 
 

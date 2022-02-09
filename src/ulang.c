@@ -10,17 +10,25 @@
 
 #define ARRAY_IMPLEMENT(name, itemType) \
     typedef struct name { size_t size; size_t capacity; itemType* items; } name; \
-    name* name##_new(size_t initialCapacity) { \
+    name* name##_init(size_t initialCapacity) { \
         name* array = (name *)ulang_alloc(sizeof(name)); \
         array->size = 0; \
         array->capacity = initialCapacity; \
         array->items = (itemType*)ulang_alloc(sizeof(itemType) * initialCapacity); \
         return array; \
     } \
-    void name##_dispose(name *self) { \
+    void name##_free(name *self) { \
         ulang_free(self->items); \
         ulang_free(self); \
-    }                                      \
+    } \
+    void name##_init_inplace(name* array, size_t initialCapacity) { \
+        array->size = 0; \
+        array->capacity = initialCapacity; \
+        array->items = (itemType*)ulang_alloc(sizeof(itemType) * initialCapacity); \
+    } \
+    void name##_free_inplace(name *self) { \
+        ulang_free(self->items); \
+    } \
     void name##_ensure(name* self, size_t numElements) { \
         if (self->size + numElements >= self->capacity) { \
             self->capacity = MAX(8, (size_t)((self->size + numElements) * 1.75f)); \
@@ -43,6 +51,7 @@ typedef struct opcode {
 	ulang_string name;
 	operand_type operands[3];
 	int numOperands;
+	ulang_bool hasValueOperand;
 	int code;
 } opcode;
 
@@ -82,33 +91,49 @@ opcode opcodes[] = {
 		{STR_OBJ("jump_greater"),       {UL_REG, UL_VAL}},
 		{STR_OBJ("jump_less_equal"),    {UL_REG, UL_VAL}},
 		{STR_OBJ("jump_greater_equal"), {UL_REG, UL_VAL}},
+
 		{STR_OBJ("move"),               {UL_REG, UL_REG}},
 		{STR_OBJ("move"),               {UL_VAL, UL_REG}},
+
 		{STR_OBJ("load"),               {UL_VAL, UL_OFF, UL_REG}},
 		{STR_OBJ("load"),               {UL_REG, UL_OFF, UL_REG}},
+
 		{STR_OBJ("store"),              {UL_REG, UL_VAL, UL_OFF}},
 		{STR_OBJ("store"),              {UL_REG, UL_REG, UL_OFF}},
+
 		{STR_OBJ("load_byte"),          {UL_VAL, UL_OFF, UL_REG}},
 		{STR_OBJ("load_byte"),          {UL_REG, UL_OFF, UL_REG}},
+
 		{STR_OBJ("store_byte"),         {UL_REG, UL_VAL, UL_OFF}},
 		{STR_OBJ("store_byte"),         {UL_REG, UL_REG, UL_OFF}},
+
 		{STR_OBJ("load_short"),         {UL_VAL, UL_OFF, UL_REG}},
 		{STR_OBJ("load_short"),         {UL_REG, UL_OFF, UL_REG}},
+
 		{STR_OBJ("store_short"),        {UL_REG, UL_VAL, UL_OFF}},
 		{STR_OBJ("store_short"),        {UL_REG, UL_REG, UL_OFF}},
+
 		{STR_OBJ("push"),               {UL_VAL}},
 		{STR_OBJ("push"),               {UL_REG}},
+
 		{STR_OBJ("stackalloc"),         {UL_OFF}},
+
 		{STR_OBJ("pop"),                {UL_REG}},
 		{STR_OBJ("pop"),                {UL_OFF}},
+
 		{STR_OBJ("call"),               {UL_VAL}},
 		{STR_OBJ("call"),               {UL_REG}},
+
 		{STR_OBJ("return"),             {UL_OFF}},
+
 		{STR_OBJ("port_write"),         {UL_REG, UL_OFF}},
 		{STR_OBJ("port_write"),         {UL_VAL, UL_OFF}},
+
 		{STR_OBJ("port_read"),          {UL_OFF, UL_REG}},
 		{STR_OBJ("port_read"),          {UL_REG, UL_REG}},
 };
+
+static int opcodeLength = sizeof(opcodes) / sizeof(opcode);
 
 typedef struct reg {
 	ulang_string name;
@@ -134,18 +159,30 @@ reg registers[] = {
 		{{STR("sp")}}
 };
 
+static ulang_bool string_equals(ulang_string *a, ulang_string *b) {
+	if (a->length != b->length) return ULANG_FALSE;
+	char *aData = a->data;
+	char *bData = b->data;
+	size_t length = a->length;
+	for (size_t i = 0; i < length; i++) {
+		if (aData[i] != bData[i]) return ULANG_FALSE;
+	}
+	return ULANG_TRUE;
+}
+
 static void init_opcodes_and_registers() {
-	for (int i = 0; i < (int) (sizeof(opcodes) / sizeof(opcode)); i++) {
+	for (int i = 0; i < opcodeLength; i++) {
 		opcode *opcode = &opcodes[i];
 		opcode->code = i;
 		for (int j = 0; j < 3; j++) {
 			if (opcode->operands[j] == UL_NIL) break;
+			if (opcode->operands[j] == UL_VAL) opcode->hasValueOperand = ULANG_TRUE;
 			opcode->numOperands++;
 		}
 	}
 
-	for (int i = 0; i < (int) (sizeof(registers) / sizeof(reg)); i++) {
-		registers[i].index = i;
+	for (size_t i = 0; i < (sizeof(registers) / sizeof(reg)); i++) {
+		registers[i].index = (int) i;
 	}
 }
 
@@ -230,6 +267,10 @@ static void ulang_error_init(ulang_error *error, ulang_file *file, ulang_span sp
 
 void ulang_error_free(ulang_error *error) {
 	ulang_free(error->message.data);
+	error->is_set = ULANG_FALSE;
+	error->file = NULL;
+	error->message.data = NULL;
+	error->message.length = 0;
 }
 
 static void ulang_file_get_lines(ulang_file *file) {
@@ -571,7 +612,7 @@ next_token_matches_type(character_stream *stream, token *token, token_type type,
 
 static reg *token_matches_register(token *token) {
 	ulang_span *span = &token->span;
-	for (int i = 0; i < (int) (sizeof(registers) / sizeof(reg)); i++) {
+	for (size_t i = 0; i < (sizeof(registers) / sizeof(reg)); i++) {
 		if (span_matches(span, registers[i].name.data, registers[i].name.length)) {
 			return &registers[i];
 		}
@@ -581,7 +622,7 @@ static reg *token_matches_register(token *token) {
 
 static opcode *token_matches_opcode(token *token) {
 	ulang_span *span = &token->span;
-	for (int i = 0; i < (int) (sizeof(opcodes) / sizeof(opcode)); i++) {
+	for (int i = 0; i < opcodeLength; i++) {
 		if (span_matches(span, opcodes[i].name.data, opcodes[i].name.length)) {
 			return &opcodes[i];
 		}
@@ -590,24 +631,30 @@ static opcode *token_matches_opcode(token *token) {
 }
 
 int token_to_int(token *token) {
-	char c = token->span.data.data[token->span.data.length];
-	token->span.data.data[token->span.data.length] = 0;
-	long val = strtol(token->span.data.data, NULL, 0);
-	token->span.data.data[token->span.data.length] = c;
+	ulang_string *str = &token->span.data;
+	char c = str->data[str->length];
+	str->data[str->length] = 0;
+	long val = strtol(str->data, NULL, 0);
+	str->data[str->length] = c;
 	return (int) val;
+}
+
+static float token_to_float(token *token) {
+	ulang_string *str = &token->span.data;
+	char c = str->data[str->length];
+	str->data[str->length] = 0;
+	float val = strtof(str->data, NULL);
+	str->data[str->length] = c;
+	return val;
 }
 
 typedef struct patch {
 	ulang_span label;
-	int patchAddress;
+	size_t patchAddress;
 } patch;
 ARRAY_IMPLEMENT(patch_array, patch)
 
-typedef struct label {
-	ulang_span label;
-	int codeAddress;
-} label;
-ARRAY_IMPLEMENT(label_array, label)
+ARRAY_IMPLEMENT(label_array, ulang_label)
 
 ARRAY_IMPLEMENT(byte_array, uint8_t)
 
@@ -639,10 +686,7 @@ static void emit_int(byte_array *code, token *value, int repeat) {
 }
 
 static void emit_float(byte_array *code, token *value, int repeat) {
-	char c = value->span.data.data[value->span.data.length];
-	value->span.data.data[value->span.data.length] = 0;
-	float val = strtof(value->span.data.data, NULL);
-	value->span.data.data[value->span.data.length] = c;
+	float val = token_to_float(value);
 	byte_array_ensure(code, 4 * repeat);
 	for (int i = 0; i < repeat; i++) {
 		*((float *) &code->items[code->size]) = val;
@@ -660,6 +704,72 @@ static void emit_string(byte_array *code, token *value, int repeat) {
 		code->items[code->size + str.length] = 0;
 		code->size += str.length + 1;
 	}
+}
+
+#define EMIT_OP(word, op) word |= op
+#define EMIT_REG(word, reg, index) word |= (((reg) & 0xf) << (6 + 4 * (index)))
+#define EMIT_OFF(word, offset) word |= (((offset) & 0x3fff) << 18)
+
+static ulang_bool
+emit_op(ulang_file *file, opcode *op, token operands[3], patch_array *patches, byte_array *code, ulang_error *error) {
+	uint32_t word1 = 0;
+	uint32_t word2 = 0;
+
+	EMIT_OP(word1, op->code);
+
+	int numEmittedRegs = 0;
+	for (int i = 0; i < op->numOperands; i++) {
+		token *operandToken = &operands[i];
+		operand_type operandType = op->operands[i];
+		switch (operandType) {
+			case UL_REG:
+				EMIT_REG(word1, token_matches_register(operandToken)->index, numEmittedRegs);
+				break;
+			case UL_OFF:
+				EMIT_OFF(word1, token_to_int(operandToken));
+				break;
+			case UL_VAL:
+				switch (operandToken->type) {
+					case TOKEN_INTEGER: {
+						int value = token_to_int(operandToken);
+						memcpy(&word2, &value, 4);
+						break;
+					}
+					case TOKEN_FLOAT: {
+						float value = token_to_float(operandToken);
+						memcpy(&word2, &value, 4);
+						break;
+					}
+					case TOKEN_IDENTIFIER: {
+						patch p;
+						p.label = operandToken->span;
+						p.patchAddress = code->size + 4;
+						patch_array_add(patches, p);
+						word2 = 0xdeadbeef;
+						break;
+					}
+					default:
+						ulang_error_init(error, file, operandToken->span,
+										 "Internal error, unexpected token for value operand.");
+						return ULANG_FALSE;
+				}
+				break;
+			default:
+				ulang_error_init(error, file, operandToken->span,
+								 "Internal error, unexpected token for value operand.");
+				return ULANG_FALSE;
+		}
+	}
+
+	byte_array_ensure(code, 4 + (op->hasValueOperand ? 4 : 0));
+	memcpy(&code->items[code->size], &word1, 4);
+	code->size += 4;
+	if (op->hasValueOperand) {
+		memcpy(&code->items[code->size], &word2, 4);
+		code->size += 4;
+	}
+
+	return ULANG_TRUE;
 }
 
 static void parse_repeat(character_stream *stream, int *numRepeat, ulang_error *error) {
@@ -682,16 +792,19 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 	init_opcodes_and_registers();
 	error->is_set = ULANG_FALSE;
 
-	patch_array *patches = patch_array_new(16);
-	label_array *labels = label_array_new(16);
-	byte_array *code = byte_array_new(16);
+	patch_array patches;
+	patch_array_init_inplace(&patches, 16);
+	label_array labels;
+	label_array_init_inplace(&labels, 16);
+	byte_array code;
+	byte_array_init_inplace(&code, 16);
 
 	while (has_more_tokens(&stream)) {
 		token tok;
 		if (!next_token(&stream, &tok, error)) goto _compilation_error;
 
-		opcode *opcode = token_matches_opcode(&tok);
-		if (!opcode) {
+		opcode *op = token_matches_opcode(&tok);
+		if (!op) {
 			if (tok.type != TOKEN_IDENTIFIER) {
 				ulang_error_init(error, file, tok.span, "Expected a label, data, or an instruction.");
 				goto _compilation_error;
@@ -708,8 +821,8 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 					int numRepeat = 1;
 					parse_repeat(&stream, &numRepeat, error);
 					if (error->is_set) goto _compilation_error;
-					if (value.type == TOKEN_INTEGER) emit_byte(code, &value, numRepeat);
-					else emit_string(code, &value, numRepeat);
+					if (value.type == TOKEN_INTEGER) emit_byte(&code, &value, numRepeat);
+					else emit_string(&code, &value, numRepeat);
 					if (!next_token_matches(&stream, STR(","), ULANG_TRUE)) break;
 				}
 				continue;
@@ -726,7 +839,7 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 					int numRepeat = 1;
 					parse_repeat(&stream, &numRepeat, error);
 					if (error->is_set) goto _compilation_error;
-					emit_short(code, &value, numRepeat);
+					emit_short(&code, &value, numRepeat);
 					if (!next_token_matches(&stream, STR(","), ULANG_TRUE)) break;
 				}
 				continue;
@@ -743,7 +856,7 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 					int numRepeat = 1;
 					parse_repeat(&stream, &numRepeat, error);
 					if (error->is_set) goto _compilation_error;
-					emit_int(code, &value, numRepeat);
+					emit_int(&code, &value, numRepeat);
 					if (!next_token_matches(&stream, STR(","), ULANG_TRUE)) break;
 				}
 				continue;
@@ -760,7 +873,7 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 					int numRepeat = 1;
 					parse_repeat(&stream, &numRepeat, error);
 					if (error->is_set) goto _compilation_error;
-					emit_float(code, &value, numRepeat);
+					emit_float(&code, &value, numRepeat);
 					if (!next_token_matches(&stream, STR(","), ULANG_TRUE)) break;
 				}
 				continue;
@@ -768,53 +881,95 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 
 			// Otherwise, we have a label
 			EXPECT_TOKEN(stream, STR_OBJ(":"), error)
-			label label = {tok.span, (int) code->size};
-			label_array_add(labels, label);
+			ulang_label label = {tok.span, (int) code.size};
+			label_array_add(&labels, label);
 		} else {
 			token operands[3];
-			for (int i = 0; i < opcode->numOperands; i++) {
+			for (int i = 0; i < op->numOperands; i++) {
 				token *operand = &operands[i];
-				operand_type operandType = opcode->operands[i];
 				if (!next_token(&stream, operand, error)) goto _compilation_error;
 				if (operand->type == TOKEN_EOF) {
 					ulang_error_init(error, file, operand->span, "Expected an operand");
 					goto _compilation_error;
 				}
 
-				if (operandType == UL_REG && !token_matches_register(operand)) {
-					ulang_error_init(error, file, operand->span, "Expected a register");
-					goto _compilation_error;
-				}
-
-				if (operandType == UL_VAL &&
-					!(operand->type == TOKEN_INTEGER || operand->type == TOKEN_FLOAT ||
-					  operand->type == TOKEN_IDENTIFIER)) {
-					ulang_error_init(error, file, operand->span, "Expected a number or a label");
-					goto _compilation_error;
-				}
-
-				if (operandType == UL_OFF && operand->type != TOKEN_INTEGER) {
-					ulang_error_init(error, file, operand->span, "Expected a number");
-					goto _compilation_error;
-				}
-
-				if (i < opcode->numOperands - 1) EXPECT_TOKEN(stream, STR_OBJ(","), error)
+				if (i < op->numOperands - 1) EXPECT_TOKEN(stream, STR_OBJ(","), error)
 			}
+
+			opcode *fittingOp = NULL;
+			while (-1) {
+				fittingOp = op;
+				for (int i = 0; i < op->numOperands; i++) {
+					token *operand = &operands[i];
+					operand_type operandType = op->operands[i];
+					reg *r = token_matches_register(operand);
+					if (operandType == UL_REG && !r) {
+						if (!error->is_set) ulang_error_init(error, file, operand->span, "Expected a register");
+						fittingOp = NULL;
+						break;
+					}
+
+					if (operandType == UL_VAL &&
+						(!(operand->type == TOKEN_INTEGER ||
+						   operand->type == TOKEN_FLOAT ||
+						   operand->type == TOKEN_IDENTIFIER) || r)) {
+						if (!error->is_set) {
+							ulang_error_init(error, file, operand->span, "Expected a number or a label");
+						}
+						fittingOp = NULL;
+						break;
+					}
+
+					if (operandType == UL_OFF && operand->type != TOKEN_INTEGER) {
+						if (!error->is_set) ulang_error_init(error, file, operand->span, "Expected a number");
+						fittingOp = NULL;
+						break;
+					}
+				}
+				if (fittingOp) break;
+				if (op->code + 1 == opcodeLength) break;
+				if (!string_equals(&op->name, &opcodes[op->code + 1].name)) break;
+				op = &opcodes[op->code + 1];
+			}
+			if (!fittingOp) goto _compilation_error;
+			if (error->is_set) ulang_error_free(error);
+			if (!emit_op(file, fittingOp, operands, &patches, &code, error)) goto _compilation_error;
 		}
 	}
 
-	patch_array_dispose(patches);
-	label_array_dispose(labels);
-	byte_array_dispose(code);
+	for (size_t i = 0; i < patches.size; i++) {
+		patch *p = &patches.items[i];
+		ulang_label *l = NULL;
+		for (size_t j = 0; j < labels.size; j++) {
+			if (string_equals(&labels.items[j].label.data, &p->label.data)) {
+				l = &labels.items[j];
+				break;
+			}
+		}
+		if (!l) {
+			ulang_error_init(error, file, p->label, "Unknown label.");
+			goto _compilation_error;
+		}
+
+		uint32_t labelAddress = (uint32_t) l->codeAddress;
+		memcpy(&code.items[p->patchAddress], &labelAddress, 4);
+	}
+
+	patch_array_free_inplace(&patches);
+	program->code = code.items;
+	program->codeLength = code.size;
+	program->labels = labels.items;
+	program->labelsLength = labels.size;
 	return ULANG_TRUE;
 
 	_compilation_error:
-	patch_array_dispose(patches);
-	label_array_dispose(labels);
-	byte_array_dispose(code);
+	patch_array_free_inplace(&patches);
+	label_array_free_inplace(&labels);
+	byte_array_free_inplace(&code);
 	return ULANG_FALSE;
 }
 
 void ulang_program_free(ulang_program *program) {
 	ulang_free(program->code);
+	ulang_free(program->labels);
 }
