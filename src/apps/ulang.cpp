@@ -22,8 +22,15 @@ int main(int argc, char **argv) {
 		return -1;
 	}
 
-	ulang_file_free(&file);
+	ulang_vm vm;
+	ulang_vm_init(&vm, 1024 * 1024, 1024 * 16, &program);
+	while (ulang_vm_step(&vm)) {
+		ulang_vm_print(&vm);
+	}
+	ulang_vm_free(&vm);
+
 	ulang_program_free(&program);
+	ulang_file_free(&file);
 	ulang_print_memory();
 	return 0;
 }

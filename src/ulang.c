@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdarg.h>
+#include <math.h>
 
 #define STR(str) str, sizeof(str) - 1
 #define STR_OBJ(str) (ulang_string){ str, sizeof(str) - 1 }
@@ -48,89 +49,200 @@ typedef enum operand_type {
 } operand_type;
 
 typedef struct opcode {
+	int code;
 	ulang_string name;
 	operand_type operands[3];
 	int numOperands;
 	ulang_bool hasValueOperand;
-	int code;
 } opcode;
 
+typedef enum ulang_opcode {
+	HALT,
+	ADD,
+	ADD_VAL,
+	SUB,
+	SUB_VAL,
+	MUL,
+	MUL_VAL,
+	DIV,
+	DIV_VAL,
+	DIV_UNSIGNED,
+	DIV_UNSIGNED_VAL,
+	REMAINDER,
+	REMAINDER_VAL,
+	REMAINDER_UNSIGNED,
+	REMAINDER_UNSIGNED_VAL,
+	ADD_FLOAT,
+	ADD_FLOAT_VAL,
+	SUB_FLOAT,
+	SUB_FLOAT_VAL,
+	MUL_FLOAT,
+	MUL_FLOAT_VAL,
+	DIV_FLOAT,
+	DIV_FLOAT_VAL,
+	COS,
+	SIN,
+	ATAN2,
+	SQRT,
+	POW,
+	POW_VAL,
+	INT_TO_FLOAT,
+	FLOAT_TO_INT,
+	CMP,
+	CMP_VAL,
+	CMP_UNSIGNED,
+	CMP_UNSIGNED_VAL,
+	CMP_FLOAT,
+	CMP_FLOAT_VAL,
+	NOT,
+	NOT_VAL,
+	AND,
+	AND_VAL,
+	OR,
+	OR_VAL,
+	XOR,
+	XOR_VAL,
+	SHL,
+	SHL_VAL,
+	SHR,
+	SHR_VAL,
+	JUMP,
+	JUMP_EQUAL,
+	JUMP_NOT_EQUAL,
+	JUMP_LESS,
+	JUMP_GREATER,
+	JUMP_LESS_EQUAL,
+	JUMP_GREATER_EQUAL,
+	MOVE_REG,
+	MOVE_VAL,
+	LOAD_REG,
+	LOAD_VAL,
+	STORE_REG,
+	STORE_VAL,
+	STORE_VAL_VAL,
+	LOAD_BYTE_REG,
+	LOAD_BYTE_VAL,
+	STORE_BYTE_REG,
+	STORE_BYTE_VAL,
+	STORE_BYTE_VAL_VAL,
+	LOAD_SHORT_REG,
+	LOAD_SHORT_VAL,
+	STORE_SHORT_REG,
+	STORE_SHORT_VAL,
+	STORE_SHORT_VAL_VAL,
+	PUSH_REG,
+	PUSH_VAL,
+	STACKALLOC,
+	POP_REG,
+	POP_OFF,
+	CALL_REG,
+	CALL_VAL,
+	RETURN,
+	PORT_WRITE_REG,
+	PORT_WRITE_VAL,
+	PORT_READ_REG,
+	PORT_READ_OFF
+} ulang_opcode;
+
 opcode opcodes[] = {
-		{STR_OBJ("halt")},
-		{STR_OBJ("add"),                {UL_REG, UL_REG, UL_REG}},
-		{STR_OBJ("sub"),                {UL_REG, UL_REG, UL_REG}},
-		{STR_OBJ("mul"),                {UL_REG, UL_REG, UL_REG}},
-		{STR_OBJ("div"),                {UL_REG, UL_REG, UL_REG}},
-		{STR_OBJ("div_unsigned"),       {UL_REG, UL_REG, UL_REG}},
-		{STR_OBJ("remainder"),          {UL_REG, UL_REG, UL_REG}},
-		{STR_OBJ("remainder_unsigned"), {UL_REG, UL_REG, UL_REG}},
-		{STR_OBJ("add_float"),          {UL_REG, UL_REG, UL_REG}},
-		{STR_OBJ("sub_float"),          {UL_REG, UL_REG, UL_REG}},
-		{STR_OBJ("mul_float"),          {UL_REG, UL_REG, UL_REG}},
-		{STR_OBJ("div_float"),          {UL_REG, UL_REG, UL_REG}},
-		{STR_OBJ("cos_float"),          {UL_REG, UL_REG}},
-		{STR_OBJ("sin_float"),          {UL_REG, UL_REG}},
-		{STR_OBJ("atan2_float"),        {UL_REG, UL_REG, UL_REG}},
-		{STR_OBJ("sqrt_float"),         {UL_REG, UL_REG}},
-		{STR_OBJ("pow_float"),          {UL_REG, UL_REG}},
-		{STR_OBJ("int_to_float"),       {UL_REG, UL_REG}},
-		{STR_OBJ("float_to_int"),       {UL_REG, UL_REG}},
-		{STR_OBJ("cmp"),                {UL_REG, UL_REG, UL_REG}},
-		{STR_OBJ("cmp_unsigned"),       {UL_REG, UL_REG, UL_REG}},
-		{STR_OBJ("cmp_float"),          {UL_REG, UL_REG, UL_REG}},
-		{STR_OBJ("not"),                {UL_REG, UL_REG}},
-		{STR_OBJ("and"),                {UL_REG, UL_REG, UL_REG}},
-		{STR_OBJ("or"),                 {UL_REG, UL_REG, UL_REG}},
-		{STR_OBJ("xor"),                {UL_REG, UL_REG, UL_REG}},
-		{STR_OBJ("shl"),                {UL_REG, UL_REG, UL_REG}},
-		{STR_OBJ("shr"),                {UL_REG, UL_REG, UL_REG}},
-		{STR_OBJ("jump"),               {UL_VAL}},
-		{STR_OBJ("jump_equal"),         {UL_REG, UL_VAL}},
-		{STR_OBJ("jump_not_equal"),     {UL_REG, UL_VAL}},
-		{STR_OBJ("jump_less"),          {UL_REG, UL_VAL}},
-		{STR_OBJ("jump_greater"),       {UL_REG, UL_VAL}},
-		{STR_OBJ("jump_less_equal"),    {UL_REG, UL_VAL}},
-		{STR_OBJ("jump_greater_equal"), {UL_REG, UL_VAL}},
+		{HALT,                   STR_OBJ("halt")},
+		{ADD,                    STR_OBJ("add"),                {UL_REG, UL_REG, UL_REG}},
+		{ADD_VAL,                STR_OBJ("add"),                {UL_REG, UL_VAL, UL_REG}},
+		{SUB,                    STR_OBJ("sub"),                {UL_REG, UL_REG, UL_REG}},
+		{SUB_VAL,                STR_OBJ("sub"),                {UL_REG, UL_VAL, UL_REG}},
+		{MUL,                    STR_OBJ("mul"),                {UL_REG, UL_REG, UL_REG}},
+		{MUL_VAL,                STR_OBJ("mul"),                {UL_REG, UL_VAL, UL_REG}},
+		{DIV,                    STR_OBJ("div"),                {UL_REG, UL_REG, UL_REG}},
+		{DIV_VAL,                STR_OBJ("div"),                {UL_REG, UL_VAL, UL_REG}},
+		{DIV_UNSIGNED,           STR_OBJ("div_unsigned"),       {UL_REG, UL_REG, UL_REG}},
+		{DIV_UNSIGNED_VAL,       STR_OBJ("div_unsigned"),       {UL_REG, UL_VAL, UL_REG}},
+		{REMAINDER,              STR_OBJ("remainder"),          {UL_REG, UL_REG, UL_REG}},
+		{REMAINDER_VAL,          STR_OBJ("remainder"),          {UL_REG, UL_VAL, UL_REG}},
+		{REMAINDER_UNSIGNED,     STR_OBJ("remainder_unsigned"), {UL_REG, UL_REG, UL_REG}},
+		{REMAINDER_UNSIGNED_VAL, STR_OBJ("remainder_unsigned"), {UL_REG, UL_VAL, UL_REG}},
+		{ADD_FLOAT,              STR_OBJ("add_float"),          {UL_REG, UL_REG, UL_REG}},
+		{ADD_FLOAT_VAL,          STR_OBJ("add_float"),          {UL_REG, UL_VAL, UL_REG}},
+		{SUB_FLOAT,              STR_OBJ("sub_float"),          {UL_REG, UL_REG, UL_REG}},
+		{SUB_FLOAT_VAL,          STR_OBJ("sub_float"),          {UL_REG, UL_VAL, UL_REG}},
+		{MUL_FLOAT,              STR_OBJ("mul_float"),          {UL_REG, UL_REG, UL_REG}},
+		{MUL_FLOAT_VAL,          STR_OBJ("mul_float"),          {UL_REG, UL_VAL, UL_REG}},
+		{DIV_FLOAT,              STR_OBJ("div_float"),          {UL_REG, UL_REG, UL_REG}},
+		{DIV_FLOAT_VAL,          STR_OBJ("div_float"),          {UL_REG, UL_VAL, UL_REG}},
+		{COS,                    STR_OBJ("cos"),                {UL_REG, UL_REG}},
+		{SIN,                    STR_OBJ("sin"),                {UL_REG, UL_REG}},
+		{ATAN2,                  STR_OBJ("atan2"),              {UL_REG, UL_REG, UL_REG}},
+		{SQRT,                   STR_OBJ("sqrt"),               {UL_REG, UL_REG}},
+		{POW,                    STR_OBJ("pow"),                {UL_REG, UL_REG, UL_REG}},
+		{POW_VAL,                STR_OBJ("pow"),                {UL_REG, UL_VAL, UL_REG}},
+		{INT_TO_FLOAT,           STR_OBJ("int_to_float"),       {UL_REG, UL_REG}},
+		{FLOAT_TO_INT,           STR_OBJ("float_to_int"),       {UL_REG, UL_REG}},
 
-		{STR_OBJ("move"),               {UL_REG, UL_REG}},
-		{STR_OBJ("move"),               {UL_VAL, UL_REG}},
+		{CMP,                    STR_OBJ("cmp"),                {UL_REG, UL_REG, UL_REG}},
+		{CMP_VAL,                STR_OBJ("cmp"),                {UL_REG, UL_VAL, UL_REG}},
+		{CMP_UNSIGNED,           STR_OBJ("cmp_unsigned"),       {UL_REG, UL_REG, UL_REG}},
+		{CMP_UNSIGNED_VAL,       STR_OBJ("cmp_unsigned"),       {UL_REG, UL_VAL, UL_REG}},
+		{CMP_FLOAT,              STR_OBJ("cmp_float"),          {UL_REG, UL_REG, UL_REG}},
+		{CMP_FLOAT_VAL,          STR_OBJ("cmp_float"),          {UL_REG, UL_VAL, UL_REG}},
 
-		{STR_OBJ("load"),               {UL_VAL, UL_OFF, UL_REG}},
-		{STR_OBJ("load"),               {UL_REG, UL_OFF, UL_REG}},
+		{NOT,                    STR_OBJ("not"),                {UL_REG, UL_REG}},
+		{NOT_VAL,                STR_OBJ("not"),                {UL_VAL, UL_REG}},
+		{AND,                    STR_OBJ("and"),                {UL_REG, UL_REG, UL_REG}},
+		{AND_VAL,                STR_OBJ("and"),                {UL_REG, UL_VAL, UL_REG}},
+		{OR,                     STR_OBJ("or"),                 {UL_REG, UL_REG, UL_REG}},
+		{OR_VAL,                 STR_OBJ("or"),                 {UL_REG, UL_VAL, UL_REG}},
+		{XOR,                    STR_OBJ("xor"),                {UL_REG, UL_REG, UL_REG}},
+		{XOR_VAL,                STR_OBJ("xor"),                {UL_REG, UL_VAL, UL_REG}},
+		{SHL,                    STR_OBJ("shl"),                {UL_REG, UL_REG, UL_REG}},
+		{SHL_VAL,                STR_OBJ("shl"),                {UL_REG, UL_VAL, UL_REG}},
+		{SHR,                    STR_OBJ("shr"),                {UL_REG, UL_REG, UL_REG}},
+		{SHR_VAL,                STR_OBJ("shr"),                {UL_REG, UL_VAL, UL_REG}},
 
-		{STR_OBJ("store"),              {UL_REG, UL_VAL, UL_OFF}},
-		{STR_OBJ("store"),              {UL_REG, UL_REG, UL_OFF}},
+		{JUMP,                   STR_OBJ("jump"),               {UL_VAL}},
+		{JUMP_EQUAL,             STR_OBJ("jump_equal"),         {UL_REG, UL_VAL}},
+		{JUMP_NOT_EQUAL,         STR_OBJ("jump_not_equal"),     {UL_REG, UL_VAL}},
+		{JUMP_LESS,              STR_OBJ("jump_less"),          {UL_REG, UL_VAL}},
+		{JUMP_GREATER,           STR_OBJ("jump_greater"),       {UL_REG, UL_VAL}},
+		{JUMP_LESS_EQUAL,        STR_OBJ("jump_less_equal"),    {UL_REG, UL_VAL}},
+		{JUMP_GREATER_EQUAL,     STR_OBJ("jump_greater_equal"), {UL_REG, UL_VAL}},
 
-		{STR_OBJ("load_byte"),          {UL_VAL, UL_OFF, UL_REG}},
-		{STR_OBJ("load_byte"),          {UL_REG, UL_OFF, UL_REG}},
+		{MOVE_REG,               STR_OBJ("move"),               {UL_REG, UL_REG}},
+		{MOVE_VAL,               STR_OBJ("move"),               {UL_VAL, UL_REG}},
 
-		{STR_OBJ("store_byte"),         {UL_REG, UL_VAL, UL_OFF}},
-		{STR_OBJ("store_byte"),         {UL_REG, UL_REG, UL_OFF}},
+		{LOAD_REG,               STR_OBJ("load"),               {UL_REG, UL_OFF, UL_REG}},
+		{LOAD_VAL,               STR_OBJ("load"),               {UL_VAL, UL_OFF, UL_REG}},
+		{STORE_REG,              STR_OBJ("store"),              {UL_REG, UL_REG, UL_OFF}},
+		{STORE_VAL,              STR_OBJ("store"),              {UL_REG, UL_VAL, UL_OFF}},
+		{STORE_VAL_VAL,          STR_OBJ("store"),              {UL_VAL, UL_VAL, UL_OFF}},
 
-		{STR_OBJ("load_short"),         {UL_VAL, UL_OFF, UL_REG}},
-		{STR_OBJ("load_short"),         {UL_REG, UL_OFF, UL_REG}},
+		{LOAD_BYTE_REG,          STR_OBJ("load_byte"),          {UL_REG, UL_OFF, UL_REG}},
+		{LOAD_BYTE_VAL,          STR_OBJ("load_byte"),          {UL_VAL, UL_OFF, UL_REG}},
+		{STORE_BYTE_REG,         STR_OBJ("store_byte"),         {UL_REG, UL_REG, UL_OFF}},
+		{STORE_BYTE_VAL,         STR_OBJ("store_byte"),         {UL_REG, UL_VAL, UL_OFF}},
+		{STORE_BYTE_VAL_VAL,     STR_OBJ("store_byte"),         {UL_VAL, UL_VAL, UL_OFF}},
 
-		{STR_OBJ("store_short"),        {UL_REG, UL_VAL, UL_OFF}},
-		{STR_OBJ("store_short"),        {UL_REG, UL_REG, UL_OFF}},
+		{LOAD_SHORT_REG,         STR_OBJ("load_short"),         {UL_VAL, UL_OFF, UL_REG}},
+		{LOAD_SHORT_VAL,         STR_OBJ("load_short"),         {UL_REG, UL_OFF, UL_REG}},
+		{STORE_SHORT_REG,        STR_OBJ("store_short"),        {UL_REG, UL_REG, UL_OFF}},
+		{STORE_SHORT_VAL,        STR_OBJ("store_short"),        {UL_REG, UL_VAL, UL_OFF}},
+		{STORE_SHORT_VAL_VAL,    STR_OBJ("store_short"),        {UL_VAL, UL_VAL, UL_OFF}},
 
-		{STR_OBJ("push"),               {UL_VAL}},
-		{STR_OBJ("push"),               {UL_REG}},
+		{PUSH_REG,               STR_OBJ("push"),               {UL_REG}},
+		{PUSH_VAL,               STR_OBJ("push"),               {UL_VAL}},
 
-		{STR_OBJ("stackalloc"),         {UL_OFF}},
+		{STACKALLOC,             STR_OBJ("stackalloc"),         {UL_OFF}},
 
-		{STR_OBJ("pop"),                {UL_REG}},
-		{STR_OBJ("pop"),                {UL_OFF}},
+		{POP_REG,                STR_OBJ("pop"),                {UL_REG}},
+		{POP_OFF,                STR_OBJ("pop"),                {UL_OFF}},
 
-		{STR_OBJ("call"),               {UL_VAL}},
-		{STR_OBJ("call"),               {UL_REG}},
+		{CALL_REG,               STR_OBJ("call"),               {UL_REG}},
+		{CALL_VAL,               STR_OBJ("call"),               {UL_VAL}},
 
-		{STR_OBJ("return"),             {UL_OFF}},
+		{RETURN,                 STR_OBJ("return"),             {UL_OFF}},
 
-		{STR_OBJ("port_write"),         {UL_REG, UL_OFF}},
-		{STR_OBJ("port_write"),         {UL_VAL, UL_OFF}},
-
-		{STR_OBJ("port_read"),          {UL_OFF, UL_REG}},
-		{STR_OBJ("port_read"),          {UL_REG, UL_REG}},
+		{PORT_WRITE_REG,         STR_OBJ("port_write"),         {UL_REG, UL_OFF}},
+		{PORT_WRITE_VAL,         STR_OBJ("port_write"),         {UL_VAL, UL_OFF}},
+		{PORT_READ_REG,          STR_OBJ("port_read"),          {UL_REG, UL_REG}},
+		{PORT_READ_OFF,          STR_OBJ("port_read"),          {UL_OFF, UL_REG}},
 };
 
 static int opcodeLength = sizeof(opcodes) / sizeof(opcode);
@@ -173,7 +285,6 @@ static ulang_bool string_equals(ulang_string *a, ulang_string *b) {
 static void init_opcodes_and_registers() {
 	for (int i = 0; i < opcodeLength; i++) {
 		opcode *opcode = &opcodes[i];
-		opcode->code = i;
 		for (int j = 0; j < 3; j++) {
 			if (opcode->operands[j] == UL_NIL) break;
 			if (opcode->operands[j] == UL_VAL) opcode->hasValueOperand = ULANG_TRUE;
@@ -706,16 +817,16 @@ static void emit_string(byte_array *code, token *value, int repeat) {
 	}
 }
 
-#define EMIT_OP(word, op) word |= op
-#define EMIT_REG(word, reg, index) word |= (((reg) & 0xf) << (6 + 4 * (index)))
-#define EMIT_OFF(word, offset) word |= (((offset) & 0x3fff) << 18)
+#define ENCODE_OP(word, op) word |= op
+#define ENCODE_REG(word, reg, index) word |= (((reg) & 0xf) << (7 + 4 * (index)))
+#define ENCODE_OFF(word, offset) word |= (((offset) & 0x1fff) << 19)
 
 static ulang_bool
 emit_op(ulang_file *file, opcode *op, token operands[3], patch_array *patches, byte_array *code, ulang_error *error) {
 	uint32_t word1 = 0;
 	uint32_t word2 = 0;
 
-	EMIT_OP(word1, op->code);
+	ENCODE_OP(word1, op->code);
 
 	int numEmittedRegs = 0;
 	for (int i = 0; i < op->numOperands; i++) {
@@ -723,10 +834,11 @@ emit_op(ulang_file *file, opcode *op, token operands[3], patch_array *patches, b
 		operand_type operandType = op->operands[i];
 		switch (operandType) {
 			case UL_REG:
-				EMIT_REG(word1, token_matches_register(operandToken)->index, numEmittedRegs);
+				ENCODE_REG(word1, token_matches_register(operandToken)->index, numEmittedRegs);
+				numEmittedRegs++;
 				break;
 			case UL_OFF:
-				EMIT_OFF(word1, token_to_int(operandToken));
+				ENCODE_OFF(word1, token_to_int(operandToken));
 				break;
 			case UL_VAL:
 				switch (operandToken->type) {
@@ -972,4 +1084,270 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 void ulang_program_free(ulang_program *program) {
 	ulang_free(program->code);
 	ulang_free(program->labels);
+}
+
+void ulang_vm_init(ulang_vm *vm, size_t memorySizeBytes, size_t stackSizeBytes, ulang_program *program) {
+	vm->memory = ulang_alloc(memorySizeBytes);
+	vm->memorySizeBytes = memorySizeBytes;
+	vm->stack = ulang_alloc(stackSizeBytes);
+	vm->stackSizeBytes = stackSizeBytes;
+	memset(vm->registers, 0, sizeof(ulang_value) * 16);
+	memset(vm->memory, 0, vm->memorySizeBytes);
+	memset(vm->stack, 0, vm->stackSizeBytes);
+	memcpy(vm->memory, program->code, program->codeLength);
+}
+
+#define DECODE_OP(word) (word & 0x7f)
+#define DECODE_REG(word, index) ((word >> (7 + 4 * (index))) & 0xf)
+#define DECODE_OFF(word) ((word >> 19) & 0x1fff)
+#define REG1 regs[DECODE_REG(word, 0)].i
+#define REG2 regs[DECODE_REG(word, 1)].i
+#define REG3 regs[DECODE_REG(word, 2)].i
+#define REG1_U regs[DECODE_REG(word, 0)].ui
+#define REG2_U regs[DECODE_REG(word, 1)].ui
+#define REG3_U regs[DECODE_REG(word, 2)].ui
+#define REG1_F regs[DECODE_REG(word, 0)].fl
+#define REG2_F regs[DECODE_REG(word, 1)].fl
+#define REG3_F regs[DECODE_REG(word, 2)].fl
+#define VAL *((int32_t *) &vm->memory[regs[14].ui]); regs[14].ui += 4
+#define VAL_U *((uint32_t *) &vm->memory[regs[14].ui]); regs[14].ui += 4
+#define VAL_F *((float *) &vm->memory[regs[14].ui]); regs[14].ui += 4
+
+ulang_bool ulang_vm_step(ulang_vm *vm) {
+	ulang_value *regs = vm->registers;
+	uint32_t word = *((uint32_t *) &vm->memory[regs[14].ui]);
+	regs[14].ui += 4;
+	ulang_opcode op = DECODE_OP(word);
+	int32_t offset;
+	switch (op) {
+		case HALT:
+			return ULANG_FALSE;
+		case ADD:
+			REG3 = REG1 + REG2;
+			break;
+		case ADD_VAL:
+			REG2 = REG1 + VAL;
+			break;
+		case SUB:
+			REG3 = REG1 - REG2;
+			break;
+		case SUB_VAL:
+			REG2 = REG1 - VAL;
+			break;
+		case MUL:
+			REG3 = REG1 * REG2;
+			break;
+		case MUL_VAL:
+			REG2 = REG1 * VAL;
+			break;
+		case DIV:
+			REG3 = REG1 / REG2;
+			break;
+		case DIV_VAL:
+			REG2 = REG1 / VAL;
+			break;
+		case DIV_UNSIGNED:
+			REG3_U = REG1_U / REG2_U;
+			break;
+		case DIV_UNSIGNED_VAL:
+			REG2_U = REG1_U / VAL_U;
+			break;
+		case REMAINDER:
+			REG3 = REG1 % REG2;
+			break;
+		case REMAINDER_VAL:
+			REG2 = REG1 % VAL;
+			break;
+		case REMAINDER_UNSIGNED:
+			REG3_U = REG1_U % REG2_U;
+			break;
+		case REMAINDER_UNSIGNED_VAL:
+			REG2_U = REG1_U % VAL_U;
+			break;
+		case ADD_FLOAT:
+			REG3_F = REG1_F + REG2_F;
+			break;
+		case ADD_FLOAT_VAL:
+			REG2_F = REG1_F + VAL_F;
+			break;
+		case SUB_FLOAT:
+			REG3_F = REG1_F - REG2_F;
+			break;
+		case SUB_FLOAT_VAL:
+			REG2_F = REG1_F - VAL_F;
+			break;
+		case MUL_FLOAT:
+			REG3_F = REG1_F * REG2_F;
+			break;
+		case MUL_FLOAT_VAL:
+			REG2_F = REG1_F * VAL_F;
+			break;
+		case DIV_FLOAT:
+			REG3_F = REG1_F / REG2_F;
+			break;
+		case DIV_FLOAT_VAL:
+			REG2_F = REG1_F / VAL_F;
+			break;
+		case COS:
+			REG2 = cosf(REG1);
+			break;
+		case SIN:
+			REG2 = sinf(REG1);
+			break;
+		case ATAN2:
+			REG3 = atan2f(REG1, REG2);
+			break;
+		case SQRT:
+			REG2 = sqrtf(REG1);
+			break;
+		case POW:
+			REG3 = powf(REG1, REG2);
+			break;
+		case POW_VAL: {
+			float val = VAL;
+			REG2 = powf(REG1, val);
+			break;
+		}
+		case INT_TO_FLOAT:
+			REG2_F = REG1;
+			break;
+		case FLOAT_TO_INT:
+			REG2 = REG1_F;
+			break;
+		case CMP:
+			break;
+		case CMP_VAL:
+			break;
+		case CMP_UNSIGNED:
+			break;
+		case CMP_UNSIGNED_VAL:
+			break;
+		case CMP_FLOAT:
+			break;
+		case CMP_FLOAT_VAL:
+			break;
+		case NOT:
+			REG2 = ~REG1;
+			break;
+		case NOT_VAL:
+			REG1 = ~VAL;
+			break;
+		case AND:
+			REG3 = REG1 & REG2;
+			break;
+		case AND_VAL:
+			REG2 = REG1 & VAL;
+			break;
+		case OR:
+			REG3 = REG1 | REG2;
+			break;
+		case OR_VAL:
+			REG2 = REG1 | VAL;
+			break;
+		case XOR:
+			REG3 = REG1 ^ REG2;
+			break;
+		case XOR_VAL:
+			REG2 = REG1 ^ VAL;
+			break;
+		case SHL:
+			REG3 = REG1 << REG2;
+			break;
+		case SHL_VAL:
+			REG2 = REG1 << VAL;
+			break;
+		case SHR:
+			REG3 = REG1 >> REG2;
+			break;
+		case SHR_VAL:
+			REG2 = REG1 >> VAL;
+			break;
+		case JUMP:
+			break;
+		case JUMP_EQUAL:
+			break;
+		case JUMP_NOT_EQUAL:
+			break;
+		case JUMP_LESS:
+			break;
+		case JUMP_GREATER:
+			break;
+		case JUMP_LESS_EQUAL:
+			break;
+		case JUMP_GREATER_EQUAL:
+			break;
+		case MOVE_REG:
+			REG2 = REG1;
+			break;
+		case MOVE_VAL:
+			REG1 = VAL;
+			break;
+		case LOAD_REG:
+			break;
+		case LOAD_VAL:
+			break;
+		case STORE_REG:
+			break;
+		case STORE_VAL:
+			break;
+		case STORE_VAL_VAL:
+			break;
+		case LOAD_BYTE_REG:
+			break;
+		case LOAD_BYTE_VAL:
+			break;
+		case STORE_BYTE_REG:
+			break;
+		case STORE_BYTE_VAL:
+			break;
+		case STORE_BYTE_VAL_VAL:
+			break;
+		case LOAD_SHORT_REG:
+			break;
+		case LOAD_SHORT_VAL:
+			break;
+		case STORE_SHORT_REG:
+			break;
+		case STORE_SHORT_VAL:
+			break;
+		case STORE_SHORT_VAL_VAL:
+			break;
+		case PUSH_REG:
+			break;
+		case PUSH_VAL:
+			break;
+		case STACKALLOC:
+			break;
+		case POP_REG:
+			break;
+		case POP_OFF:
+			break;
+		case CALL_REG:
+			break;
+		case CALL_VAL:
+			break;
+		case RETURN:
+			break;
+		case PORT_WRITE_REG:
+			break;
+		case PORT_WRITE_VAL:
+			break;
+		case PORT_READ_REG:
+			break;
+		case PORT_READ_OFF:
+			break;
+	}
+}
+
+void ulang_vm_print(ulang_vm *vm) {
+	ulang_value *regs = vm->registers;
+	for (int i = 0; i < 16; i++) {
+		printf("%.*s: %i (0x%x), %f\n", registers[i].name.length, registers[i].name.data, regs[i].i, regs[i].i,
+			   regs[i].fl);
+	}
+}
+
+void ulang_vm_free(ulang_vm *vm) {
+	ulang_free(vm->memory);
+	ulang_free(vm->stack);
 }
