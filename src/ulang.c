@@ -141,7 +141,8 @@ typedef enum ulang_opcode {
 	PORT_WRITE_REG,
 	PORT_WRITE_VAL,
 	PORT_READ_REG,
-	PORT_READ_OFF
+	PORT_READ_OFF,
+	UNKNOWN
 } ulang_opcode;
 
 opcode opcodes[] = {
@@ -282,7 +283,11 @@ static ulang_bool string_equals(ulang_string *a, ulang_string *b) {
 	return ULANG_TRUE;
 }
 
+static ulang_bool initialized = ULANG_FALSE;
+
 static void init_opcodes_and_registers() {
+	if (initialized) return;
+
 	for (int i = 0; i < opcodeLength; i++) {
 		opcode *opcode = &opcodes[i];
 		for (int j = 0; j < 3; j++) {
@@ -295,6 +300,7 @@ static void init_opcodes_and_registers() {
 	for (size_t i = 0; i < (sizeof(registers) / sizeof(reg)); i++) {
 		registers[i].index = (int) i;
 	}
+	initialized = ULANG_TRUE;
 }
 
 static int allocs = 0;
@@ -339,6 +345,20 @@ ulang_bool ulang_file_read(const char *fileName, ulang_file *file) {
 	file->fileName.length = fileNameLength - 1;
 	memcpy(file->fileName.data, fileName, fileNameLength);
 
+	file->lines = NULL;
+	file->numLines = 0;
+	return ULANG_TRUE;
+}
+
+ulang_bool ulang_file_from_memory(const char *fileName, const char *content, ulang_file *file) {
+	size_t len = strlen(content);
+	file->data = ulang_alloc(len);
+	memcpy(file->data, content, len);
+	file->length = len;
+	size_t fileNameLength = strlen(fileName) + 1;
+	file->fileName.data = (char *) ulang_alloc(fileNameLength);
+	file->fileName.length = fileNameLength - 1;
+	memcpy(file->fileName.data, fileName, fileNameLength);
 	file->lines = NULL;
 	file->numLines = 0;
 	return ULANG_TRUE;
@@ -1336,13 +1356,17 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 			break;
 		case PORT_READ_OFF:
 			break;
+		default:
+			vm->registers[14].ui -= 4; // reset PC to the unknown instruction.
+			return ULANG_FALSE;
 	}
+	return ULANG_TRUE;
 }
 
 void ulang_vm_print(ulang_vm *vm) {
 	ulang_value *regs = vm->registers;
 	for (int i = 0; i < 16; i++) {
-		printf("%.*s: %i (0x%x), %f\n", registers[i].name.length, registers[i].name.data, regs[i].i, regs[i].i,
+		printf("%.*s: %i (0x%x), %f\n", (int) registers[i].name.length, registers[i].name.data, regs[i].i, regs[i].i,
 			   regs[i].fl);
 	}
 }

@@ -86,6 +86,8 @@ void ulang_print_memory();
 // i/o
 ulang_bool ulang_file_read(const char *fileName, ulang_file *file);
 
+ulang_bool ulang_file_from_memory(const char *fileName, const char *content, ulang_file *file);
+
 void ulang_file_free(ulang_file *file);
 
 void ulang_error_print(ulang_error *error);

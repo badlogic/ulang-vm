@@ -22,7 +22,7 @@ int main(int argc, char **argv) {
 		return -1;
 	}
 
-	ulang_vm vm;
+	ulang_vm vm = {};
 	ulang_vm_init(&vm, 1024 * 1024, 1024 * 16, &program);
 	while (ulang_vm_step(&vm)) {
 		ulang_vm_print(&vm);

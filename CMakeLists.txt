@@ -37,3 +37,6 @@ set_target_properties(ulang-lib PROPERTIES OUTPUT_NAME "ulang-lib")
 
 add_executable(ulang ${INCLUDES} "src/apps/ulang.cpp")
 target_link_libraries(ulang LINK_PUBLIC ulang-lib)
+
+add_executable(test ${INCLUDES} "src/apps/test.cpp")
+target_link_libraries(test LINK_PUBLIC ulang-lib)
