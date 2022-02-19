@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <cmath>
 #include "ulang.h"
 
 typedef enum reg {
@@ -142,9 +143,115 @@ ulang_bool test(size_t testNum, test_case *test) {
 
 int main(int argc, char **argv) {
 	test_case tests[] = {
-			{"halt",             {{REG_INT, .reg = PC, .val_uint = 4}}},
-			{"move 123, r1",     {{REG_INT, .reg = R1, .val_int = 123}}},
-			{"move 123.456, r1", {{REG_FLOAT, .reg = R1, .val_float = 123.456f}}},
+			{"halt",                                                  {{REG_INT, .reg = PC, .val_uint = 4}}},
+
+			// Test move first, as we need it for the other tests
+			{"move 123, r1",                                          {{REG_INT, .reg = R1, .val_int = 123}}},
+			{"move 123.456, r1",                                      {{REG_FLOAT, .reg = R1, .val_float = 123.456f}}},
+			{"move 123, r1\nmove r1, r2",                             {{REG_INT, .reg = R1, .val_int = 123}}},
+			{"move 123.456, r1\nmove r1, r2",                         {{REG_INT, .reg = R1, .val_float = 123.456}}},
+
+			// add
+			{"move 0xffff, r1\nmove 43234, r2\nadd r1, r2, r3",       {{REG_INT, .reg = R3, .val_int = 0xffff +
+																									   43234}}},
+			{"move -34234, r1\nmove 4323, r2\nadd r1, r2, r3",        {{REG_INT, .reg = R3, .val_int = -34234 + 4323}}},
+			{"add r1, 123, r2",                                       {{REG_INT, .reg = R2, .val_int = 123}}},
+
+			// sub
+			{"move 0xffff, r1\nmove 43234, r2\nsub r1, r2, r3",       {{REG_INT, .reg = R3, .val_int = 0xffff -
+																									   43234}}},
+			{"move -34234, r1\nmove 4323, r2\nsub r1, r2, r3",        {{REG_INT, .reg = R3, .val_int = -34234 - 4323}}},
+			{"sub r1, 123, r2",                                       {{REG_INT, .reg = R2, .val_int = -123}}},
+
+			// mul
+			{"move 0xffff, r1\nmove 43234, r2\nmul r1, r2, r3",       {{REG_INT, .reg = R3, .val_int = 0xffff *
+																									   43234}}},
+			{"move -34234, r1\nmove 4323, r2\nmul r1, r2, r3",        {{REG_INT, .reg = R3, .val_int = -34234 * 4323}}},
+			{"move 3421, r1\nmul r1, 123, r2",                        {{REG_INT, .reg = R2, .val_int = 3421 * 123}}},
+
+			// div
+			{"move 0xffff, r1\nmove 7, r2\ndiv r1, r2, r3",           {{REG_INT, .reg = R3, .val_int = 0xffff / 7}}},
+			{"move -34234, r1\nmove 7, r2\ndiv r1, r2, r3",           {{REG_INT, .reg = R3, .val_int = -34234 / 7}}},
+			{"move 3421, r1\ndiv r1, 7, r2",                          {{REG_INT, .reg = R2, .val_int = 3421 / 7}}},
+
+			// divu
+			{"move 0xffff, r1\nmove 7, r2\ndivu r1, r2, r3",          {{REG_INT, .reg = R3, .val_uint = 0xffff / 7}}},
+			{"move -34234, r1\nmove 7, r2\ndivu r1, r2, r3",          {{REG_INT, .reg = R3, .val_uint =
+			((uint32_t) -34234) /
+			7}}},
+			{"move 3421, r1\ndivu r1, 7, r2",                         {{REG_INT, .reg = R2, .val_uint = 3421 / 7}}},
+
+			// rem
+			{"move 0xffff, r1\nmove 7, r2\nrem r1, r2, r3",           {{REG_INT, .reg = R3, .val_int = 0xffff % 7}}},
+			{"move -34234, r1\nmove 7, r2\nrem r1, r2, r3",           {{REG_INT, .reg = R3, .val_int = -34234 % 7}}},
+			{"move 3421, r1\nrem r1, 7, r2",                          {{REG_INT, .reg = R2, .val_int = 3421 % 7}}},
+
+			// remu
+			{"move 0xffff, r1\nmove 7, r2\nremu r1, r2, r3",          {{REG_INT, .reg = R3, .val_uint = 0xffff % 7}}},
+			{"move -34234, r1\nmove 7, r2\nremu r1, r2, r3",          {{REG_INT, .reg = R3, .val_uint =
+			(uint32_t) -34234 %
+			7}}},
+			{"move 3421, r1\nremu r1, 7, r2",                         {{REG_INT, .reg = R2, .val_uint = 3421 % 7}}},
+
+			// addf
+			{"move 123.456, r1\nmove -234.567, r2\naddf r1, r2, r3",  {{REG_FLOAT, .reg = R3, .val_float = 123.456f +
+																										   -234.567f}}},
+			{"addf r1, 123.456, r2",                                  {{REG_FLOAT, .reg = R2, .val_float = 123.456}}},
+			{"addf r1, 123, r2",                                      {{REG_FLOAT, .reg = R2, .val_float = 123}}},
+
+			// subf
+			{"move 123.456, r1\nmove 234.567, r2\nsubf r1, r2, r3",   {{REG_FLOAT, .reg = R3, .val_float = 123.456f -
+																										   234.567f}}},
+			{"subf r1, 123.456, r2",                                  {{REG_FLOAT, .reg = R2, .val_float = -123.456f}}},
+
+			// mulf
+			{"move 123.456, r1\nmove 234.567, r2\nmulf r1, r2, r3",   {{REG_FLOAT, .reg = R3, .val_float = 123.456f *
+																										   234.567f}}},
+			{"move 123.456, r1\nmulf r1, 234.567, r2",                {{REG_FLOAT, .reg = R2, .val_float =  123.456f *
+																											234.567f}}},
+
+			// divf
+			{"move 123.456, r1\nmove 234.567, r2\ndivf r1, r2, r3",   {{REG_FLOAT, .reg = R3, .val_float = 123.456f /
+																										   234.567f}}},
+			{"move 123.456, r1\ndivf r1, 234.567, r2",                {{REG_FLOAT, .reg = R2, .val_float = 123.456f /
+																										   234.567f}}},
+			// cos, sin, atan2, sqrt, pow
+			{"move 123.456, r1\ncosf r1, r2",                         {{REG_FLOAT, .reg = R2, .val_float = cosf(
+					123.456f)}}},
+			{"move 123.456, r1\nsinf r1, r2",                         {{REG_FLOAT, .reg = R2, .val_float = sinf(
+					123.456f)}}},
+			{"move 123.456, r1\nmove 234.567, r2\natan2f r1, r2, r3", {{REG_FLOAT, .reg = R3, .val_float = atan2f(
+					123.456f, 234.567f)}}},
+			{"move 123.456, r1\nsqrtf r1, r2",                        {{REG_FLOAT, .reg = R2, .val_float = sqrtf(
+					123.456f)}}},
+			{"move 123.456, r1\nmove 234.567, r2\npowf r1, r2, r3",   {{REG_FLOAT, .reg = R3, .val_float = powf(
+					123.456f, 234.567f)}}},
+			{"move 123.456, r1\npowf r1, 4, r3",                      {{REG_FLOAT, .reg = R3, .val_float = powf(
+					123.456f, 4.0f)}}},
+			{"move 123, r1\ni2f r1, r1",                              {{REG_FLOAT, .reg = R1, .val_float = 123}}},
+			{"move 123.456, r1\nf2i r1, r1",                          {{REG_FLOAT, .reg = R1, .val_int = 123}}},
+
+			// cmp
+			{"move -11, r1\nmove 22, r2\ncmp r1, r2, r3",             {{REG_INT, .reg = R3, .val_int = -1}}},
+			{"move 33, r1\nmove -31, r2\ncmp r1, r2, r3",             {{REG_INT, .reg = R3, .val_int = 1}}},
+			{"move 1, r1\nmove 1, r2\ncmp r1, r2, r3",                {{REG_INT, .reg = R3, .val_int = 0}}},
+			{"move 1, r1\ncmp r1, 2, r3",                             {{REG_INT, .reg = R3, .val_int = -1}}},
+			{"move 1, r1\ncmp r1, -1, r3",                            {{REG_INT, .reg = R3, .val_int = 1}}},
+			{"move 1, r1\ncmp r1, 1, r3",                             {{REG_INT, .reg = R3, .val_int = 0}}},
+
+			// cmpu
+			{"move -11, r1\nmove 22, r2\ncmpu r1, r2, r3",            {{REG_INT, .reg = R3, .val_int = 1}}},
+			{"move 33, r1\nmove -31, r2\ncmpu r1, r2, r3",            {{REG_INT, .reg = R3, .val_int = -1}}},
+			{"move 1, r1\nmove 1, r2\ncmpu r1, r2, r3",               {{REG_INT, .reg = R3, .val_int = 0}}},
+			{"move 2, r1\ncmpu r1, 1, r3",                            {{REG_INT, .reg = R3, .val_int = 1}}},
+			{"move 1, r1\ncmpu r1, -1, r3",                           {{REG_INT, .reg = R3, .val_int = -1}}},
+			{"move 1, r1\ncmpu r1, 1, r3",                            {{REG_INT, .reg = R3, .val_int = 0}}},
+
+			// cmpf
+			{"move -134.3, r1\nmove 22.34, r2\ncmpf r1, r2, r3",      {{REG_INT, .reg = R3, .val_int = -1}}},
+			{"move 33.43, r1\nmove -31.234, r2\ncmpf r1, r2, r3",     {{REG_INT, .reg = R3, .val_int = 1}}},
+			{"move 1.432, r1\nmove 1.432, r2\ncmpf r1, r2, r3",       {{REG_INT, .reg = R3, .val_int = 0}}},
+
 			//{"jump h\nbyte 123\nh: halt", {{MEMORY_BYTE, .address = 0, .val_int = 0}}},
 			//{"halt",                      {{MEMORY_SHORT, .address = 0, .val_int = 0}}}
 	};

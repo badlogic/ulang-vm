@@ -41,21 +41,6 @@
         self->items[self->size++] = value; \
     }
 
-typedef enum operand_type {
-	UL_NIL = 0,  // No operand
-	UL_REG, // Register
-	UL_VAL, // Label or value
-	UL_OFF, // Offset
-} operand_type;
-
-typedef struct opcode {
-	int code;
-	ulang_string name;
-	operand_type operands[3];
-	int numOperands;
-	ulang_bool hasValueOperand;
-} opcode;
-
 typedef enum ulang_opcode {
 	HALT,
 	ADD,
@@ -145,90 +130,108 @@ typedef enum ulang_opcode {
 	UNKNOWN
 } ulang_opcode;
 
+typedef enum operand_type {
+	UL_NIL = 0,  // No operand
+	UL_REG, // Register
+	UL_LBL_INT, // Label or int
+	UL_LBL_INT_FLT, // label or int or float
+	UL_INT, // int
+	UL_FLT, // float
+	UL_OFF, // Offset
+} operand_type;
+
+typedef struct opcode {
+	ulang_opcode code;
+	ulang_string name;
+	operand_type operands[3];
+	int numOperands;
+	ulang_bool hasValueOperand;
+} opcode;
+
 opcode opcodes[] = {
 		{HALT,                   STR_OBJ("halt")},
-		{ADD,                    STR_OBJ("add"),                {UL_REG, UL_REG, UL_REG}},
-		{ADD_VAL,                STR_OBJ("add"),                {UL_REG, UL_VAL, UL_REG}},
-		{SUB,                    STR_OBJ("sub"),                {UL_REG, UL_REG, UL_REG}},
-		{SUB_VAL,                STR_OBJ("sub"),                {UL_REG, UL_VAL, UL_REG}},
-		{MUL,                    STR_OBJ("mul"),                {UL_REG, UL_REG, UL_REG}},
-		{MUL_VAL,                STR_OBJ("mul"),                {UL_REG, UL_VAL, UL_REG}},
-		{DIV,                    STR_OBJ("div"),                {UL_REG, UL_REG, UL_REG}},
-		{DIV_VAL,                STR_OBJ("div"),                {UL_REG, UL_VAL, UL_REG}},
-		{DIV_UNSIGNED,           STR_OBJ("div_unsigned"),       {UL_REG, UL_REG, UL_REG}},
-		{DIV_UNSIGNED_VAL,       STR_OBJ("div_unsigned"),       {UL_REG, UL_VAL, UL_REG}},
-		{REMAINDER,              STR_OBJ("remainder"),          {UL_REG, UL_REG, UL_REG}},
-		{REMAINDER_VAL,          STR_OBJ("remainder"),          {UL_REG, UL_VAL, UL_REG}},
-		{REMAINDER_UNSIGNED,     STR_OBJ("remainder_unsigned"), {UL_REG, UL_REG, UL_REG}},
-		{REMAINDER_UNSIGNED_VAL, STR_OBJ("remainder_unsigned"), {UL_REG, UL_VAL, UL_REG}},
-		{ADD_FLOAT,              STR_OBJ("add_float"),          {UL_REG, UL_REG, UL_REG}},
-		{ADD_FLOAT_VAL,          STR_OBJ("add_float"),          {UL_REG, UL_VAL, UL_REG}},
-		{SUB_FLOAT,              STR_OBJ("sub_float"),          {UL_REG, UL_REG, UL_REG}},
-		{SUB_FLOAT_VAL,          STR_OBJ("sub_float"),          {UL_REG, UL_VAL, UL_REG}},
-		{MUL_FLOAT,              STR_OBJ("mul_float"),          {UL_REG, UL_REG, UL_REG}},
-		{MUL_FLOAT_VAL,          STR_OBJ("mul_float"),          {UL_REG, UL_VAL, UL_REG}},
-		{DIV_FLOAT,              STR_OBJ("div_float"),          {UL_REG, UL_REG, UL_REG}},
-		{DIV_FLOAT_VAL,          STR_OBJ("div_float"),          {UL_REG, UL_VAL, UL_REG}},
-		{COS,                    STR_OBJ("cos"),                {UL_REG, UL_REG}},
-		{SIN,                    STR_OBJ("sin"),                {UL_REG, UL_REG}},
-		{ATAN2,                  STR_OBJ("atan2"),              {UL_REG, UL_REG, UL_REG}},
-		{SQRT,                   STR_OBJ("sqrt"),               {UL_REG, UL_REG}},
-		{POW,                    STR_OBJ("pow"),                {UL_REG, UL_REG, UL_REG}},
-		{POW_VAL,                STR_OBJ("pow"),                {UL_REG, UL_VAL, UL_REG}},
-		{INT_TO_FLOAT,           STR_OBJ("int_to_float"),       {UL_REG, UL_REG}},
-		{FLOAT_TO_INT,           STR_OBJ("float_to_int"),       {UL_REG, UL_REG}},
+		{ADD,                    STR_OBJ("add"),                {UL_REG,         UL_REG,     UL_REG}},
+		{ADD_VAL,                STR_OBJ("add"),                {UL_REG,         UL_LBL_INT, UL_REG}},
+		{SUB,                    STR_OBJ("sub"),                {UL_REG,         UL_REG,     UL_REG}},
+		{SUB_VAL,                STR_OBJ("sub"),                {UL_REG,         UL_LBL_INT, UL_REG}},
+		{MUL,                    STR_OBJ("mul"),                {UL_REG,         UL_REG,     UL_REG}},
+		{MUL_VAL,                STR_OBJ("mul"),                {UL_REG,         UL_LBL_INT, UL_REG}},
+		{DIV,                    STR_OBJ("div"),                {UL_REG,         UL_REG,     UL_REG}},
+		{DIV_VAL,                STR_OBJ("div"),                {UL_REG,         UL_LBL_INT, UL_REG}},
+		{DIV_UNSIGNED,           STR_OBJ("divu"),               {UL_REG,         UL_REG,     UL_REG}},
+		{DIV_UNSIGNED_VAL,       STR_OBJ("divu"),               {UL_REG,         UL_LBL_INT, UL_REG}},
+		{REMAINDER,              STR_OBJ("rem"),                {UL_REG,         UL_REG,     UL_REG}},
+		{REMAINDER_VAL,          STR_OBJ("rem"),                {UL_REG,         UL_LBL_INT, UL_REG}},
+		{REMAINDER_UNSIGNED,     STR_OBJ("remu"),               {UL_REG,         UL_REG,     UL_REG}},
+		{REMAINDER_UNSIGNED_VAL, STR_OBJ("remu"),               {UL_REG,         UL_LBL_INT, UL_REG}},
+		{ADD_FLOAT,              STR_OBJ("addf"),               {UL_REG,         UL_REG,     UL_REG}},
+		{ADD_FLOAT_VAL,          STR_OBJ("addf"),               {UL_REG,         UL_FLT,     UL_REG}},
+		{SUB_FLOAT,              STR_OBJ("subf"),               {UL_REG,         UL_REG,     UL_REG}},
+		{SUB_FLOAT_VAL,          STR_OBJ("subf"),               {UL_REG,         UL_FLT,     UL_REG}},
+		{MUL_FLOAT,              STR_OBJ("mulf"),               {UL_REG,         UL_REG,     UL_REG}},
+		{MUL_FLOAT_VAL,          STR_OBJ("mulf"),               {UL_REG,         UL_FLT,     UL_REG}},
+		{DIV_FLOAT,              STR_OBJ("divf"),               {UL_REG,         UL_REG,     UL_REG}},
+		{DIV_FLOAT_VAL,          STR_OBJ("divf"),               {UL_REG,         UL_FLT,     UL_REG}},
+		{COS,                    STR_OBJ("cosf"),               {UL_REG,         UL_REG}},
+		{SIN,                    STR_OBJ("sinf"),               {UL_REG,         UL_REG}},
+		{ATAN2,                  STR_OBJ("atan2f"),             {UL_REG,         UL_REG,     UL_REG}},
+		{SQRT,                   STR_OBJ("sqrtf"),              {UL_REG,         UL_REG}},
+		{POW,                    STR_OBJ("powf"),               {UL_REG,         UL_REG,     UL_REG}},
+		{POW_VAL,                STR_OBJ("powf"),               {UL_REG,         UL_FLT,     UL_REG}},
+		{INT_TO_FLOAT,           STR_OBJ("i2f"),                {UL_REG,         UL_REG}},
+		{FLOAT_TO_INT,           STR_OBJ("f2i"),                {UL_REG,         UL_REG}},
 
-		{CMP,                    STR_OBJ("cmp"),                {UL_REG, UL_REG, UL_REG}},
-		{CMP_VAL,                STR_OBJ("cmp"),                {UL_REG, UL_VAL, UL_REG}},
-		{CMP_UNSIGNED,           STR_OBJ("cmp_unsigned"),       {UL_REG, UL_REG, UL_REG}},
-		{CMP_UNSIGNED_VAL,       STR_OBJ("cmp_unsigned"),       {UL_REG, UL_VAL, UL_REG}},
-		{CMP_FLOAT,              STR_OBJ("cmp_float"),          {UL_REG, UL_REG, UL_REG}},
-		{CMP_FLOAT_VAL,          STR_OBJ("cmp_float"),          {UL_REG, UL_VAL, UL_REG}},
+		{CMP,                    STR_OBJ("cmp"),                {UL_REG,         UL_REG,     UL_REG}},
+		{CMP_VAL,                STR_OBJ("cmp"),                {UL_REG,         UL_LBL_INT, UL_REG}},
+		{CMP_UNSIGNED,           STR_OBJ("cmpu"),               {UL_REG,         UL_REG,     UL_REG}},
+		{CMP_UNSIGNED_VAL,       STR_OBJ("cmpu"),               {UL_REG,         UL_LBL_INT, UL_REG}},
+		{CMP_FLOAT,              STR_OBJ("cmpf"),               {UL_REG,         UL_REG,     UL_REG}},
+		{CMP_FLOAT_VAL,          STR_OBJ("cmpf"),               {UL_REG,         UL_FLT,     UL_REG}},
 
-		{NOT,                    STR_OBJ("not"),                {UL_REG, UL_REG}},
-		{NOT_VAL,                STR_OBJ("not"),                {UL_VAL, UL_REG}},
-		{AND,                    STR_OBJ("and"),                {UL_REG, UL_REG, UL_REG}},
-		{AND_VAL,                STR_OBJ("and"),                {UL_REG, UL_VAL, UL_REG}},
-		{OR,                     STR_OBJ("or"),                 {UL_REG, UL_REG, UL_REG}},
-		{OR_VAL,                 STR_OBJ("or"),                 {UL_REG, UL_VAL, UL_REG}},
-		{XOR,                    STR_OBJ("xor"),                {UL_REG, UL_REG, UL_REG}},
-		{XOR_VAL,                STR_OBJ("xor"),                {UL_REG, UL_VAL, UL_REG}},
-		{SHL,                    STR_OBJ("shl"),                {UL_REG, UL_REG, UL_REG}},
-		{SHL_VAL,                STR_OBJ("shl"),                {UL_REG, UL_VAL, UL_REG}},
-		{SHR,                    STR_OBJ("shr"),                {UL_REG, UL_REG, UL_REG}},
-		{SHR_VAL,                STR_OBJ("shr"),                {UL_REG, UL_VAL, UL_REG}},
+		{NOT,                    STR_OBJ("not"),                {UL_REG,         UL_REG}},
+		{NOT_VAL,                STR_OBJ("not"),                {UL_LBL_INT,     UL_REG}},
+		{AND,                    STR_OBJ("and"),                {UL_REG,         UL_REG,     UL_REG}},
+		{AND_VAL,                STR_OBJ("and"),                {UL_REG,         UL_LBL_INT, UL_REG}},
+		{OR,                     STR_OBJ("or"),                 {UL_REG,         UL_REG,     UL_REG}},
+		{OR_VAL,                 STR_OBJ("or"),                 {UL_REG,         UL_LBL_INT, UL_REG}},
+		{XOR,                    STR_OBJ("xor"),                {UL_REG,         UL_REG,     UL_REG}},
+		{XOR_VAL,                STR_OBJ("xor"),                {UL_REG,         UL_LBL_INT, UL_REG}},
+		{SHL,                    STR_OBJ("shl"),                {UL_REG,         UL_REG,     UL_REG}},
+		{SHL_VAL,                STR_OBJ("shl"),                {UL_REG,         UL_OFF,     UL_REG}},
+		{SHR,                    STR_OBJ("shr"),                {UL_REG,         UL_REG,     UL_REG}},
+		{SHR_VAL,                STR_OBJ("shr"),                {UL_REG,         UL_OFF,     UL_REG}},
 
-		{JUMP,                   STR_OBJ("jump"),               {UL_VAL}},
-		{JUMP_EQUAL,             STR_OBJ("jump_equal"),         {UL_REG, UL_VAL}},
-		{JUMP_NOT_EQUAL,         STR_OBJ("jump_not_equal"),     {UL_REG, UL_VAL}},
-		{JUMP_LESS,              STR_OBJ("jump_less"),          {UL_REG, UL_VAL}},
-		{JUMP_GREATER,           STR_OBJ("jump_greater"),       {UL_REG, UL_VAL}},
-		{JUMP_LESS_EQUAL,        STR_OBJ("jump_less_equal"),    {UL_REG, UL_VAL}},
-		{JUMP_GREATER_EQUAL,     STR_OBJ("jump_greater_equal"), {UL_REG, UL_VAL}},
+		{JUMP,                   STR_OBJ("jump"),               {UL_LBL_INT}},
+		{JUMP_EQUAL,             STR_OBJ("jump_equal"),         {UL_REG,         UL_LBL_INT}},
+		{JUMP_NOT_EQUAL,         STR_OBJ("jump_not_equal"),     {UL_REG,         UL_LBL_INT}},
+		{JUMP_LESS,              STR_OBJ("jump_less"),          {UL_REG,         UL_LBL_INT}},
+		{JUMP_GREATER,           STR_OBJ("jump_greater"),       {UL_REG,         UL_LBL_INT}},
+		{JUMP_LESS_EQUAL,        STR_OBJ("jump_less_equal"),    {UL_REG,         UL_LBL_INT}},
+		{JUMP_GREATER_EQUAL,     STR_OBJ("jump_greater_equal"), {UL_REG,         UL_LBL_INT}},
 
-		{MOVE_REG,               STR_OBJ("move"),               {UL_REG, UL_REG}},
-		{MOVE_VAL,               STR_OBJ("move"),               {UL_VAL, UL_REG}},
+		{MOVE_REG,               STR_OBJ("move"),               {UL_REG,         UL_REG}},
+		{MOVE_VAL,               STR_OBJ("move"),               {UL_LBL_INT_FLT, UL_REG}},
 
-		{LOAD_REG,               STR_OBJ("load"),               {UL_REG, UL_OFF, UL_REG}},
-		{LOAD_VAL,               STR_OBJ("load"),               {UL_VAL, UL_OFF, UL_REG}},
-		{STORE_REG,              STR_OBJ("store"),              {UL_REG, UL_REG, UL_OFF}},
-		{STORE_VAL,              STR_OBJ("store"),              {UL_REG, UL_VAL, UL_OFF}},
-		{STORE_VAL_VAL,          STR_OBJ("store"),              {UL_VAL, UL_VAL, UL_OFF}},
+		{LOAD_REG,               STR_OBJ("load"),               {UL_REG,         UL_OFF,     UL_REG}},
+		{LOAD_VAL,               STR_OBJ("load"),               {UL_LBL_INT,     UL_OFF,     UL_REG}},
+		{STORE_REG,              STR_OBJ("store"),              {UL_REG,         UL_REG,     UL_OFF}},
+		{STORE_VAL,              STR_OBJ("store"),              {UL_REG,         UL_LBL_INT, UL_OFF}},
+		{STORE_VAL_VAL,          STR_OBJ("store"),              {UL_LBL_INT_FLT, UL_LBL_INT, UL_OFF}},
 
-		{LOAD_BYTE_REG,          STR_OBJ("load_byte"),          {UL_REG, UL_OFF, UL_REG}},
-		{LOAD_BYTE_VAL,          STR_OBJ("load_byte"),          {UL_VAL, UL_OFF, UL_REG}},
-		{STORE_BYTE_REG,         STR_OBJ("store_byte"),         {UL_REG, UL_REG, UL_OFF}},
-		{STORE_BYTE_VAL,         STR_OBJ("store_byte"),         {UL_REG, UL_VAL, UL_OFF}},
-		{STORE_BYTE_VAL_VAL,     STR_OBJ("store_byte"),         {UL_VAL, UL_VAL, UL_OFF}},
+		{LOAD_BYTE_REG,          STR_OBJ("load_byte"),          {UL_REG,         UL_OFF,     UL_REG}},
+		{LOAD_BYTE_VAL,          STR_OBJ("load_byte"),          {UL_LBL_INT,     UL_OFF,     UL_REG}},
+		{STORE_BYTE_REG,         STR_OBJ("store_byte"),         {UL_REG,         UL_REG,     UL_OFF}},
+		{STORE_BYTE_VAL,         STR_OBJ("store_byte"),         {UL_REG,         UL_LBL_INT, UL_OFF}},
+		{STORE_BYTE_VAL_VAL,     STR_OBJ("store_byte"),         {UL_INT,         UL_LBL_INT, UL_OFF}},
 
-		{LOAD_SHORT_REG,         STR_OBJ("load_short"),         {UL_VAL, UL_OFF, UL_REG}},
-		{LOAD_SHORT_VAL,         STR_OBJ("load_short"),         {UL_REG, UL_OFF, UL_REG}},
-		{STORE_SHORT_REG,        STR_OBJ("store_short"),        {UL_REG, UL_REG, UL_OFF}},
-		{STORE_SHORT_VAL,        STR_OBJ("store_short"),        {UL_REG, UL_VAL, UL_OFF}},
-		{STORE_SHORT_VAL_VAL,    STR_OBJ("store_short"),        {UL_VAL, UL_VAL, UL_OFF}},
+		{LOAD_SHORT_REG,         STR_OBJ("load_short"),         {UL_LBL_INT,     UL_OFF,     UL_REG}},
+		{LOAD_SHORT_VAL,         STR_OBJ("load_short"),         {UL_REG,         UL_OFF,     UL_REG}},
+		{STORE_SHORT_REG,        STR_OBJ("store_short"),        {UL_REG,         UL_REG,     UL_OFF}},
+		{STORE_SHORT_VAL,        STR_OBJ("store_short"),        {UL_REG,         UL_LBL_INT, UL_OFF}},
+		{STORE_SHORT_VAL_VAL,    STR_OBJ("store_short"),        {UL_INT,         UL_LBL_INT, UL_OFF}},
 
 		{PUSH_REG,               STR_OBJ("push"),               {UL_REG}},
-		{PUSH_VAL,               STR_OBJ("push"),               {UL_VAL}},
+		{PUSH_VAL,               STR_OBJ("push"),               {UL_LBL_INT_FLT}},
 
 		{STACKALLOC,             STR_OBJ("stackalloc"),         {UL_OFF}},
 
@@ -236,17 +239,17 @@ opcode opcodes[] = {
 		{POP_OFF,                STR_OBJ("pop"),                {UL_OFF}},
 
 		{CALL_REG,               STR_OBJ("call"),               {UL_REG}},
-		{CALL_VAL,               STR_OBJ("call"),               {UL_VAL}},
+		{CALL_VAL,               STR_OBJ("call"),               {UL_LBL_INT}},
 
 		{RETURN,                 STR_OBJ("return"),             {UL_OFF}},
 
-		{PORT_WRITE_REG,         STR_OBJ("port_write"),         {UL_REG, UL_OFF}},
-		{PORT_WRITE_VAL,         STR_OBJ("port_write"),         {UL_VAL, UL_OFF}},
-		{PORT_READ_REG,          STR_OBJ("port_read"),          {UL_REG, UL_REG}},
-		{PORT_READ_OFF,          STR_OBJ("port_read"),          {UL_OFF, UL_REG}},
+		{PORT_WRITE_REG,         STR_OBJ("port_write"),         {UL_REG,         UL_OFF}},
+		{PORT_WRITE_VAL,         STR_OBJ("port_write"),         {UL_INT,         UL_OFF}},
+		{PORT_READ_REG,          STR_OBJ("port_read"),          {UL_REG,         UL_REG}},
+		{PORT_READ_OFF,          STR_OBJ("port_read"),          {UL_OFF,         UL_REG}},
 };
 
-static int opcodeLength = sizeof(opcodes) / sizeof(opcode);
+static size_t opcodeLength = sizeof(opcodes) / sizeof(opcode);
 
 typedef struct reg {
 	ulang_string name;
@@ -288,11 +291,13 @@ static ulang_bool initialized = ULANG_FALSE;
 static void init_opcodes_and_registers() {
 	if (initialized) return;
 
-	for (int i = 0; i < opcodeLength; i++) {
+	for (size_t i = 0; i < opcodeLength; i++) {
 		opcode *opcode = &opcodes[i];
 		for (int j = 0; j < 3; j++) {
 			if (opcode->operands[j] == UL_NIL) break;
-			if (opcode->operands[j] == UL_VAL) opcode->hasValueOperand = ULANG_TRUE;
+			if (opcode->operands[j] == UL_LBL_INT || opcode->operands[j] == UL_LBL_INT_FLT ||
+				opcode->operands[j] == UL_INT || opcode->operands[j] == UL_FLT)
+				opcode->hasValueOperand = ULANG_TRUE;
 			opcode->numOperands++;
 		}
 	}
@@ -352,8 +357,9 @@ ulang_bool ulang_file_read(const char *fileName, ulang_file *file) {
 
 ulang_bool ulang_file_from_memory(const char *fileName, const char *content, ulang_file *file) {
 	size_t len = strlen(content);
-	file->data = ulang_alloc(len);
+	file->data = ulang_alloc(len + 1);
 	memcpy(file->data, content, len);
+	file->data[len] = 0;
 	file->length = len;
 	size_t fileNameLength = strlen(fileName) + 1;
 	file->fileName.data = (char *) ulang_alloc(fileNameLength);
@@ -753,7 +759,7 @@ static reg *token_matches_register(token *token) {
 
 static opcode *token_matches_opcode(token *token) {
 	ulang_span *span = &token->span;
-	for (int i = 0; i < opcodeLength; i++) {
+	for (size_t i = 0; i < opcodeLength; i++) {
 		if (span_matches(span, opcodes[i].name.data, opcodes[i].name.length)) {
 			return &opcodes[i];
 		}
@@ -860,7 +866,10 @@ emit_op(ulang_file *file, opcode *op, token operands[3], patch_array *patches, b
 			case UL_OFF:
 				ENCODE_OFF(word1, token_to_int(operandToken));
 				break;
-			case UL_VAL:
+			case UL_INT:
+			case UL_FLT:
+			case UL_LBL_INT:
+			case UL_LBL_INT_FLT:
 				switch (operandToken->type) {
 					case TOKEN_INTEGER: {
 						int value = token_to_int(operandToken);
@@ -882,13 +891,13 @@ emit_op(ulang_file *file, opcode *op, token operands[3], patch_array *patches, b
 					}
 					default:
 						ulang_error_init(error, file, operandToken->span,
-										 "Internal error, unexpected token for value operand.");
+										 "Internal error, unexpected token type for value operand.");
 						return ULANG_FALSE;
 				}
 				break;
 			default:
 				ulang_error_init(error, file, operandToken->span,
-								 "Internal error, unexpected token for value operand.");
+								 "Internal error, unknown operand type.");
 				return ULANG_FALSE;
 		}
 	}
@@ -1029,33 +1038,56 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 			}
 
 			opcode *fittingOp = NULL;
+
 			while (-1) {
 				fittingOp = op;
 				for (int i = 0; i < op->numOperands; i++) {
 					token *operand = &operands[i];
 					operand_type operandType = op->operands[i];
 					reg *r = token_matches_register(operand);
-					if (operandType == UL_REG && !r) {
-						if (!error->is_set) ulang_error_init(error, file, operand->span, "Expected a register");
-						fittingOp = NULL;
-						break;
-					}
-
-					if (operandType == UL_VAL &&
-						(!(operand->type == TOKEN_INTEGER ||
-						   operand->type == TOKEN_FLOAT ||
-						   operand->type == TOKEN_IDENTIFIER) || r)) {
-						if (!error->is_set) {
-							ulang_error_init(error, file, operand->span, "Expected a number or a label");
+					if (operandType == UL_REG) {
+						if (!r) {
+							if (!error->is_set) ulang_error_init(error, file, operand->span, "Expected a register");
+							fittingOp = NULL;
+							break;
 						}
-						fittingOp = NULL;
-						break;
-					}
-
-					if (operandType == UL_OFF && operand->type != TOKEN_INTEGER) {
-						if (!error->is_set) ulang_error_init(error, file, operand->span, "Expected a number");
-						fittingOp = NULL;
-						break;
+					} else if (operandType == UL_LBL_INT_FLT) {
+						if (!(operand->type == TOKEN_INTEGER ||
+							  operand->type == TOKEN_FLOAT ||
+							  operand->type == TOKEN_IDENTIFIER) || r) {
+							if (!error->is_set)
+								ulang_error_init(error, file, operand->span, "Expected an int, float, or a label");
+							fittingOp = NULL;
+							break;
+						}
+					} else if (operandType == UL_LBL_INT) {
+						if (!(operand->type == TOKEN_INTEGER ||
+							  operand->type == TOKEN_IDENTIFIER) || r) {
+							if (!error->is_set)
+								ulang_error_init(error, file, operand->span, "Expected an int or a label");
+							fittingOp = NULL;
+							break;
+						}
+					} else if (operandType == UL_OFF || operandType == UL_INT) {
+						if (operand->type != TOKEN_INTEGER) {
+							if (!error->is_set) ulang_error_init(error, file, operand->span, "Expected an int");
+							fittingOp = NULL;
+							break;
+						}
+					} else if (operandType == UL_FLT) {
+						if (operand->type != TOKEN_FLOAT) {
+							// convert ints to float
+							if (operand->type == TOKEN_INTEGER) {
+								operand->type = TOKEN_FLOAT;
+							} else {
+								if (!error->is_set) ulang_error_init(error, file, operand->span, "Expected a float");
+								fittingOp = NULL;
+							}
+							break;
+						}
+					} else {
+						if (!error->is_set)
+							ulang_error_init(error, file, operand->span, "Internal error, unknown operand type.");
 					}
 				}
 				if (fittingOp) break;
@@ -1132,6 +1164,7 @@ void ulang_vm_init(ulang_vm *vm, size_t memorySizeBytes, size_t stackSizeBytes, 
 #define VAL *((int32_t *) &vm->memory[regs[14].ui]); regs[14].ui += 4
 #define VAL_U *((uint32_t *) &vm->memory[regs[14].ui]); regs[14].ui += 4
 #define VAL_F *((float *) &vm->memory[regs[14].ui]); regs[14].ui += 4
+#define SIGNUM(v) ((v < 0) ? -1 : ((v > 0) ? 1 : 0))
 
 ulang_bool ulang_vm_step(ulang_vm *vm) {
 	ulang_value *regs = vm->registers;
@@ -1209,23 +1242,23 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 			REG2_F = REG1_F / VAL_F;
 			break;
 		case COS:
-			REG2 = cosf(REG1);
+			REG2_F = cosf(REG1_F);
 			break;
 		case SIN:
-			REG2 = sinf(REG1);
+			REG2_F = sinf(REG1_F);
 			break;
 		case ATAN2:
-			REG3 = atan2f(REG1, REG2);
+			REG3_F = atan2f(REG1_F, REG2_F);
 			break;
 		case SQRT:
-			REG2 = sqrtf(REG1);
+			REG2_F = sqrtf(REG1_F);
 			break;
 		case POW:
-			REG3 = powf(REG1, REG2);
+			REG3_F = powf(REG1_F, REG2_F);
 			break;
 		case POW_VAL: {
-			float val = VAL;
-			REG2 = powf(REG1, val);
+			float val = VAL_F;
+			REG2_F = powf(REG1_F, val);
 			break;
 		}
 		case INT_TO_FLOAT:
@@ -1235,17 +1268,49 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 			REG2 = REG1_F;
 			break;
 		case CMP:
+			REG3 = SIGNUM(REG1 - REG2);
 			break;
-		case CMP_VAL:
+		case CMP_VAL: {
+			int32_t val = VAL;
+			REG2 = SIGNUM(REG1 - val);
 			break;
-		case CMP_UNSIGNED:
+		}
+		case CMP_UNSIGNED: {
+			uint32_t reg1 = REG1_U;
+			uint32_t reg2 = REG2_U;
+			if (reg1 < reg2) REG3 = -1;
+			else if (reg1 > reg2) REG3 = 1;
+			else
+				REG3 = 0;
 			break;
-		case CMP_UNSIGNED_VAL:
+		}
+		case CMP_UNSIGNED_VAL: {
+			uint32_t reg1 = REG1_U;
+			uint32_t val = VAL;
+			if (reg1 < val) REG2 = -1;
+			else if (reg1 > val) REG2 = 1;
+			else
+				REG2 = 0;
 			break;
-		case CMP_FLOAT:
+		}
+		case CMP_FLOAT: {
+			float reg1 = REG1_F;
+			float reg2 = REG2_F;
+			if (reg1 < reg2) REG3 = -1;
+			else if (reg1 > reg2) REG3 = 1;
+			else
+				REG3 = 0;
 			break;
-		case CMP_FLOAT_VAL:
+		}
+		case CMP_FLOAT_VAL: {
+			float reg1 = REG1_F;
+			float val = VAL_F;
+			if (reg1 < val) REG2 = -1;
+			else if (reg1 > val) REG2 = 1;
+			else
+				REG2 = 0;
 			break;
+		}
 		case NOT:
 			REG2 = ~REG1;
 			break;
