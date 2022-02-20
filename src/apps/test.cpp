@@ -50,7 +50,7 @@ ulang_bool test(size_t testNum, test_case *test) {
 	if (error.is_set) {
 		printf("Test #%zu: compilation error\n", testNum);
 		ulang_error_print(&error);
-		return ULANG_FALSE;
+		return UL_FALSE;
 	}
 
 	ulang_vm_init(&vm, 1024 * 1024, 4 * 1000, &program);
@@ -134,12 +134,12 @@ ulang_bool test(size_t testNum, test_case *test) {
 	ulang_error_free(&error);
 	ulang_program_free(&program);
 	ulang_file_free(&file);
-	return ULANG_TRUE;
+	return UL_TRUE;
 
 	error:
 	printf("Test #%zu\n---\n%s\n---\n", testNum, test->code);
 	if (checkErrorMessage[0]) printf("Error: %s", checkErrorMessage);
-	return ULANG_FALSE;
+	return UL_FALSE;
 }
 
 int main(int argc, char **argv) {

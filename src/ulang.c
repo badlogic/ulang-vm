@@ -277,17 +277,17 @@ reg registers[] = {
 };
 
 static ulang_bool string_equals(ulang_string *a, ulang_string *b) {
-	if (a->length != b->length) return ULANG_FALSE;
+	if (a->length != b->length) return UL_FALSE;
 	char *aData = a->data;
 	char *bData = b->data;
 	size_t length = a->length;
 	for (size_t i = 0; i < length; i++) {
-		if (aData[i] != bData[i]) return ULANG_FALSE;
+		if (aData[i] != bData[i]) return UL_FALSE;
 	}
-	return ULANG_TRUE;
+	return UL_TRUE;
 }
 
-static ulang_bool initialized = ULANG_FALSE;
+static ulang_bool initialized = UL_FALSE;
 
 static void init_opcodes_and_registers() {
 	if (initialized) return;
@@ -298,7 +298,7 @@ static void init_opcodes_and_registers() {
 			if (opcode->operands[j] == UL_NIL) break;
 			if (opcode->operands[j] == UL_LBL_INT || opcode->operands[j] == UL_LBL_INT_FLT ||
 				opcode->operands[j] == UL_INT || opcode->operands[j] == UL_FLT)
-				opcode->hasValueOperand = ULANG_TRUE;
+				opcode->hasValueOperand = UL_TRUE;
 			opcode->numOperands++;
 		}
 	}
@@ -306,7 +306,7 @@ static void init_opcodes_and_registers() {
 	for (size_t i = 0; i < (sizeof(registers) / sizeof(reg)); i++) {
 		registers[i].index = (int) i;
 	}
-	initialized = ULANG_TRUE;
+	initialized = UL_TRUE;
 }
 
 static int allocs = 0;
@@ -334,7 +334,7 @@ void ulang_print_memory() {
 ulang_bool ulang_file_read(const char *fileName, ulang_file *file) {
 	FILE *stream = fopen(fileName, "rb");
 	if (stream == NULL) {
-		return ULANG_FALSE;
+		return UL_FALSE;
 	}
 
 	// BOZO error handling, files > 2GB
@@ -353,7 +353,7 @@ ulang_bool ulang_file_read(const char *fileName, ulang_file *file) {
 
 	file->lines = NULL;
 	file->numLines = 0;
-	return ULANG_TRUE;
+	return UL_TRUE;
 }
 
 ulang_bool ulang_file_from_memory(const char *fileName, const char *content, ulang_file *file) {
@@ -368,7 +368,7 @@ ulang_bool ulang_file_from_memory(const char *fileName, const char *content, ula
 	memcpy(file->fileName.data, fileName, fileNameLength);
 	file->lines = NULL;
 	file->numLines = 0;
-	return ULANG_TRUE;
+	return UL_TRUE;
 }
 
 void ulang_file_free(ulang_file *file) {
@@ -400,12 +400,12 @@ static void ulang_error_init(ulang_error *error, ulang_file *file, ulang_span sp
 	error->message.data = buffer;
 	error->message.length = len;
 	error->span = span;
-	error->is_set = ULANG_TRUE;
+	error->is_set = UL_TRUE;
 }
 
 void ulang_error_free(ulang_error *error) {
 	ulang_free(error->message.data);
-	error->is_set = ULANG_FALSE;
+	error->is_set = UL_FALSE;
 	error->file = NULL;
 	error->message.data = NULL;
 	error->message.length = 0;
@@ -511,61 +511,61 @@ static ulang_bool match(character_stream *stream, const char *needleData, ulang_
 	uint32_t needleLength = 0;
 	const char *sourceData = stream->data->data;
 	for (uint32_t i = 0, j = stream->index; needleData[i] != 0; i++, needleLength++) {
-		if (j >= stream->end) return ULANG_FALSE;
+		if (j >= stream->end) return UL_FALSE;
 		uint32_t c = next_utf8_character(sourceData, &j);
-		if ((unsigned char) needleData[i] != c) return ULANG_FALSE;
+		if ((unsigned char) needleData[i] != c) return UL_FALSE;
 	}
 	if (consume) stream->index += needleLength;
-	return ULANG_TRUE;
+	return UL_TRUE;
 }
 
 static ulang_bool match_digit(character_stream *stream, ulang_bool consume) {
-	if (!has_more(stream)) return ULANG_FALSE;
+	if (!has_more(stream)) return UL_FALSE;
 	char c = stream->data->data[stream->index];
 	if (c >= '0' && c <= '9') {
 		if (consume) stream->index++;
-		return ULANG_TRUE;
+		return UL_TRUE;
 	}
-	return ULANG_FALSE;
+	return UL_FALSE;
 }
 
 static ulang_bool match_hex(character_stream *stream) {
-	if (!has_more(stream)) return ULANG_FALSE;
+	if (!has_more(stream)) return UL_FALSE;
 	char c = stream->data->data[stream->index];
 	if ((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
 		stream->index++;
-		return ULANG_TRUE;
+		return UL_TRUE;
 	}
-	return ULANG_FALSE;
+	return UL_FALSE;
 }
 
 static ulang_bool match_identifier_start(character_stream *stream) {
-	if (!has_more(stream)) return ULANG_FALSE;
+	if (!has_more(stream)) return UL_FALSE;
 	uint32_t idx = stream->index;
 	const char *sourceData = stream->data->data;
 	uint32_t c = next_utf8_character(sourceData, &idx);
 	if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || c >= 0xc0) {
 		stream->index = idx;
-		return ULANG_TRUE;
+		return UL_TRUE;
 	}
-	return ULANG_FALSE;
+	return UL_FALSE;
 }
 
 static ulang_bool match_identifier_part(character_stream *stream) {
-	if (!has_more(stream)) return ULANG_FALSE;
+	if (!has_more(stream)) return UL_FALSE;
 	uint32_t idx = stream->index;
 	const char *sourceData = stream->data->data;
 	uint32_t c = next_utf8_character(sourceData, &idx);
 	if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_' || (c >= '0' && c <= '9') || c >= 0x80) {
 		stream->index = idx;
-		return ULANG_TRUE;
+		return UL_TRUE;
 	}
-	return ULANG_FALSE;
+	return UL_FALSE;
 }
 
 static void skip_white_space(character_stream *stream) {
 	const char *sourceData = stream->data->data;
-	while (ULANG_TRUE) {
+	while (UL_TRUE) {
 		if (stream->index >= stream->end) return;
 		char c = sourceData[stream->index];
 		switch (c) {
@@ -609,13 +609,13 @@ static ulang_span end_span(character_stream *stream) {
 }
 
 static ulang_bool span_matches(ulang_span *span, const char *needle, size_t length) {
-	if (span->data.length != length) return ULANG_FALSE;
+	if (span->data.length != length) return UL_FALSE;
 
 	const char *sourceData = span->data.data;
 	for (uint32_t i = 0; i < length; i++) {
-		if (sourceData[i] != needle[i]) return ULANG_FALSE;
+		if (sourceData[i] != needle[i]) return UL_FALSE;
 	}
-	return ULANG_TRUE;
+	return UL_TRUE;
 }
 
 typedef enum token_type {
@@ -633,7 +633,7 @@ typedef struct {
 } token;
 
 static ulang_bool has_more_tokens(character_stream *stream) {
-	if (!has_more(stream)) return ULANG_FALSE;
+	if (!has_more(stream)) return UL_FALSE;
 	skip_white_space(stream);
 	return has_more(stream);
 }
@@ -643,58 +643,58 @@ static ulang_bool next_token(character_stream *stream, token *token, ulang_error
 		token->span.startLine = 0;
 		token->span.endLine = 0;
 		token->type = TOKEN_EOF;
-		return ULANG_TRUE;
+		return UL_TRUE;
 	}
 	start_span(stream);
 
-	if (match(stream, "-", ULANG_TRUE) || match_digit(stream, ULANG_FALSE)) {
+	if (match(stream, "-", UL_TRUE) || match_digit(stream, UL_FALSE)) {
 		token->type = TOKEN_INTEGER;
-		if (match(stream, "0x", ULANG_TRUE)) {
+		if (match(stream, "0x", UL_TRUE)) {
 			while (match_hex(stream));
 		} else {
-			while (match_digit(stream, ULANG_TRUE));
-			if (match(stream, ".", ULANG_TRUE)) {
+			while (match_digit(stream, UL_TRUE));
+			if (match(stream, ".", UL_TRUE)) {
 				token->type = TOKEN_FLOAT;
-				while (match_digit(stream, ULANG_TRUE));
+				while (match_digit(stream, UL_TRUE));
 			}
 		}
-		if (match(stream, "b", ULANG_TRUE)) {
+		if (match(stream, "b", UL_TRUE)) {
 			if (token->type == TOKEN_FLOAT) {
 				ulang_error_init(error, stream->data, end_span(stream), "Byte literal can not have a decimal point.");
-				return ULANG_FALSE;
+				return UL_FALSE;
 			}
 			token->type = TOKEN_INTEGER;
 		}
 		token->span = end_span(stream);
-		return ULANG_TRUE;
+		return UL_TRUE;
 	}
 
 	// String literal
-	if (match(stream, "\"", ULANG_TRUE)) {
-		ulang_bool matchedEndQuote = ULANG_FALSE;
+	if (match(stream, "\"", UL_TRUE)) {
+		ulang_bool matchedEndQuote = UL_FALSE;
 		token->type = TOKEN_STRING;
 		while (has_more(stream)) {
 			// Note: escape sequences like \n are parsed in the AST
-			if (match(stream, "\\", ULANG_TRUE)) {
+			if (match(stream, "\\", UL_TRUE)) {
 				consume(stream);
 			}
-			if (match(stream, "\"", ULANG_TRUE)) {
-				matchedEndQuote = ULANG_TRUE;
+			if (match(stream, "\"", UL_TRUE)) {
+				matchedEndQuote = UL_TRUE;
 				break;
 			}
-			if (match(stream, "\n", ULANG_FALSE)) {
+			if (match(stream, "\n", UL_FALSE)) {
 				ulang_error_init(error, stream->data, end_span(stream),
 								 "String literal is not closed by double quote");
-				return ULANG_FALSE;
+				return UL_FALSE;
 			}
 			consume(stream);
 		}
 		if (!matchedEndQuote) {
 			ulang_error_init(error, stream->data, end_span(stream), "String literal is not closed by double quote");
-			return ULANG_FALSE;
+			return UL_FALSE;
 		}
 		token->span = end_span(stream);
-		return ULANG_TRUE;
+		return UL_TRUE;
 	}
 
 	// Identifier or keyword
@@ -702,7 +702,7 @@ static ulang_bool next_token(character_stream *stream, token *token, ulang_error
 		while (match_identifier_part(stream));
 		token->type = TOKEN_IDENTIFIER;
 		token->span = end_span(stream);
-		return ULANG_TRUE;
+		return UL_TRUE;
 	}
 
 	// Else check for "simple" tokens made up of
@@ -710,7 +710,7 @@ static ulang_bool next_token(character_stream *stream, token *token, ulang_error
 	consume(stream);
 	token->type = TOKEN_SPECIAL_CHAR;
 	token->span = end_span(stream);
-	return ULANG_TRUE;
+	return UL_TRUE;
 }
 
 static ulang_bool
@@ -719,8 +719,8 @@ next_token_matches(character_stream *stream, const char *needle, size_t size, ul
 	// BOZO this needs to be cleaned up in case of error below
 	ulang_error error;
 	token token;
-	if (!next_token(&stream_copy, &token, &error)) return ULANG_FALSE;
-	if (token.type == TOKEN_EOF) return ULANG_FALSE;
+	if (!next_token(&stream_copy, &token, &error)) return UL_FALSE;
+	if (token.type == TOKEN_EOF) return UL_FALSE;
 	ulang_bool matches = span_matches(&token.span, needle, size);
 	if (matches && consume) next_token(stream, &token, &error);
 	return matches;
@@ -731,10 +731,10 @@ next_token_matches_type(character_stream *stream, token *token, token_type type,
 	character_stream stream_copy = *stream;
 	// BOZO this needs to be cleaned up in case of error below
 	ulang_error error;
-	if (!next_token(&stream_copy, token, &error)) return ULANG_FALSE;
-	if (token->type != type) return ULANG_FALSE;
+	if (!next_token(&stream_copy, token, &error)) return UL_FALSE;
+	if (token->type != type) return UL_FALSE;
 	if (consume) next_token(stream, token, &error);
-	return ULANG_TRUE;
+	return UL_TRUE;
 }
 
 #define EXPECT_TOKEN(stream, str, error) { \
@@ -895,13 +895,13 @@ emit_op(ulang_file *file, opcode *op, token operands[3], patch_array *patches, b
 					default:
 						ulang_error_init(error, file, operandToken->span,
 										 "Internal error, unexpected token type for value operand.");
-						return ULANG_FALSE;
+						return UL_FALSE;
 				}
 				break;
 			default:
 				ulang_error_init(error, file, operandToken->span,
 								 "Internal error, unknown operand type.");
-				return ULANG_FALSE;
+				return UL_FALSE;
 		}
 	}
 
@@ -913,13 +913,13 @@ emit_op(ulang_file *file, opcode *op, token operands[3], patch_array *patches, b
 		code->size += 4;
 	}
 
-	return ULANG_TRUE;
+	return UL_TRUE;
 }
 
 static void parse_repeat(character_stream *stream, int *numRepeat, ulang_error *error) {
-	if (!next_token_matches(stream, STR("@"), ULANG_TRUE)) return;
+	if (!next_token_matches(stream, STR("x"), UL_TRUE)) return;
 	token token;
-	if (!next_token_matches_type(stream, &token, TOKEN_INTEGER, ULANG_TRUE)) {
+	if (!next_token_matches_type(stream, &token, TOKEN_INTEGER, UL_TRUE)) {
 		ulang_error_init(error, stream->data, token.span, "Expected an integer value after 'x'.");
 		return;
 	}
@@ -930,11 +930,19 @@ static void parse_repeat(character_stream *stream, int *numRepeat, ulang_error *
 	}
 }
 
+static void set_label_targets(label_array *labels, ulang_label_target target, size_t address) {
+	for (int i = labels->size - 1; i >= 0; i--) {
+		if (labels->items[i].target != UL_LT_UNINITIALIZED) break;
+		labels->items[i].target = target;
+		labels->items[i].address = address;
+	}
+}
+
 ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *error) {
 	character_stream stream;
 	character_stream_init(&stream, file);
 	init_opcodes_and_registers();
-	error->is_set = ULANG_FALSE;
+	error->is_set = UL_FALSE;
 
 	patch_array patches;
 	patch_array_init_inplace(&patches, 16);
@@ -942,6 +950,9 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 	label_array_init_inplace(&labels, 16);
 	byte_array code;
 	byte_array_init_inplace(&code, 16);
+	byte_array data;
+	byte_array_init_inplace(&data, 16);
+	size_t numReservedBytes = 0;
 
 	while (has_more_tokens(&stream)) {
 		token tok;
@@ -962,12 +973,15 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 						ulang_error_init(error, file, value.span, "Expected an integer value or string literal.");
 						goto _compilation_error;
 					}
+
 					int numRepeat = 1;
 					parse_repeat(&stream, &numRepeat, error);
 					if (error->is_set) goto _compilation_error;
-					if (value.type == TOKEN_INTEGER) emit_byte(&code, &value, numRepeat);
-					else emit_string(&code, &value, numRepeat);
-					if (!next_token_matches(&stream, STR(","), ULANG_TRUE)) break;
+
+					set_label_targets(&labels, UL_LT_DATA, data.size);
+					if (value.type == TOKEN_INTEGER) emit_byte(&data, &value, numRepeat);
+					else emit_string(&data, &value, numRepeat);
+					if (!next_token_matches(&stream, STR(","), UL_TRUE)) break;
 				}
 				continue;
 			}
@@ -980,11 +994,14 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 						ulang_error_init(error, file, value.span, "Expected an integer value.");
 						goto _compilation_error;
 					}
+
 					int numRepeat = 1;
 					parse_repeat(&stream, &numRepeat, error);
 					if (error->is_set) goto _compilation_error;
-					emit_short(&code, &value, numRepeat);
-					if (!next_token_matches(&stream, STR(","), ULANG_TRUE)) break;
+
+					set_label_targets(&labels, UL_LT_DATA, data.size);
+					emit_short(&data, &value, numRepeat);
+					if (!next_token_matches(&stream, STR(","), UL_TRUE)) break;
 				}
 				continue;
 			}
@@ -997,11 +1014,14 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 						ulang_error_init(error, file, value.span, "Expected an integer value.");
 						goto _compilation_error;
 					}
+
 					int numRepeat = 1;
 					parse_repeat(&stream, &numRepeat, error);
 					if (error->is_set) goto _compilation_error;
-					emit_int(&code, &value, numRepeat);
-					if (!next_token_matches(&stream, STR(","), ULANG_TRUE)) break;
+
+					set_label_targets(&labels, UL_LT_DATA, data.size);
+					emit_int(&data, &value, numRepeat);
+					if (!next_token_matches(&stream, STR(","), UL_TRUE)) break;
 				}
 				continue;
 			}
@@ -1014,18 +1034,52 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 						ulang_error_init(error, file, value.span, "Expected a floating point value.");
 						goto _compilation_error;
 					}
+
 					int numRepeat = 1;
 					parse_repeat(&stream, &numRepeat, error);
 					if (error->is_set) goto _compilation_error;
-					emit_float(&code, &value, numRepeat);
-					if (!next_token_matches(&stream, STR(","), ULANG_TRUE)) break;
+
+					set_label_targets(&labels, UL_LT_DATA, data.size);
+					emit_float(&data, &value, numRepeat);
+					if (!next_token_matches(&stream, STR(","), UL_TRUE)) break;
 				}
 				continue;
 			}
 
+			if (span_matches(&tok.span, STR("reserve"))) {
+				size_t typeSize = 0;
+				if (next_token_matches(&stream, STR("byte"), UL_TRUE)) typeSize = 1;
+				else if (next_token_matches(&stream, STR("short"), UL_TRUE)) typeSize = 2;
+				else if (next_token_matches(&stream, STR("int"), UL_TRUE)) typeSize = 4;
+				else if (next_token_matches(&stream, STR("float"), UL_TRUE)) typeSize = 4;
+				else {
+					token token;
+					next_token(&stream, &token, error);
+					if (error->is_set) goto _compilation_error;
+					ulang_error_init(error, file, token.span, "Expected byte, short, int, or float.");
+					goto _compilation_error;
+				}
+
+				EXPECT_TOKEN(stream, STR_OBJ("x"), "Expected 'x' after byte, short, int, or float.");
+				token value;
+				if (!next_token(&stream, &value, error)) goto _compilation_error;
+				if (value.type != TOKEN_INTEGER) {
+					ulang_error_init(error, file, value.span, "Expected a number.");
+					goto _compilation_error;
+				}
+
+				size_t numBytes = typeSize * token_to_int(&value);
+				if (numBytes <= 0) {
+					ulang_error_init(error, file, value.span, "Number of reserved bytes must be > 0.");
+					goto _compilation_error;
+				}
+				set_label_targets(&labels, UL_LT_RESERVED_DATA, numReservedBytes);
+				numReservedBytes += numBytes;
+			}
+
 			// Otherwise, we have a label
 			EXPECT_TOKEN(stream, STR_OBJ(":"), error)
-			ulang_label label = {tok.span, (int) code.size};
+			ulang_label label = {tok.span, UL_LT_UNINITIALIZED, 0};
 			label_array_add(&labels, label);
 		} else {
 			token operands[3];
@@ -1099,47 +1153,67 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 			}
 			if (!fittingOp) goto _compilation_error;
 			if (error->is_set) ulang_error_free(error);
+
+			set_label_targets(&labels, UL_LT_CODE, code.size);
 			if (!emit_op(file, fittingOp, operands, &patches, &code, error)) goto _compilation_error;
 		}
 	}
 
 	for (size_t i = 0; i < patches.size; i++) {
 		patch *p = &patches.items[i];
-		ulang_label *l = NULL;
+		ulang_label *label = NULL;
 		for (size_t j = 0; j < labels.size; j++) {
 			if (string_equals(&labels.items[j].label.data, &p->label.data)) {
-				l = &labels.items[j];
+				label = &labels.items[j];
 				break;
 			}
 		}
-		if (!l) {
+		if (!label) {
 			ulang_error_init(error, file, p->label, "Unknown label.");
 			goto _compilation_error;
 		}
 
-		uint32_t labelAddress = (uint32_t) l->codeAddress;
+		uint32_t labelAddress = (uint32_t) label->address;
+		switch (label->target) {
+			case UL_LT_UNINITIALIZED:
+				ulang_error_init(error, file, p->label, "Internal error: Uninitialized label target.");
+				goto _compilation_error;
+			case UL_LT_CODE:
+				break;
+			case UL_LT_DATA:
+				labelAddress += code.size;
+				break;
+			case UL_LT_RESERVED_DATA:
+				labelAddress += code.size + numReservedBytes;
+				break;
+		}
 		memcpy(&code.items[p->patchAddress], &labelAddress, 4);
 	}
 
 	patch_array_free_inplace(&patches);
 	program->code = code.items;
 	program->codeLength = code.size;
+	program->data = data.items;
+	program->dataLength = data.size;
 	program->labels = labels.items;
 	program->labelsLength = labels.size;
-	return ULANG_TRUE;
+	return UL_TRUE;
 
 	_compilation_error:
 	patch_array_free_inplace(&patches);
 	label_array_free_inplace(&labels);
 	byte_array_free_inplace(&code);
-	return ULANG_FALSE;
+	byte_array_free_inplace(&data);
+	return UL_FALSE;
 }
 
 void ulang_program_free(ulang_program *program) {
 	ulang_free(program->code);
+	ulang_free(program->data);
 	ulang_free(program->labels);
 }
 
+// BOZO need to throw an error in case memory sizes are bollocks
 void ulang_vm_init(ulang_vm *vm, size_t memorySizeBytes, size_t stackSizeBytes, ulang_program *program) {
 	vm->memory = ulang_alloc(memorySizeBytes);
 	vm->memorySizeBytes = memorySizeBytes;
@@ -1149,6 +1223,7 @@ void ulang_vm_init(ulang_vm *vm, size_t memorySizeBytes, size_t stackSizeBytes, 
 	memset(vm->memory, 0, vm->memorySizeBytes);
 	memset(vm->stack, 0, vm->stackSizeBytes);
 	memcpy(vm->memory, program->code, program->codeLength);
+	memcpy(vm->memory + program->codeLength, program->data, program->dataLength);
 }
 
 #define DECODE_OP(word) (word & 0x7f)
@@ -1176,7 +1251,7 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 	int32_t offset;
 	switch (op) {
 		case HALT:
-			return ULANG_FALSE;
+			return UL_FALSE;
 		case ADD:
 			REG3 = REG1 + REG2;
 			break;
@@ -1446,9 +1521,9 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 			break;
 		default:
 			vm->registers[14].ui -= 4; // reset PC to the unknown instruction.
-			return ULANG_FALSE;
+			return UL_FALSE;
 	}
-	return ULANG_TRUE;
+	return UL_TRUE;
 }
 
 void ulang_vm_print(ulang_vm *vm) {

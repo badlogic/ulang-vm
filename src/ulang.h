@@ -9,8 +9,8 @@ extern "C" {
 #endif
 
 // types
-#define ULANG_TRUE -1
-#define ULANG_FALSE 0
+#define UL_TRUE -1
+#define UL_FALSE 0
 typedef int ulang_bool;
 
 typedef struct ulang_string {
@@ -46,14 +46,25 @@ typedef struct ulang_file {
 	size_t numLines;
 } ulang_file;
 
+typedef enum ulang_label_target {
+	UL_LT_UNINITIALIZED,
+	UL_LT_CODE,
+	UL_LT_DATA,
+	UL_LT_RESERVED_DATA
+} ulang_label_target;
+
 typedef struct ulang_label {
 	ulang_span label;
-	size_t codeAddress;
+	ulang_label_target target;
+	size_t address;
 } ulang_label;
 
 typedef struct ulang_program {
 	uint8_t *code;
 	size_t codeLength;
+	uint8_t *data;
+	size_t dataLength;
+	size_t reservedBytes;
 	ulang_label *labels;
 	size_t labelsLength;
 } ulang_program;
