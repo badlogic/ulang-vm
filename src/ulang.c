@@ -73,12 +73,6 @@ typedef enum ulang_opcode {
 	POW_VAL,
 	INT_TO_FLOAT,
 	FLOAT_TO_INT,
-	CMP,
-	CMP_VAL,
-	CMP_UNSIGNED,
-	CMP_UNSIGNED_VAL,
-	CMP_FLOAT,
-	CMP_FLOAT_VAL,
 	NOT,
 	NOT_VAL,
 	AND,
@@ -91,6 +85,12 @@ typedef enum ulang_opcode {
 	SHL_VAL,
 	SHR,
 	SHR_VAL,
+	CMP,
+	CMP_VAL,
+	CMP_UNSIGNED,
+	CMP_UNSIGNED_VAL,
+	CMP_FLOAT,
+	CMP_FLOAT_VAL,
 	JUMP,
 	JUMP_EQUAL,
 	JUMP_NOT_EQUAL,
@@ -150,103 +150,104 @@ typedef struct opcode {
 
 opcode opcodes[] = {
 		{HALT,                   STR_OBJ("halt")},
-		{ADD,                    STR_OBJ("add"),                {UL_REG,         UL_REG,     UL_REG}},
-		{ADD_VAL,                STR_OBJ("add"),                {UL_REG,         UL_LBL_INT, UL_REG}},
-		{SUB,                    STR_OBJ("sub"),                {UL_REG,         UL_REG,     UL_REG}},
-		{SUB_VAL,                STR_OBJ("sub"),                {UL_REG,         UL_LBL_INT, UL_REG}},
-		{MUL,                    STR_OBJ("mul"),                {UL_REG,         UL_REG,     UL_REG}},
-		{MUL_VAL,                STR_OBJ("mul"),                {UL_REG,         UL_LBL_INT, UL_REG}},
-		{DIV,                    STR_OBJ("div"),                {UL_REG,         UL_REG,     UL_REG}},
-		{DIV_VAL,                STR_OBJ("div"),                {UL_REG,         UL_LBL_INT, UL_REG}},
-		{DIV_UNSIGNED,           STR_OBJ("divu"),               {UL_REG,         UL_REG,     UL_REG}},
-		{DIV_UNSIGNED_VAL,       STR_OBJ("divu"),               {UL_REG,         UL_LBL_INT, UL_REG}},
-		{REMAINDER,              STR_OBJ("rem"),                {UL_REG,         UL_REG,     UL_REG}},
-		{REMAINDER_VAL,          STR_OBJ("rem"),                {UL_REG,         UL_LBL_INT, UL_REG}},
-		{REMAINDER_UNSIGNED,     STR_OBJ("remu"),               {UL_REG,         UL_REG,     UL_REG}},
-		{REMAINDER_UNSIGNED_VAL, STR_OBJ("remu"),               {UL_REG,         UL_LBL_INT, UL_REG}},
-		{ADD_FLOAT,              STR_OBJ("addf"),               {UL_REG,         UL_REG,     UL_REG}},
-		{ADD_FLOAT_VAL,          STR_OBJ("addf"),               {UL_REG,         UL_FLT,     UL_REG}},
-		{SUB_FLOAT,              STR_OBJ("subf"),               {UL_REG,         UL_REG,     UL_REG}},
-		{SUB_FLOAT_VAL,          STR_OBJ("subf"),               {UL_REG,         UL_FLT,     UL_REG}},
-		{MUL_FLOAT,              STR_OBJ("mulf"),               {UL_REG,         UL_REG,     UL_REG}},
-		{MUL_FLOAT_VAL,          STR_OBJ("mulf"),               {UL_REG,         UL_FLT,     UL_REG}},
-		{DIV_FLOAT,              STR_OBJ("divf"),               {UL_REG,         UL_REG,     UL_REG}},
-		{DIV_FLOAT_VAL,          STR_OBJ("divf"),               {UL_REG,         UL_FLT,     UL_REG}},
-		{COS,                    STR_OBJ("cosf"),               {UL_REG,         UL_REG}},
-		{SIN,                    STR_OBJ("sinf"),               {UL_REG,         UL_REG}},
-		{ATAN2,                  STR_OBJ("atan2f"),             {UL_REG,         UL_REG,     UL_REG}},
-		{SQRT,                   STR_OBJ("sqrtf"),              {UL_REG,         UL_REG}},
-		{POW,                    STR_OBJ("powf"),               {UL_REG,         UL_REG,     UL_REG}},
-		{POW_VAL,                STR_OBJ("powf"),               {UL_REG,         UL_FLT,     UL_REG}},
-		{INT_TO_FLOAT,           STR_OBJ("i2f"),                {UL_REG,         UL_REG}},
-		{FLOAT_TO_INT,           STR_OBJ("f2i"),                {UL_REG,         UL_REG}},
+		{ADD,                    STR_OBJ("add"),         {UL_REG,         UL_REG,     UL_REG}},
+		{ADD_VAL,                STR_OBJ("add"),         {UL_REG,         UL_LBL_INT, UL_REG}},
+		{SUB,                    STR_OBJ("sub"),         {UL_REG,         UL_REG,     UL_REG}},
+		{SUB_VAL,                STR_OBJ("sub"),         {UL_REG,         UL_LBL_INT, UL_REG}},
+		{MUL,                    STR_OBJ("mul"),         {UL_REG,         UL_REG,     UL_REG}},
+		{MUL_VAL,                STR_OBJ("mul"),         {UL_REG,         UL_LBL_INT, UL_REG}},
+		{DIV,                    STR_OBJ("div"),         {UL_REG,         UL_REG,     UL_REG}},
+		{DIV_VAL,                STR_OBJ("div"),         {UL_REG,         UL_LBL_INT, UL_REG}},
+		{DIV_UNSIGNED,           STR_OBJ("divu"),        {UL_REG,         UL_REG,     UL_REG}},
+		{DIV_UNSIGNED_VAL,       STR_OBJ("divu"),        {UL_REG,         UL_LBL_INT, UL_REG}},
+		{REMAINDER,              STR_OBJ("rem"),         {UL_REG,         UL_REG,     UL_REG}},
+		{REMAINDER_VAL,          STR_OBJ("rem"),         {UL_REG,         UL_LBL_INT, UL_REG}},
+		{REMAINDER_UNSIGNED,     STR_OBJ("remu"),        {UL_REG,         UL_REG,     UL_REG}},
+		{REMAINDER_UNSIGNED_VAL, STR_OBJ("remu"),        {UL_REG,         UL_LBL_INT, UL_REG}},
+		{ADD_FLOAT,              STR_OBJ("addf"),        {UL_REG,         UL_REG,     UL_REG}},
+		{ADD_FLOAT_VAL,          STR_OBJ("addf"),        {UL_REG,         UL_FLT,     UL_REG}},
+		{SUB_FLOAT,              STR_OBJ("subf"),        {UL_REG,         UL_REG,     UL_REG}},
+		{SUB_FLOAT_VAL,          STR_OBJ("subf"),        {UL_REG,         UL_FLT,     UL_REG}},
+		{MUL_FLOAT,              STR_OBJ("mulf"),        {UL_REG,         UL_REG,     UL_REG}},
+		{MUL_FLOAT_VAL,          STR_OBJ("mulf"),        {UL_REG,         UL_FLT,     UL_REG}},
+		{DIV_FLOAT,              STR_OBJ("divf"),        {UL_REG,         UL_REG,     UL_REG}},
+		{DIV_FLOAT_VAL,          STR_OBJ("divf"),        {UL_REG,         UL_FLT,     UL_REG}},
+		{COS,                    STR_OBJ("cosf"),        {UL_REG,         UL_REG}},
+		{SIN,                    STR_OBJ("sinf"),        {UL_REG,         UL_REG}},
+		{ATAN2,                  STR_OBJ("atan2f"),      {UL_REG,         UL_REG,     UL_REG}},
+		{SQRT,                   STR_OBJ("sqrtf"),       {UL_REG,         UL_REG}},
+		{POW,                    STR_OBJ("powf"),        {UL_REG,         UL_REG,     UL_REG}},
+		{POW_VAL,                STR_OBJ("powf"),        {UL_REG,         UL_FLT,     UL_REG}},
+		{INT_TO_FLOAT,           STR_OBJ("i2f"),         {UL_REG,         UL_REG}},
+		{FLOAT_TO_INT,           STR_OBJ("f2i"),         {UL_REG,         UL_REG}},
 
-		{CMP,                    STR_OBJ("cmp"),                {UL_REG,         UL_REG,     UL_REG}},
-		{CMP_VAL,                STR_OBJ("cmp"),                {UL_REG,         UL_LBL_INT, UL_REG}},
-		{CMP_UNSIGNED,           STR_OBJ("cmpu"),               {UL_REG,         UL_REG,     UL_REG}},
-		{CMP_UNSIGNED_VAL,       STR_OBJ("cmpu"),               {UL_REG,         UL_LBL_INT, UL_REG}},
-		{CMP_FLOAT,              STR_OBJ("cmpf"),               {UL_REG,         UL_REG,     UL_REG}},
-		{CMP_FLOAT_VAL,          STR_OBJ("cmpf"),               {UL_REG,         UL_FLT,     UL_REG}},
+		{NOT,                    STR_OBJ("not"),         {UL_REG,         UL_REG}},
+		{NOT_VAL,                STR_OBJ("not"),         {UL_LBL_INT,     UL_REG}},
+		{AND,                    STR_OBJ("and"),         {UL_REG,         UL_REG,     UL_REG}},
+		{AND_VAL,                STR_OBJ("and"),         {UL_REG,         UL_LBL_INT, UL_REG}},
+		{OR,                     STR_OBJ("or"),          {UL_REG,         UL_REG,     UL_REG}},
+		{OR_VAL,                 STR_OBJ("or"),          {UL_REG,         UL_LBL_INT, UL_REG}},
+		{XOR,                    STR_OBJ("xor"),         {UL_REG,         UL_REG,     UL_REG}},
+		{XOR_VAL,                STR_OBJ("xor"),         {UL_REG,         UL_LBL_INT, UL_REG}},
+		{SHL,                    STR_OBJ("shl"),         {UL_REG,         UL_REG,     UL_REG}},
+		{SHL_VAL,                STR_OBJ("shl"),         {UL_REG,         UL_OFF,     UL_REG}},
+		{SHR,                    STR_OBJ("shr"),         {UL_REG,         UL_REG,     UL_REG}},
+		{SHR_VAL,                STR_OBJ("shr"),         {UL_REG,         UL_OFF,     UL_REG}},
 
-		{NOT,                    STR_OBJ("not"),                {UL_REG,         UL_REG}},
-		{NOT_VAL,                STR_OBJ("not"),                {UL_LBL_INT,     UL_REG}},
-		{AND,                    STR_OBJ("and"),                {UL_REG,         UL_REG,     UL_REG}},
-		{AND_VAL,                STR_OBJ("and"),                {UL_REG,         UL_LBL_INT, UL_REG}},
-		{OR,                     STR_OBJ("or"),                 {UL_REG,         UL_REG,     UL_REG}},
-		{OR_VAL,                 STR_OBJ("or"),                 {UL_REG,         UL_LBL_INT, UL_REG}},
-		{XOR,                    STR_OBJ("xor"),                {UL_REG,         UL_REG,     UL_REG}},
-		{XOR_VAL,                STR_OBJ("xor"),                {UL_REG,         UL_LBL_INT, UL_REG}},
-		{SHL,                    STR_OBJ("shl"),                {UL_REG,         UL_REG,     UL_REG}},
-		{SHL_VAL,                STR_OBJ("shl"),                {UL_REG,         UL_OFF,     UL_REG}},
-		{SHR,                    STR_OBJ("shr"),                {UL_REG,         UL_REG,     UL_REG}},
-		{SHR_VAL,                STR_OBJ("shr"),                {UL_REG,         UL_OFF,     UL_REG}},
+		{CMP,                    STR_OBJ("cmp"),         {UL_REG,         UL_REG,     UL_REG}},
+		{CMP_VAL,                STR_OBJ("cmp"),         {UL_REG,         UL_LBL_INT, UL_REG}},
+		{CMP_UNSIGNED,           STR_OBJ("cmpu"),        {UL_REG,         UL_REG,     UL_REG}},
+		{CMP_UNSIGNED_VAL,       STR_OBJ("cmpu"),        {UL_REG,         UL_LBL_INT, UL_REG}},
+		{CMP_FLOAT,              STR_OBJ("cmpf"),        {UL_REG,         UL_REG,     UL_REG}},
+		{CMP_FLOAT_VAL,          STR_OBJ("cmpf"),        {UL_REG,         UL_FLT,     UL_REG}},
 
-		{JUMP,                   STR_OBJ("jump"),               {UL_LBL_INT}},
-		{JUMP_EQUAL,             STR_OBJ("jump_equal"),         {UL_REG,         UL_LBL_INT}},
-		{JUMP_NOT_EQUAL,         STR_OBJ("jump_not_equal"),     {UL_REG,         UL_LBL_INT}},
-		{JUMP_LESS,              STR_OBJ("jump_less"),          {UL_REG,         UL_LBL_INT}},
-		{JUMP_GREATER,           STR_OBJ("jump_greater"),       {UL_REG,         UL_LBL_INT}},
-		{JUMP_LESS_EQUAL,        STR_OBJ("jump_less_equal"),    {UL_REG,         UL_LBL_INT}},
-		{JUMP_GREATER_EQUAL,     STR_OBJ("jump_greater_equal"), {UL_REG,         UL_LBL_INT}},
 
-		{MOVE_REG,               STR_OBJ("move"),               {UL_REG,         UL_REG}},
-		{MOVE_VAL,               STR_OBJ("move"),               {UL_LBL_INT_FLT, UL_REG}},
+		{JUMP,                   STR_OBJ("jmp"),         {UL_LBL_INT}},
+		{JUMP_EQUAL,             STR_OBJ("je"),          {UL_REG,         UL_LBL_INT}},
+		{JUMP_NOT_EQUAL,         STR_OBJ("jne"),         {UL_REG,         UL_LBL_INT}},
+		{JUMP_LESS,              STR_OBJ("jl"),          {UL_REG,         UL_LBL_INT}},
+		{JUMP_GREATER,           STR_OBJ("jg"),          {UL_REG,         UL_LBL_INT}},
+		{JUMP_LESS_EQUAL,        STR_OBJ("jle"),         {UL_REG,         UL_LBL_INT}},
+		{JUMP_GREATER_EQUAL,     STR_OBJ("jge"),         {UL_REG,         UL_LBL_INT}},
 
-		{LOAD_REG,               STR_OBJ("load"),               {UL_REG,         UL_OFF,     UL_REG}},
-		{LOAD_VAL,               STR_OBJ("load"),               {UL_LBL_INT,     UL_OFF,     UL_REG}},
-		{STORE_REG,              STR_OBJ("store"),              {UL_REG,         UL_REG,     UL_OFF}},
-		{STORE_VAL,              STR_OBJ("store"),              {UL_REG,         UL_LBL_INT, UL_OFF}},
-		{STORE_VAL_VAL,          STR_OBJ("store"),              {UL_LBL_INT_FLT, UL_LBL_INT, UL_OFF}},
+		{MOVE_REG,               STR_OBJ("move"),        {UL_REG,         UL_REG}},
+		{MOVE_VAL,               STR_OBJ("move"),        {UL_LBL_INT_FLT, UL_REG}},
 
-		{LOAD_BYTE_REG,          STR_OBJ("load_byte"),          {UL_REG,         UL_OFF,     UL_REG}},
-		{LOAD_BYTE_VAL,          STR_OBJ("load_byte"),          {UL_LBL_INT,     UL_OFF,     UL_REG}},
-		{STORE_BYTE_REG,         STR_OBJ("store_byte"),         {UL_REG,         UL_REG,     UL_OFF}},
-		{STORE_BYTE_VAL,         STR_OBJ("store_byte"),         {UL_REG,         UL_LBL_INT, UL_OFF}},
-		{STORE_BYTE_VAL_VAL,     STR_OBJ("store_byte"),         {UL_INT,         UL_LBL_INT, UL_OFF}},
+		{LOAD_REG,               STR_OBJ("load"),        {UL_REG,         UL_OFF,     UL_REG}},
+		{LOAD_VAL,               STR_OBJ("load"),        {UL_LBL_INT,     UL_OFF,     UL_REG}},
+		{STORE_REG,              STR_OBJ("store"),       {UL_REG,         UL_REG,     UL_OFF}},
+		{STORE_VAL,              STR_OBJ("store"),       {UL_REG,         UL_LBL_INT, UL_OFF}},
+		{STORE_VAL_VAL,          STR_OBJ("store"),       {UL_LBL_INT_FLT, UL_LBL_INT, UL_OFF}},
 
-		{LOAD_SHORT_REG,         STR_OBJ("load_short"),         {UL_LBL_INT,     UL_OFF,     UL_REG}},
-		{LOAD_SHORT_VAL,         STR_OBJ("load_short"),         {UL_REG,         UL_OFF,     UL_REG}},
-		{STORE_SHORT_REG,        STR_OBJ("store_short"),        {UL_REG,         UL_REG,     UL_OFF}},
-		{STORE_SHORT_VAL,        STR_OBJ("store_short"),        {UL_REG,         UL_LBL_INT, UL_OFF}},
-		{STORE_SHORT_VAL_VAL,    STR_OBJ("store_short"),        {UL_INT,         UL_LBL_INT, UL_OFF}},
+		{LOAD_BYTE_REG,          STR_OBJ("load_byte"),   {UL_REG,         UL_OFF,     UL_REG}},
+		{LOAD_BYTE_VAL,          STR_OBJ("load_byte"),   {UL_LBL_INT,     UL_OFF,     UL_REG}},
+		{STORE_BYTE_REG,         STR_OBJ("store_byte"),  {UL_REG,         UL_REG,     UL_OFF}},
+		{STORE_BYTE_VAL,         STR_OBJ("store_byte"),  {UL_REG,         UL_LBL_INT, UL_OFF}},
+		{STORE_BYTE_VAL_VAL,     STR_OBJ("store_byte"),  {UL_INT,         UL_LBL_INT, UL_OFF}},
 
-		{PUSH_REG,               STR_OBJ("push"),               {UL_REG}},
-		{PUSH_VAL,               STR_OBJ("push"),               {UL_LBL_INT_FLT}},
+		{LOAD_SHORT_REG,         STR_OBJ("load_short"),  {UL_LBL_INT,     UL_OFF,     UL_REG}},
+		{LOAD_SHORT_VAL,         STR_OBJ("load_short"),  {UL_REG,         UL_OFF,     UL_REG}},
+		{STORE_SHORT_REG,        STR_OBJ("store_short"), {UL_REG,         UL_REG,     UL_OFF}},
+		{STORE_SHORT_VAL,        STR_OBJ("store_short"), {UL_REG,         UL_LBL_INT, UL_OFF}},
+		{STORE_SHORT_VAL_VAL,    STR_OBJ("store_short"), {UL_INT,         UL_LBL_INT, UL_OFF}},
 
-		{STACKALLOC,             STR_OBJ("stackalloc"),         {UL_OFF}},
+		{PUSH_REG,               STR_OBJ("push"),        {UL_REG}},
+		{PUSH_VAL,               STR_OBJ("push"),        {UL_LBL_INT_FLT}},
 
-		{POP_REG,                STR_OBJ("pop"),                {UL_REG}},
-		{POP_OFF,                STR_OBJ("pop"),                {UL_OFF}},
+		{STACKALLOC,             STR_OBJ("stackalloc"),  {UL_OFF}},
 
-		{CALL_REG,               STR_OBJ("call"),               {UL_REG}},
-		{CALL_VAL,               STR_OBJ("call"),               {UL_LBL_INT}},
+		{POP_REG,                STR_OBJ("pop"),         {UL_REG}},
+		{POP_OFF,                STR_OBJ("pop"),         {UL_OFF}},
 
-		{RETURN,                 STR_OBJ("return"),             {UL_OFF}},
+		{CALL_REG,               STR_OBJ("call"),        {UL_REG}},
+		{CALL_VAL,               STR_OBJ("call"),        {UL_LBL_INT}},
 
-		{PORT_WRITE_REG,         STR_OBJ("port_write"),         {UL_REG,         UL_OFF}},
-		{PORT_WRITE_VAL,         STR_OBJ("port_write"),         {UL_INT,         UL_OFF}},
-		{PORT_READ_REG,          STR_OBJ("port_read"),          {UL_REG,         UL_REG}},
-		{PORT_READ_OFF,          STR_OBJ("port_read"),          {UL_OFF,         UL_REG}},
+		{RETURN,                 STR_OBJ("return"),      {UL_OFF}},
+
+		{PORT_WRITE_REG,         STR_OBJ("port_write"),  {UL_REG,         UL_OFF}},
+		{PORT_WRITE_VAL,         STR_OBJ("port_write"),  {UL_INT,         UL_OFF}},
+		{PORT_READ_REG,          STR_OBJ("port_read"),   {UL_REG,         UL_REG}},
+		{PORT_READ_OFF,          STR_OBJ("port_read"),   {UL_OFF,         UL_REG}},
 };
 
 static size_t opcodeLength = sizeof(opcodes) / sizeof(opcode);
@@ -715,6 +716,7 @@ static ulang_bool next_token(character_stream *stream, token *token, ulang_error
 static ulang_bool
 next_token_matches(character_stream *stream, const char *needle, size_t size, ulang_bool consume) {
 	character_stream stream_copy = *stream;
+	// BOZO this needs to be cleaned up in case of error below
 	ulang_error error;
 	token token;
 	if (!next_token(&stream_copy, &token, &error)) return ULANG_FALSE;
@@ -727,6 +729,7 @@ next_token_matches(character_stream *stream, const char *needle, size_t size, ul
 static ulang_bool
 next_token_matches_type(character_stream *stream, token *token, token_type type, ulang_bool consume) {
 	character_stream stream_copy = *stream;
+	// BOZO this needs to be cleaned up in case of error below
 	ulang_error error;
 	if (!next_token(&stream_copy, token, &error)) return ULANG_FALSE;
 	if (token->type != type) return ULANG_FALSE;
@@ -1038,7 +1041,6 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 			}
 
 			opcode *fittingOp = NULL;
-
 			while (-1) {
 				fittingOp = op;
 				for (int i = 0; i < op->numOperands; i++) {
@@ -1339,28 +1341,49 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 			REG3 = REG1 << REG2;
 			break;
 		case SHL_VAL:
-			REG2 = REG1 << VAL;
+			REG2 = REG1 << DECODE_OFF(word);
 			break;
 		case SHR:
 			REG3 = REG1 >> REG2;
 			break;
 		case SHR_VAL:
-			REG2 = REG1 >> VAL;
+			REG2 = REG1 >> DECODE_OFF(word);
 			break;
-		case JUMP:
+		case JUMP: {
+			uint32_t addr = VAL_U;
+			regs[14].ui = addr;
 			break;
-		case JUMP_EQUAL:
+		}
+		case JUMP_EQUAL: {
+			uint32_t addr = VAL_U;
+			if (REG1 == 0) regs[14].ui = addr;
 			break;
-		case JUMP_NOT_EQUAL:
+		}
+		case JUMP_NOT_EQUAL: {
+			uint32_t addr = VAL_U;
+			if (REG1 != 0) regs[14].ui = addr;
 			break;
-		case JUMP_LESS:
+		}
+		case JUMP_LESS: {
+			uint32_t addr = VAL_U;
+			if (REG1 < 0) regs[14].ui = addr;
 			break;
-		case JUMP_GREATER:
+		}
+		case JUMP_GREATER: {
+			uint32_t addr = VAL_U;
+			if (REG1 > 0) regs[14].ui = addr;
 			break;
-		case JUMP_LESS_EQUAL:
+		}
+		case JUMP_LESS_EQUAL: {
+			uint32_t addr = VAL_U;
+			if (REG1 <= 0) regs[14].ui = addr;
 			break;
-		case JUMP_GREATER_EQUAL:
+		}
+		case JUMP_GREATER_EQUAL: {
+			uint32_t addr = VAL_U;
+			if (REG1 >= 0) regs[14].ui = addr;
 			break;
+		}
 		case MOVE_REG:
 			REG2 = REG1;
 			break;
