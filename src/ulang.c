@@ -1465,7 +1465,7 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 			break;
 		}
 		case LOAD_VAL: {
-			uint32_t addr = VAL_U + DECODE_OFF(word);
+			uint32_t addr = DECODE_OFF(word) + VAL_U;
 			memcpy(&REG2_U, &vm->memory[addr], 4);
 			break;
 		}
@@ -1487,7 +1487,7 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 			break;
 		}
 		case LOAD_BYTE_VAL: {
-			uint32_t addr = VAL_U + DECODE_OFF(word);
+			uint32_t addr = +DECODE_OFF(word) + VAL_U;
 			REG2_U = vm->memory[addr];
 			break;
 		}
@@ -1509,7 +1509,7 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 			break;
 		}
 		case LOAD_SHORT_VAL: {
-			uint32_t addr = VAL_U + DECODE_OFF(word);
+			uint32_t addr = DECODE_OFF(word) + VAL_U;
 			memcpy(&REG2_U, &vm->memory[addr], 2);
 			break;
 		}

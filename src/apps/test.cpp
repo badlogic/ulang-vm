@@ -53,9 +53,9 @@ ulang_bool test(size_t testNum, test_case *test) {
 		return UL_FALSE;
 	}
 
-	if (!strcmp(file.data, "load a, 1, r1\nhalt\na: byte 1 int 123\n")) {
-		printf("");
-	}
+//	if (!strcmp(file.data, "load a, 1, r1\nhalt\na: byte 1 int 123\n")) {
+//		printf("");
+//	}
 
 	ulang_vm_init(&vm, &program);
 	while (ulang_vm_step(&vm));
@@ -328,7 +328,7 @@ int main(int argc, char **argv) {
 
 
 			// load, store
-			{"load a, 1, r1\nhalt\na: byte 1 int 123\n",                       {{REG_INT, .reg = PC, .val_uint = 8},  {REG_INT, .reg = R1, .val_int = 123}}},
+			{"load a, 1, r1\nhalt\na: byte 1 int 123\n",                       {{REG_INT, .reg = PC, .val_uint = 12}, {REG_INT, .reg = R1, .val_int = 123}}},
 
 			//{"jump h\nbyte 123\nh: halt", {{MEM_BYTE, .address = 0, .val_int = 0}}},
 			//{"halt",                      {{MEM_SHORT, .address = 0, .val_int = 0}}}
