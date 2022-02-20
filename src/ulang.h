@@ -81,8 +81,6 @@ typedef struct ulang_vm {
 	ulang_value registers[16];
 	uint8_t *memory;
 	size_t memorySizeBytes;
-	uint8_t *stack;
-	size_t stackSizeBytes;
 } ulang_vm;
 
 // memory
@@ -112,7 +110,7 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 void ulang_program_free(ulang_program *program);
 
 // interpreter
-void ulang_vm_init(ulang_vm *vm, size_t memorySizeBytes, size_t stackSizeBytes, ulang_program *program);
+void ulang_vm_init(ulang_vm *vm, ulang_program *program);
 
 ulang_bool ulang_vm_step(ulang_vm *vm);
 

@@ -104,17 +104,14 @@ typedef enum ulang_opcode {
 	LOAD_VAL,
 	STORE_REG,
 	STORE_VAL,
-	STORE_VAL_VAL,
 	LOAD_BYTE_REG,
 	LOAD_BYTE_VAL,
 	STORE_BYTE_REG,
 	STORE_BYTE_VAL,
-	STORE_BYTE_VAL_VAL,
 	LOAD_SHORT_REG,
 	LOAD_SHORT_VAL,
 	STORE_SHORT_REG,
 	STORE_SHORT_VAL,
-	STORE_SHORT_VAL_VAL,
 	PUSH_REG,
 	PUSH_VAL,
 	STACKALLOC,
@@ -127,7 +124,6 @@ typedef enum ulang_opcode {
 	PORT_WRITE_VAL,
 	PORT_READ_REG,
 	PORT_READ_OFF,
-	UNKNOWN
 } ulang_opcode;
 
 typedef enum operand_type {
@@ -217,19 +213,16 @@ opcode opcodes[] = {
 		{LOAD_VAL,               STR_OBJ("load"),        {UL_LBL_INT,     UL_OFF,     UL_REG}},
 		{STORE_REG,              STR_OBJ("store"),       {UL_REG,         UL_REG,     UL_OFF}},
 		{STORE_VAL,              STR_OBJ("store"),       {UL_REG,         UL_LBL_INT, UL_OFF}},
-		{STORE_VAL_VAL,          STR_OBJ("store"),       {UL_LBL_INT_FLT, UL_LBL_INT, UL_OFF}},
 
 		{LOAD_BYTE_REG,          STR_OBJ("load_byte"),   {UL_REG,         UL_OFF,     UL_REG}},
 		{LOAD_BYTE_VAL,          STR_OBJ("load_byte"),   {UL_LBL_INT,     UL_OFF,     UL_REG}},
 		{STORE_BYTE_REG,         STR_OBJ("store_byte"),  {UL_REG,         UL_REG,     UL_OFF}},
 		{STORE_BYTE_VAL,         STR_OBJ("store_byte"),  {UL_REG,         UL_LBL_INT, UL_OFF}},
-		{STORE_BYTE_VAL_VAL,     STR_OBJ("store_byte"),  {UL_INT,         UL_LBL_INT, UL_OFF}},
 
 		{LOAD_SHORT_REG,         STR_OBJ("load_short"),  {UL_LBL_INT,     UL_OFF,     UL_REG}},
 		{LOAD_SHORT_VAL,         STR_OBJ("load_short"),  {UL_REG,         UL_OFF,     UL_REG}},
 		{STORE_SHORT_REG,        STR_OBJ("store_short"), {UL_REG,         UL_REG,     UL_OFF}},
 		{STORE_SHORT_VAL,        STR_OBJ("store_short"), {UL_REG,         UL_LBL_INT, UL_OFF}},
-		{STORE_SHORT_VAL_VAL,    STR_OBJ("store_short"), {UL_INT,         UL_LBL_INT, UL_OFF}},
 
 		{PUSH_REG,               STR_OBJ("push"),        {UL_REG}},
 		{PUSH_VAL,               STR_OBJ("push"),        {UL_LBL_INT_FLT}},
@@ -811,7 +804,7 @@ static void emit_short(byte_array *code, token *value, int repeat) {
 	val &= 0xffff;
 	byte_array_ensure(code, 2 * repeat);
 	for (int i = 0; i < repeat; i++) {
-		*((int16_t *) &code->items[code->size]) = (int16_t) val;
+		memcpy(&code->items[code->size], &val, 2);
 		code->size += 2;
 	}
 }
@@ -820,7 +813,7 @@ static void emit_int(byte_array *code, token *value, int repeat) {
 	int val = token_to_int(value);
 	byte_array_ensure(code, 4 * repeat);
 	for (int i = 0; i < repeat; i++) {
-		*((int32_t *) &code->items[code->size]) = (int32_t) val;
+		memcpy(&code->items[code->size], &val, 4);
 		code->size += 4;
 	}
 }
@@ -829,7 +822,7 @@ static void emit_float(byte_array *code, token *value, int repeat) {
 	float val = token_to_float(value);
 	byte_array_ensure(code, 4 * repeat);
 	for (int i = 0; i < repeat; i++) {
-		*((float *) &code->items[code->size]) = val;
+		memcpy(&code->items[code->size], &val, 4);
 		code->size += 4;
 	}
 }
@@ -931,7 +924,7 @@ static void parse_repeat(character_stream *stream, int *numRepeat, ulang_error *
 }
 
 static void set_label_targets(label_array *labels, ulang_label_target target, size_t address) {
-	for (int i = labels->size - 1; i >= 0; i--) {
+	for (int i = (int) labels->size - 1; i >= 0; i--) {
 		if (labels->items[i].target != UL_LT_UNINITIALIZED) break;
 		labels->items[i].target = target;
 		labels->items[i].address = address;
@@ -1060,7 +1053,7 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 					goto _compilation_error;
 				}
 
-				EXPECT_TOKEN(stream, STR_OBJ("x"), "Expected 'x' after byte, short, int, or float.");
+				EXPECT_TOKEN(stream, STR_OBJ("x"), error);
 				token value;
 				if (!next_token(&stream, &value, error)) goto _compilation_error;
 				if (value.type != TOKEN_INTEGER) {
@@ -1214,21 +1207,19 @@ void ulang_program_free(ulang_program *program) {
 }
 
 // BOZO need to throw an error in case memory sizes are bollocks
-void ulang_vm_init(ulang_vm *vm, size_t memorySizeBytes, size_t stackSizeBytes, ulang_program *program) {
-	vm->memory = ulang_alloc(memorySizeBytes);
-	vm->memorySizeBytes = memorySizeBytes;
-	vm->stack = ulang_alloc(stackSizeBytes);
-	vm->stackSizeBytes = stackSizeBytes;
+void ulang_vm_init(ulang_vm *vm, ulang_program *program) {
+	vm->memorySizeBytes = 1024 * 1024 * 32;
+	vm->memory = ulang_alloc(vm->memorySizeBytes);
 	memset(vm->registers, 0, sizeof(ulang_value) * 16);
 	memset(vm->memory, 0, vm->memorySizeBytes);
-	memset(vm->stack, 0, vm->stackSizeBytes);
 	memcpy(vm->memory, program->code, program->codeLength);
 	memcpy(vm->memory + program->codeLength, program->data, program->dataLength);
+	vm->registers[15].ui = vm->memorySizeBytes - 4;
 }
 
-#define DECODE_OP(word) (word & 0x7f)
-#define DECODE_REG(word, index) ((word >> (7 + 4 * (index))) & 0xf)
-#define DECODE_OFF(word) ((word >> 19) & 0x1fff)
+#define DECODE_OP(word) ((word) & 0x7f)
+#define DECODE_REG(word, index) (((word) >> (7 + 4 * (index))) & 0xf)
+#define DECODE_OFF(word) (((word) >> 19) & 0x1fff)
 #define REG1 regs[DECODE_REG(word, 0)].i
 #define REG2 regs[DECODE_REG(word, 1)].i
 #define REG3 regs[DECODE_REG(word, 2)].i
@@ -1241,14 +1232,17 @@ void ulang_vm_init(ulang_vm *vm, size_t memorySizeBytes, size_t stackSizeBytes, 
 #define VAL *((int32_t *) &vm->memory[regs[14].ui]); regs[14].ui += 4
 #define VAL_U *((uint32_t *) &vm->memory[regs[14].ui]); regs[14].ui += 4
 #define VAL_F *((float *) &vm->memory[regs[14].ui]); regs[14].ui += 4
-#define SIGNUM(v) ((v < 0) ? -1 : ((v > 0) ? 1 : 0))
+#define SIGNUM(v) (((v) < 0) ? -1 : (((v) > 0) ? 1 : 0))
+#define PC regs[14].ui
+#define SP regs[15].ui
 
 ulang_bool ulang_vm_step(ulang_vm *vm) {
 	ulang_value *regs = vm->registers;
-	uint32_t word = *((uint32_t *) &vm->memory[regs[14].ui]);
-	regs[14].ui += 4;
+	uint32_t word;
+	memcpy(&word, &vm->memory[PC], 4);
+	PC += 4;
 	ulang_opcode op = DECODE_OP(word);
-	int32_t offset;
+
 	switch (op) {
 		case HALT:
 			return UL_FALSE;
@@ -1426,37 +1420,37 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 			break;
 		case JUMP: {
 			uint32_t addr = VAL_U;
-			regs[14].ui = addr;
+			PC = addr;
 			break;
 		}
 		case JUMP_EQUAL: {
 			uint32_t addr = VAL_U;
-			if (REG1 == 0) regs[14].ui = addr;
+			if (REG1 == 0) PC = addr;
 			break;
 		}
 		case JUMP_NOT_EQUAL: {
 			uint32_t addr = VAL_U;
-			if (REG1 != 0) regs[14].ui = addr;
+			if (REG1 != 0) PC = addr;
 			break;
 		}
 		case JUMP_LESS: {
 			uint32_t addr = VAL_U;
-			if (REG1 < 0) regs[14].ui = addr;
+			if (REG1 < 0) PC = addr;
 			break;
 		}
 		case JUMP_GREATER: {
 			uint32_t addr = VAL_U;
-			if (REG1 > 0) regs[14].ui = addr;
+			if (REG1 > 0) PC = addr;
 			break;
 		}
 		case JUMP_LESS_EQUAL: {
 			uint32_t addr = VAL_U;
-			if (REG1 <= 0) regs[14].ui = addr;
+			if (REG1 <= 0) PC = addr;
 			break;
 		}
 		case JUMP_GREATER_EQUAL: {
 			uint32_t addr = VAL_U;
-			if (REG1 >= 0) regs[14].ui = addr;
+			if (REG1 >= 0) PC = addr;
 			break;
 		}
 		case MOVE_REG:
@@ -1465,52 +1459,117 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 		case MOVE_VAL:
 			REG1 = VAL;
 			break;
-		case LOAD_REG:
+		case LOAD_REG: {
+			uint32_t addr = REG1_U + DECODE_OFF(word);
+			memcpy(&REG2_U, &vm->memory[addr], 4);
 			break;
-		case LOAD_VAL:
+		}
+		case LOAD_VAL: {
+			uint32_t addr = VAL_U + DECODE_OFF(word);
+			memcpy(&REG2_U, &vm->memory[addr], 4);
 			break;
-		case STORE_REG:
+		}
+		case STORE_REG: {
+			uint32_t val = REG1_U;
+			uint32_t addr = REG2_U + DECODE_OFF(word);
+			memcpy(&vm->memory[addr], &val, 4);
 			break;
-		case STORE_VAL:
+		}
+		case STORE_VAL: {
+			uint32_t val = VAL_U;
+			uint32_t addr = REG1_U + DECODE_OFF(word);
+			memcpy(&vm->memory[addr], &val, 4);
 			break;
-		case STORE_VAL_VAL:
+		}
+		case LOAD_BYTE_REG: {
+			uint32_t addr = REG1_U + DECODE_OFF(word);
+			REG2_U = vm->memory[addr];
 			break;
-		case LOAD_BYTE_REG:
+		}
+		case LOAD_BYTE_VAL: {
+			uint32_t addr = VAL_U + DECODE_OFF(word);
+			REG2_U = vm->memory[addr];
 			break;
-		case LOAD_BYTE_VAL:
+		}
+		case STORE_BYTE_REG: {
+			uint8_t val = (uint8_t) REG1_U;
+			uint32_t addr = REG1_U + DECODE_OFF(word);
+			vm->memory[addr] = val;
 			break;
-		case STORE_BYTE_REG:
+		}
+		case STORE_BYTE_VAL: {
+			uint32_t val = (uint8_t) VAL_U;
+			uint32_t addr = REG1_U + DECODE_OFF(word);
+			vm->memory[addr] = val;
 			break;
-		case STORE_BYTE_VAL:
+		}
+		case LOAD_SHORT_REG: {
+			uint32_t addr = REG1_U + DECODE_OFF(word);
+			memcpy(&REG2_U, &vm->memory[addr], 2);
 			break;
-		case STORE_BYTE_VAL_VAL:
+		}
+		case LOAD_SHORT_VAL: {
+			uint32_t addr = VAL_U + DECODE_OFF(word);
+			memcpy(&REG2_U, &vm->memory[addr], 2);
 			break;
-		case LOAD_SHORT_REG:
+		}
+		case STORE_SHORT_REG: {
+			uint16_t val = (uint16_t) REG1_U;
+			uint32_t addr = REG1_U + DECODE_OFF(word);
+			memcpy(&vm->memory[addr], &val, 2);
 			break;
-		case LOAD_SHORT_VAL:
+		}
+		case STORE_SHORT_VAL: {
+			uint16_t val = (uint16_t) VAL_U;
+			uint32_t addr = REG1_U + DECODE_OFF(word);
+			memcpy(&vm->memory[addr], &val, 2);
 			break;
-		case STORE_SHORT_REG:
+		}
+		case PUSH_REG: {
+			SP -= 4;
+			memcpy(vm->memory + SP, &regs[DECODE_REG(word, 0)].ui, 4);
 			break;
-		case STORE_SHORT_VAL:
+		}
+		case PUSH_VAL: {
+			SP -= 4;
+			uint32_t val = VAL_U;
+			memcpy(vm->memory + SP, &val, 4);
 			break;
-		case STORE_SHORT_VAL_VAL:
+		}
+		case STACKALLOC: {
+			uint32_t numBytes = DECODE_OFF(word);
+			SP -= numBytes;
 			break;
-		case PUSH_REG:
+		}
+		case POP_REG: {
+			memcpy(&regs[DECODE_REG(word, 0)].ui, vm->memory + SP, 4);
+			SP += 4;
 			break;
-		case PUSH_VAL:
+		}
+		case POP_OFF: {
+			memcpy(&regs[DECODE_REG(word, 0)].ui, vm->memory + SP, 4);
+			SP += DECODE_OFF(word) << 2;
 			break;
-		case STACKALLOC:
+		}
+		case CALL_REG: {
+			SP += 4;
+			memcpy(vm->memory + SP, &PC, 4);
+			PC = REG1_U;
 			break;
-		case POP_REG:
+		}
+		case CALL_VAL: {
+			SP += 4;
+			memcpy(vm->memory + SP, &PC, 4);
+			PC = VAL_U;
 			break;
-		case POP_OFF:
+		}
+		case RETURN: {
+			uint32_t addr;
+			memcpy(&addr, &vm->memory[SP], 4);
+			SP -= 4;
+			PC = addr;
 			break;
-		case CALL_REG:
-			break;
-		case CALL_VAL:
-			break;
-		case RETURN:
-			break;
+		}
 		case PORT_WRITE_REG:
 			break;
 		case PORT_WRITE_VAL:
@@ -1536,5 +1595,4 @@ void ulang_vm_print(ulang_vm *vm) {
 
 void ulang_vm_free(ulang_vm *vm) {
 	ulang_free(vm->memory);
-	ulang_free(vm->stack);
 }

@@ -53,7 +53,11 @@ ulang_bool test(size_t testNum, test_case *test) {
 		return UL_FALSE;
 	}
 
-	ulang_vm_init(&vm, 1024 * 1024, 4 * 1000, &program);
+	if (!strcmp(file.data, "load a, 1, r1\nhalt\na: byte 1 int 123\n")) {
+		printf("");
+	}
+
+	ulang_vm_init(&vm, &program);
 	while (ulang_vm_step(&vm));
 	char checkErrorMessage[256] = {};
 
@@ -167,8 +171,8 @@ int main(int argc, char **argv) {
 			{"sub r1, 123, r2",                                                {{REG_INT, .reg = R2, .val_int = -123}}},
 
 			// mul
-			{"move 0xffff, r1\nmove 43234, r2\nmul r1, r2, r3",                {{REG_INT, .reg = R3, .val_int = 0xffff *
-																												43234}}},
+			{"move 0xffff, r1\nmove 4323, r2\nmul r1, r2, r3",                 {{REG_INT, .reg = R3, .val_int = 0xffff *
+																												4323}}},
 			{"move -34234, r1\nmove 4323, r2\nmul r1, r2, r3",                 {{REG_INT, .reg = R3, .val_int = -34234 *
 																												4323}}},
 			{"move 3421, r1\nmul r1, 123, r2",                                 {{REG_INT, .reg = R2, .val_int = 3421 *
@@ -321,6 +325,10 @@ int main(int argc, char **argv) {
 			{"move 1, r1\ncmp r1, 1, r1\njge r1, l\nhalt\nl: move 123, r1\n",  {{REG_INT, .reg = PC, .val_uint = 40}, {REG_INT, .reg = R1, .val_int = 123}}},
 			{"move 1, r1\ncmp r1, -1, r1\njge r1, l\nhalt\nl: move 123, r1\n", {{REG_INT, .reg = PC, .val_uint = 40}, {REG_INT, .reg = R1, .val_int = 123}}},
 			{"move -1, r1\ncmp r1, 1, r2\njge r2, l\nmove 123, r1\nl: halt\n", {{REG_INT, .reg = PC, .val_uint = 36}, {REG_INT, .reg = R1, .val_int = 123}}},
+
+
+			// load, store
+			{"load a, 1, r1\nhalt\na: byte 1 int 123\n",                       {{REG_INT, .reg = PC, .val_uint = 8},  {REG_INT, .reg = R1, .val_int = 123}}},
 
 			//{"jump h\nbyte 123\nh: halt", {{MEM_BYTE, .address = 0, .val_int = 0}}},
 			//{"halt",                      {{MEM_SHORT, .address = 0, .val_int = 0}}}
