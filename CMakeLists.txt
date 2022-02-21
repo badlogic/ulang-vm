@@ -1,36 +1,33 @@
 cmake_minimum_required(VERSION 3.21)
 project(ulang-vm)
 
+set(CMAKE_C_STANDARD 99)
+set(CMAKE_C_STANDARD_REQUIRED TRUE)
+
 if (MSVC)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W3 -D_CRT_SECURE_NO_WARNINGS")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W3 -D_CRT_SECURE_NO_WARNINGS")
 
     if (CMAKE_BUILD_TYPE MATCHES Release)
         set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
     endif ()
 
     if (CMAKE_BUILD_TYPE MATCHES RelWithDebInfo)
         set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /PROFILE")
     endif ()
 
-    message("MSVC CXX Flags: ${CMAKE_CXX_FLAGS}")
-    message("MSVC CXX Flags Release: ${CMAKE_CXX_FLAGS_RELEASE}")
+    message("MSVC C Flags: ${CMAKE_C_FLAGS}")
 else ()
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -pedantic -std=c99 -Wno-missing-field-initializers")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -std=c++11 -Wno-missing-field-initializers")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wextra -pedantic -Wno-missing-field-initializers")
 
     # set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fsanitize=address -fsanitize=undefined")
     # set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fsanitize=address -fsanitize=undefined")
 
     if (CMAKE_BUILD_TYPE MATCHES Release)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -fno-exceptions -fno-rtti")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3")
     endif ()
-    message("Clang CXX Flags: ${CMAKE_CXX_FLAGS}")
-    message("Clang CXX Flags Release: ${CMAKE_CXX_FLAGS_RELEASE}")
+    message("Clang C Flags: ${CMAKE_C_FLAGS}")
+    message("Clang C Flags Release: ${CMAKE_C_FLAGS_RELEASE}")
 endif ()
-
-set(CMAKE_CXX_STANDARD 11)
 
 include_directories(src)
 file(GLOB INCLUDES "src/*.h")
@@ -38,8 +35,8 @@ file(GLOB SOURCES "src/*.c")
 add_library(ulang-lib ${INCLUDE} ${SOURCES})
 set_target_properties(ulang-lib PROPERTIES OUTPUT_NAME "ulang-lib")
 
-add_executable(ulang ${INCLUDES} "src/apps/ulang.cpp")
+add_executable(ulang ${INCLUDES} "src/apps/ulang-vm.c")
 target_link_libraries(ulang LINK_PUBLIC ulang-lib)
 
-add_executable(test ${INCLUDES} "src/apps/test.cpp")
+add_executable(test ${INCLUDES} "src/apps/test.c")
 target_link_libraries(test LINK_PUBLIC ulang-lib)
