@@ -1,4 +1,4 @@
-#include <cstdio>
+#include <stdio.h>
 #include <ulang.h>
 
 int main(int argc, char **argv) {
@@ -13,8 +13,8 @@ int main(int argc, char **argv) {
 		return -1;
 	}
 
-	ulang_error error = {};
-	ulang_program program = {};
+	ulang_error error = {0};
+	ulang_program program = {0};
 	if (!ulang_compile(&file, &program, &error)) {
 		ulang_error_print(&error);
 		ulang_error_free(&error);
@@ -22,8 +22,8 @@ int main(int argc, char **argv) {
 		return -1;
 	}
 
-	ulang_vm vm = {};
-	ulang_vm_init(&vm, 1024 * 1024, 1024 * 16, &program);
+	ulang_vm vm = {0};
+	ulang_vm_init(&vm, &program);
 	while (ulang_vm_step(&vm)) {
 		ulang_vm_print(&vm);
 	}

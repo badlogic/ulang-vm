@@ -15,7 +15,7 @@ typedef int ulang_bool;
 
 typedef struct ulang_string {
 	char *data;
-	size_t length;
+	uint32_t length;
 } ulang_string;
 
 typedef struct ulang_span {

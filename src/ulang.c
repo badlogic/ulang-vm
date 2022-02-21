@@ -144,7 +144,7 @@ typedef struct opcode {
 	ulang_bool hasValueOperand;
 } opcode;
 
-opcode opcodes[] = {
+static opcode opcodes[] = {
 		{HALT,                   STR_OBJ("halt")},
 		{ADD,                    STR_OBJ("add"),         {UL_REG,         UL_REG,     UL_REG}},
 		{ADD_VAL,                STR_OBJ("add"),         {UL_REG,         UL_LBL_INT, UL_REG}},
@@ -206,8 +206,8 @@ opcode opcodes[] = {
 		{JUMP_LESS_EQUAL,        STR_OBJ("jle"),         {UL_REG,         UL_LBL_INT}},
 		{JUMP_GREATER_EQUAL,     STR_OBJ("jge"),         {UL_REG,         UL_LBL_INT}},
 
-		{MOVE_REG,               STR_OBJ("move"),        {UL_REG,         UL_REG}},
-		{MOVE_VAL,               STR_OBJ("move"),        {UL_LBL_INT_FLT, UL_REG}},
+		{MOVE_REG,               STR_OBJ("mov"),         {UL_REG,         UL_REG}},
+		{MOVE_VAL,               STR_OBJ("mov"),         {UL_LBL_INT_FLT, UL_REG}},
 
 		{LOAD_REG,               STR_OBJ("load"),        {UL_REG,         UL_OFF,     UL_REG}},
 		{LOAD_VAL,               STR_OBJ("load"),        {UL_LBL_INT,     UL_OFF,     UL_REG}},
@@ -250,7 +250,7 @@ typedef struct reg {
 	int index;
 } reg;
 
-reg registers[] = {
+static reg registers[] = {
 		{{STR("r1")}},
 		{{STR("r2")}},
 		{{STR("r3")}},
@@ -1053,7 +1053,7 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 					goto _compilation_error;
 				}
 
-				EXPECT_TOKEN(stream, STR_OBJ("x"), error);
+				EXPECT_TOKEN(stream, STR_OBJ("x"), error)
 				token value;
 				if (!next_token(&stream, &value, error)) goto _compilation_error;
 				if (value.type != TOKEN_INTEGER) {
@@ -1068,6 +1068,7 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 				}
 				set_label_targets(&labels, UL_LT_RESERVED_DATA, numReservedBytes);
 				numReservedBytes += numBytes;
+				continue;
 			}
 
 			// Otherwise, we have a label
@@ -1177,7 +1178,7 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 				labelAddress += code.size;
 				break;
 			case UL_LT_RESERVED_DATA:
-				labelAddress += code.size + numReservedBytes;
+				labelAddress += code.size + data.size;
 				break;
 		}
 		memcpy(&code.items[p->patchAddress], &labelAddress, 4);
@@ -1188,6 +1189,7 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 	program->codeLength = code.size;
 	program->data = data.items;
 	program->dataLength = data.size;
+	program->reservedBytes = numReservedBytes;
 	program->labels = labels.items;
 	program->labelsLength = labels.size;
 	return UL_TRUE;
