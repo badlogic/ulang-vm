@@ -146,101 +146,101 @@ typedef struct opcode {
 
 static opcode opcodes[] = {
 		{HALT,                   STR_OBJ("halt")},
-		{ADD,                    STR_OBJ("add"),         {UL_REG,         UL_REG,     UL_REG}},
-		{ADD_VAL,                STR_OBJ("add"),         {UL_REG,         UL_LBL_INT, UL_REG}},
-		{SUB,                    STR_OBJ("sub"),         {UL_REG,         UL_REG,     UL_REG}},
-		{SUB_VAL,                STR_OBJ("sub"),         {UL_REG,         UL_LBL_INT, UL_REG}},
-		{MUL,                    STR_OBJ("mul"),         {UL_REG,         UL_REG,     UL_REG}},
-		{MUL_VAL,                STR_OBJ("mul"),         {UL_REG,         UL_LBL_INT, UL_REG}},
-		{DIV,                    STR_OBJ("div"),         {UL_REG,         UL_REG,     UL_REG}},
-		{DIV_VAL,                STR_OBJ("div"),         {UL_REG,         UL_LBL_INT, UL_REG}},
-		{DIV_UNSIGNED,           STR_OBJ("divu"),        {UL_REG,         UL_REG,     UL_REG}},
-		{DIV_UNSIGNED_VAL,       STR_OBJ("divu"),        {UL_REG,         UL_LBL_INT, UL_REG}},
-		{REMAINDER,              STR_OBJ("rem"),         {UL_REG,         UL_REG,     UL_REG}},
-		{REMAINDER_VAL,          STR_OBJ("rem"),         {UL_REG,         UL_LBL_INT, UL_REG}},
-		{REMAINDER_UNSIGNED,     STR_OBJ("remu"),        {UL_REG,         UL_REG,     UL_REG}},
-		{REMAINDER_UNSIGNED_VAL, STR_OBJ("remu"),        {UL_REG,         UL_LBL_INT, UL_REG}},
-		{ADD_FLOAT,              STR_OBJ("addf"),        {UL_REG,         UL_REG,     UL_REG}},
-		{ADD_FLOAT_VAL,          STR_OBJ("addf"),        {UL_REG,         UL_FLT,     UL_REG}},
-		{SUB_FLOAT,              STR_OBJ("subf"),        {UL_REG,         UL_REG,     UL_REG}},
-		{SUB_FLOAT_VAL,          STR_OBJ("subf"),        {UL_REG,         UL_FLT,     UL_REG}},
-		{MUL_FLOAT,              STR_OBJ("mulf"),        {UL_REG,         UL_REG,     UL_REG}},
-		{MUL_FLOAT_VAL,          STR_OBJ("mulf"),        {UL_REG,         UL_FLT,     UL_REG}},
-		{DIV_FLOAT,              STR_OBJ("divf"),        {UL_REG,         UL_REG,     UL_REG}},
-		{DIV_FLOAT_VAL,          STR_OBJ("divf"),        {UL_REG,         UL_FLT,     UL_REG}},
-		{COS,                    STR_OBJ("cosf"),        {UL_REG,         UL_REG}},
-		{SIN,                    STR_OBJ("sinf"),        {UL_REG,         UL_REG}},
-		{ATAN2,                  STR_OBJ("atan2f"),      {UL_REG,         UL_REG,     UL_REG}},
-		{SQRT,                   STR_OBJ("sqrtf"),       {UL_REG,         UL_REG}},
-		{POW,                    STR_OBJ("powf"),        {UL_REG,         UL_REG,     UL_REG}},
-		{POW_VAL,                STR_OBJ("powf"),        {UL_REG,         UL_FLT,     UL_REG}},
-		{INT_TO_FLOAT,           STR_OBJ("i2f"),         {UL_REG,         UL_REG}},
-		{FLOAT_TO_INT,           STR_OBJ("f2i"),         {UL_REG,         UL_REG}},
+		{ADD,                    STR_OBJ("add"),        {UL_REG,         UL_REG,     UL_REG}},
+		{ADD_VAL,                STR_OBJ("add"),        {UL_REG,         UL_LBL_INT, UL_REG}},
+		{SUB,                    STR_OBJ("sub"),        {UL_REG,         UL_REG,     UL_REG}},
+		{SUB_VAL,                STR_OBJ("sub"),        {UL_REG,         UL_LBL_INT, UL_REG}},
+		{MUL,                    STR_OBJ("mul"),        {UL_REG,         UL_REG,     UL_REG}},
+		{MUL_VAL,                STR_OBJ("mul"),        {UL_REG,         UL_LBL_INT, UL_REG}},
+		{DIV,                    STR_OBJ("div"),        {UL_REG,         UL_REG,     UL_REG}},
+		{DIV_VAL,                STR_OBJ("div"),        {UL_REG,         UL_LBL_INT, UL_REG}},
+		{DIV_UNSIGNED,           STR_OBJ("divu"),       {UL_REG,         UL_REG,     UL_REG}},
+		{DIV_UNSIGNED_VAL,       STR_OBJ("divu"),       {UL_REG,         UL_LBL_INT, UL_REG}},
+		{REMAINDER,              STR_OBJ("rem"),        {UL_REG,         UL_REG,     UL_REG}},
+		{REMAINDER_VAL,          STR_OBJ("rem"),        {UL_REG,         UL_LBL_INT, UL_REG}},
+		{REMAINDER_UNSIGNED,     STR_OBJ("remu"),       {UL_REG,         UL_REG,     UL_REG}},
+		{REMAINDER_UNSIGNED_VAL, STR_OBJ("remu"),       {UL_REG,         UL_LBL_INT, UL_REG}},
+		{ADD_FLOAT,              STR_OBJ("addf"),       {UL_REG,         UL_REG,     UL_REG}},
+		{ADD_FLOAT_VAL,          STR_OBJ("addf"),       {UL_REG,         UL_FLT,     UL_REG}},
+		{SUB_FLOAT,              STR_OBJ("subf"),       {UL_REG,         UL_REG,     UL_REG}},
+		{SUB_FLOAT_VAL,          STR_OBJ("subf"),       {UL_REG,         UL_FLT,     UL_REG}},
+		{MUL_FLOAT,              STR_OBJ("mulf"),       {UL_REG,         UL_REG,     UL_REG}},
+		{MUL_FLOAT_VAL,          STR_OBJ("mulf"),       {UL_REG,         UL_FLT,     UL_REG}},
+		{DIV_FLOAT,              STR_OBJ("divf"),       {UL_REG,         UL_REG,     UL_REG}},
+		{DIV_FLOAT_VAL,          STR_OBJ("divf"),       {UL_REG,         UL_FLT,     UL_REG}},
+		{COS,                    STR_OBJ("cosf"),       {UL_REG,         UL_REG}},
+		{SIN,                    STR_OBJ("sinf"),       {UL_REG,         UL_REG}},
+		{ATAN2,                  STR_OBJ("atan2f"),     {UL_REG,         UL_REG,     UL_REG}},
+		{SQRT,                   STR_OBJ("sqrtf"),      {UL_REG,         UL_REG}},
+		{POW,                    STR_OBJ("powf"),       {UL_REG,         UL_REG,     UL_REG}},
+		{POW_VAL,                STR_OBJ("powf"),       {UL_REG,         UL_FLT,     UL_REG}},
+		{INT_TO_FLOAT,           STR_OBJ("i2f"),        {UL_REG,         UL_REG}},
+		{FLOAT_TO_INT,           STR_OBJ("f2i"),        {UL_REG,         UL_REG}},
 
-		{NOT,                    STR_OBJ("not"),         {UL_REG,         UL_REG}},
-		{NOT_VAL,                STR_OBJ("not"),         {UL_LBL_INT,     UL_REG}},
-		{AND,                    STR_OBJ("and"),         {UL_REG,         UL_REG,     UL_REG}},
-		{AND_VAL,                STR_OBJ("and"),         {UL_REG,         UL_LBL_INT, UL_REG}},
-		{OR,                     STR_OBJ("or"),          {UL_REG,         UL_REG,     UL_REG}},
-		{OR_VAL,                 STR_OBJ("or"),          {UL_REG,         UL_LBL_INT, UL_REG}},
-		{XOR,                    STR_OBJ("xor"),         {UL_REG,         UL_REG,     UL_REG}},
-		{XOR_VAL,                STR_OBJ("xor"),         {UL_REG,         UL_LBL_INT, UL_REG}},
-		{SHL,                    STR_OBJ("shl"),         {UL_REG,         UL_REG,     UL_REG}},
-		{SHL_VAL,                STR_OBJ("shl"),         {UL_REG,         UL_OFF,     UL_REG}},
-		{SHR,                    STR_OBJ("shr"),         {UL_REG,         UL_REG,     UL_REG}},
-		{SHR_VAL,                STR_OBJ("shr"),         {UL_REG,         UL_OFF,     UL_REG}},
+		{NOT,                    STR_OBJ("not"),        {UL_REG,         UL_REG}},
+		{NOT_VAL,                STR_OBJ("not"),        {UL_LBL_INT,     UL_REG}},
+		{AND,                    STR_OBJ("and"),        {UL_REG,         UL_REG,     UL_REG}},
+		{AND_VAL,                STR_OBJ("and"),        {UL_REG,         UL_LBL_INT, UL_REG}},
+		{OR,                     STR_OBJ("or"),         {UL_REG,         UL_REG,     UL_REG}},
+		{OR_VAL,                 STR_OBJ("or"),         {UL_REG,         UL_LBL_INT, UL_REG}},
+		{XOR,                    STR_OBJ("xor"),        {UL_REG,         UL_REG,     UL_REG}},
+		{XOR_VAL,                STR_OBJ("xor"),        {UL_REG,         UL_LBL_INT, UL_REG}},
+		{SHL,                    STR_OBJ("shl"),        {UL_REG,         UL_REG,     UL_REG}},
+		{SHL_VAL,                STR_OBJ("shl"),        {UL_REG,         UL_OFF,     UL_REG}},
+		{SHR,                    STR_OBJ("shr"),        {UL_REG,         UL_REG,     UL_REG}},
+		{SHR_VAL,                STR_OBJ("shr"),        {UL_REG,         UL_OFF,     UL_REG}},
 
-		{CMP,                    STR_OBJ("cmp"),         {UL_REG,         UL_REG,     UL_REG}},
-		{CMP_VAL,                STR_OBJ("cmp"),         {UL_REG,         UL_LBL_INT, UL_REG}},
-		{CMP_UNSIGNED,           STR_OBJ("cmpu"),        {UL_REG,         UL_REG,     UL_REG}},
-		{CMP_UNSIGNED_VAL,       STR_OBJ("cmpu"),        {UL_REG,         UL_LBL_INT, UL_REG}},
-		{CMP_FLOAT,              STR_OBJ("cmpf"),        {UL_REG,         UL_REG,     UL_REG}},
-		{CMP_FLOAT_VAL,          STR_OBJ("cmpf"),        {UL_REG,         UL_FLT,     UL_REG}},
+		{CMP,                    STR_OBJ("cmp"),        {UL_REG,         UL_REG,     UL_REG}},
+		{CMP_VAL,                STR_OBJ("cmp"),        {UL_REG,         UL_LBL_INT, UL_REG}},
+		{CMP_UNSIGNED,           STR_OBJ("cmpu"),       {UL_REG,         UL_REG,     UL_REG}},
+		{CMP_UNSIGNED_VAL,       STR_OBJ("cmpu"),       {UL_REG,         UL_LBL_INT, UL_REG}},
+		{CMP_FLOAT,              STR_OBJ("cmpf"),       {UL_REG,         UL_REG,     UL_REG}},
+		{CMP_FLOAT_VAL,          STR_OBJ("cmpf"),       {UL_REG,         UL_FLT,     UL_REG}},
 
 
-		{JUMP,                   STR_OBJ("jmp"),         {UL_LBL_INT}},
-		{JUMP_EQUAL,             STR_OBJ("je"),          {UL_REG,         UL_LBL_INT}},
-		{JUMP_NOT_EQUAL,         STR_OBJ("jne"),         {UL_REG,         UL_LBL_INT}},
-		{JUMP_LESS,              STR_OBJ("jl"),          {UL_REG,         UL_LBL_INT}},
-		{JUMP_GREATER,           STR_OBJ("jg"),          {UL_REG,         UL_LBL_INT}},
-		{JUMP_LESS_EQUAL,        STR_OBJ("jle"),         {UL_REG,         UL_LBL_INT}},
-		{JUMP_GREATER_EQUAL,     STR_OBJ("jge"),         {UL_REG,         UL_LBL_INT}},
+		{JUMP,                   STR_OBJ("jmp"),        {UL_LBL_INT}},
+		{JUMP_EQUAL,             STR_OBJ("je"),         {UL_REG,         UL_LBL_INT}},
+		{JUMP_NOT_EQUAL,         STR_OBJ("jne"),        {UL_REG,         UL_LBL_INT}},
+		{JUMP_LESS,              STR_OBJ("jl"),         {UL_REG,         UL_LBL_INT}},
+		{JUMP_GREATER,           STR_OBJ("jg"),         {UL_REG,         UL_LBL_INT}},
+		{JUMP_LESS_EQUAL,        STR_OBJ("jle"),        {UL_REG,         UL_LBL_INT}},
+		{JUMP_GREATER_EQUAL,     STR_OBJ("jge"),        {UL_REG,         UL_LBL_INT}},
 
-		{MOVE_REG,               STR_OBJ("mov"),         {UL_REG,         UL_REG}},
-		{MOVE_VAL,               STR_OBJ("mov"),         {UL_LBL_INT_FLT, UL_REG}},
+		{MOVE_REG,               STR_OBJ("mov"),        {UL_REG,         UL_REG}},
+		{MOVE_VAL,               STR_OBJ("mov"),        {UL_LBL_INT_FLT, UL_REG}},
 
-		{LOAD_REG,               STR_OBJ("load"),        {UL_REG,         UL_OFF,     UL_REG}},
-		{LOAD_VAL,               STR_OBJ("load"),        {UL_LBL_INT,     UL_OFF,     UL_REG}},
-		{STORE_REG,              STR_OBJ("store"),       {UL_REG,         UL_REG,     UL_OFF}},
-		{STORE_VAL,              STR_OBJ("store"),       {UL_REG,         UL_LBL_INT, UL_OFF}},
+		{LOAD_REG,               STR_OBJ("ld"),         {UL_REG,         UL_OFF,     UL_REG}},
+		{LOAD_VAL,               STR_OBJ("ld"),         {UL_LBL_INT,     UL_OFF,     UL_REG}},
+		{STORE_REG,              STR_OBJ("sto"),        {UL_REG,         UL_REG,     UL_OFF}},
+		{STORE_VAL,              STR_OBJ("sto"),        {UL_REG,         UL_LBL_INT, UL_OFF}},
 
-		{LOAD_BYTE_REG,          STR_OBJ("load_byte"),   {UL_REG,         UL_OFF,     UL_REG}},
-		{LOAD_BYTE_VAL,          STR_OBJ("load_byte"),   {UL_LBL_INT,     UL_OFF,     UL_REG}},
-		{STORE_BYTE_REG,         STR_OBJ("store_byte"),  {UL_REG,         UL_REG,     UL_OFF}},
-		{STORE_BYTE_VAL,         STR_OBJ("store_byte"),  {UL_REG,         UL_LBL_INT, UL_OFF}},
+		{LOAD_BYTE_REG,          STR_OBJ("ldb"),        {UL_REG,         UL_OFF,     UL_REG}},
+		{LOAD_BYTE_VAL,          STR_OBJ("ldb"),        {UL_LBL_INT,     UL_OFF,     UL_REG}},
+		{STORE_BYTE_REG,         STR_OBJ("stob"),       {UL_REG,         UL_REG,     UL_OFF}},
+		{STORE_BYTE_VAL,         STR_OBJ("stob"),       {UL_REG,         UL_LBL_INT, UL_OFF}},
 
-		{LOAD_SHORT_REG,         STR_OBJ("load_short"),  {UL_LBL_INT,     UL_OFF,     UL_REG}},
-		{LOAD_SHORT_VAL,         STR_OBJ("load_short"),  {UL_REG,         UL_OFF,     UL_REG}},
-		{STORE_SHORT_REG,        STR_OBJ("store_short"), {UL_REG,         UL_REG,     UL_OFF}},
-		{STORE_SHORT_VAL,        STR_OBJ("store_short"), {UL_REG,         UL_LBL_INT, UL_OFF}},
+		{LOAD_SHORT_REG,         STR_OBJ("lds"),        {UL_REG,         UL_OFF,     UL_REG}},
+		{LOAD_SHORT_VAL,         STR_OBJ("lds"),        {UL_LBL_INT,     UL_OFF,     UL_REG}},
+		{STORE_SHORT_REG,        STR_OBJ("stos"),       {UL_REG,         UL_REG,     UL_OFF}},
+		{STORE_SHORT_VAL,        STR_OBJ("stos"),       {UL_REG,         UL_LBL_INT, UL_OFF}},
 
-		{PUSH_REG,               STR_OBJ("push"),        {UL_REG}},
-		{PUSH_VAL,               STR_OBJ("push"),        {UL_LBL_INT_FLT}},
+		{PUSH_REG,               STR_OBJ("push"),       {UL_REG}},
+		{PUSH_VAL,               STR_OBJ("push"),       {UL_LBL_INT_FLT}},
 
-		{STACKALLOC,             STR_OBJ("stackalloc"),  {UL_OFF}},
+		{STACKALLOC,             STR_OBJ("stackalloc"), {UL_OFF}},
 
-		{POP_REG,                STR_OBJ("pop"),         {UL_REG}},
-		{POP_OFF,                STR_OBJ("pop"),         {UL_OFF}},
+		{POP_REG,                STR_OBJ("pop"),        {UL_REG}},
+		{POP_OFF,                STR_OBJ("pop"),        {UL_OFF}},
 
-		{CALL_REG,               STR_OBJ("call"),        {UL_REG}},
-		{CALL_VAL,               STR_OBJ("call"),        {UL_LBL_INT}},
+		{CALL_REG,               STR_OBJ("call"),       {UL_REG}},
+		{CALL_VAL,               STR_OBJ("call"),       {UL_LBL_INT}},
 
-		{RETURN,                 STR_OBJ("return"),      {UL_OFF}},
+		{RETURN,                 STR_OBJ("return"),     {UL_OFF}},
 
-		{PORT_WRITE_REG,         STR_OBJ("port_write"),  {UL_REG,         UL_OFF}},
-		{PORT_WRITE_VAL,         STR_OBJ("port_write"),  {UL_INT,         UL_OFF}},
-		{PORT_READ_REG,          STR_OBJ("port_read"),   {UL_REG,         UL_REG}},
-		{PORT_READ_OFF,          STR_OBJ("port_read"),   {UL_OFF,         UL_REG}},
+		{PORT_WRITE_REG,         STR_OBJ("port_write"), {UL_REG,         UL_OFF}},
+		{PORT_WRITE_VAL,         STR_OBJ("port_write"), {UL_INT,         UL_OFF}},
+		{PORT_READ_REG,          STR_OBJ("port_read"),  {UL_REG,         UL_REG}},
+		{PORT_READ_OFF,          STR_OBJ("port_read"),  {UL_OFF,         UL_REG}},
 };
 
 static size_t opcodeLength = sizeof(opcodes) / sizeof(opcode);
@@ -1023,6 +1023,7 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 				while (-1) {
 					token value;
 					if (!next_token(&stream, &value, error)) goto _compilation_error;
+					if (value.type == TOKEN_INTEGER) value.type == TOKEN_FLOAT;
 					if (value.type != TOKEN_FLOAT) {
 						ulang_error_init(error, file, value.span, "Expected a floating point value.");
 						goto _compilation_error;
@@ -1472,15 +1473,13 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 			break;
 		}
 		case STORE_REG: {
-			uint32_t val = REG1_U;
 			uint32_t addr = REG2_U + DECODE_OFF(word);
-			memcpy(&vm->memory[addr], &val, 4);
+			memcpy(&vm->memory[addr], &REG1_U, 4);
 			break;
 		}
 		case STORE_VAL: {
-			uint32_t val = VAL_U;
-			uint32_t addr = REG1_U + DECODE_OFF(word);
-			memcpy(&vm->memory[addr], &val, 4);
+			uint32_t addr = DECODE_OFF(word) + VAL_U;
+			memcpy(&vm->memory[addr], &REG1_U, 4);
 			break;
 		}
 		case LOAD_BYTE_REG: {
@@ -1489,20 +1488,18 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 			break;
 		}
 		case LOAD_BYTE_VAL: {
-			uint32_t addr = +DECODE_OFF(word) + VAL_U;
+			uint32_t addr = DECODE_OFF(word) + VAL_U;
 			REG2_U = vm->memory[addr];
 			break;
 		}
 		case STORE_BYTE_REG: {
-			uint8_t val = (uint8_t) REG1_U;
-			uint32_t addr = REG1_U + DECODE_OFF(word);
-			vm->memory[addr] = val;
+			uint32_t addr = REG2_U + DECODE_OFF(word);
+			vm->memory[addr] = (uint8_t) REG1_U;
 			break;
 		}
 		case STORE_BYTE_VAL: {
-			uint32_t val = (uint8_t) VAL_U;
-			uint32_t addr = REG1_U + DECODE_OFF(word);
-			vm->memory[addr] = val;
+			uint32_t addr = DECODE_OFF(word) + VAL_U;
+			vm->memory[addr] = (uint8_t) REG1_U;
 			break;
 		}
 		case LOAD_SHORT_REG: {
@@ -1516,15 +1513,13 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 			break;
 		}
 		case STORE_SHORT_REG: {
-			uint16_t val = (uint16_t) REG1_U;
-			uint32_t addr = REG1_U + DECODE_OFF(word);
-			memcpy(&vm->memory[addr], &val, 2);
+			uint32_t addr = REG2_U + DECODE_OFF(word);
+			memcpy(&vm->memory[addr], &REG1_U, 2);
 			break;
 		}
 		case STORE_SHORT_VAL: {
-			uint16_t val = (uint16_t) VAL_U;
-			uint32_t addr = REG1_U + DECODE_OFF(word);
-			memcpy(&vm->memory[addr], &val, 2);
+			uint32_t addr = DECODE_OFF(word) + VAL_U;
+			memcpy(&vm->memory[addr], &REG1_U, 2);
 			break;
 		}
 		case PUSH_REG: {

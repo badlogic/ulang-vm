@@ -46,7 +46,7 @@ ulang_bool test(size_t testNum, test_case *test) {
 	ulang_vm vm = {0};
 
 	ulang_file_from_memory("test.ul", test->code, &file);
-	if (!strcmp(file.data, "mov 123, r1\nmov a, r2\nstore r1, r2, 0\nhalt\na: reserve int x 1")) {
+	if (!strcmp(file.data, "lds a, 1, r1\nhalt\na: byte 1 short -1\n")) {
 		printf("");
 	}
 	ulang_compile(&file, &program, &error);
@@ -102,7 +102,7 @@ ulang_bool test(size_t testNum, test_case *test) {
 			}
 			case MEM_FLOAT: {
 				float memValue;
-				memcpy(&memValue, &vm.memory[check->address], 2);
+				memcpy(&memValue, &vm.memory[check->address], 4);
 				float expValue = check->val_float;
 				if (memValue != expValue) {
 					snprintf(checkErrorMessage, sizeof checkErrorMessage,
@@ -150,214 +150,235 @@ ulang_bool test(size_t testNum, test_case *test) {
 
 int main(int argc, char **argv) {
 	test_case tests[] = {
-			{"halt",                                                                                {{REG_INT, .reg = PC, .val_uint = 4}}},
+			{"halt",                                                                                     {{REG_INT, .reg = PC, .val_uint = 4}}},
 
 			// Test mov first, as we need it for the other tests
-			{"mov 123, r1",                                                                         {{REG_INT, .reg = R1, .val_int = 123}}},
-			{"mov 123.456, r1",                                                                     {{REG_FLOAT, .reg = R1, .val_float = 123.456f}}},
-			{"mov 123, r1\nmov r1, r2",                                                             {{REG_INT, .reg = R1, .val_int = 123}}},
-			{"mov 123.456, r1\nmov r1, r2",                                                         {{REG_INT, .reg = R1, .val_float = 123.456}}},
+			{"mov 123, r1",                                                                              {{REG_INT, .reg = R1, .val_int = 123}}},
+			{"mov 123.456, r1",                                                                          {{REG_FLOAT, .reg = R1, .val_float = 123.456f}}},
+			{"mov 123, r1\nmov r1, r2",                                                                  {{REG_INT, .reg = R1, .val_int = 123}}},
+			{"mov 123.456, r1\nmov r1, r2",                                                              {{REG_INT, .reg = R1, .val_float = 123.456}}},
 
 			// add
-			{"mov 0xffff, r1\nmov 43234, r2\nadd r1, r2, r3",                                       {{REG_INT, .reg = R3, .val_int =
+			{"mov 0xffff, r1\nmov 43234, r2\nadd r1, r2, r3",                                            {{REG_INT, .reg = R3, .val_int =
 			0xffff +
 			43234}}},
-			{"mov -34234, r1\nmov 4323, r2\nadd r1, r2, r3",                                        {{REG_INT, .reg = R3, .val_int =
+			{"mov -34234, r1\nmov 4323, r2\nadd r1, r2, r3",                                             {{REG_INT, .reg = R3, .val_int =
 			-34234 +
 			4323}}},
-			{"add r1, 123, r2",                                                                     {{REG_INT, .reg = R2, .val_int = 123}}},
+			{"add r1, 123, r2",                                                                          {{REG_INT, .reg = R2, .val_int = 123}}},
 
 			// sub
-			{"mov 0xffff, r1\nmov 43234, r2\nsub r1, r2, r3",                                       {{REG_INT, .reg = R3, .val_int =
+			{"mov 0xffff, r1\nmov 43234, r2\nsub r1, r2, r3",                                            {{REG_INT, .reg = R3, .val_int =
 			0xffff -
 			43234}}},
-			{"mov -34234, r1\nmov 4323, r2\nsub r1, r2, r3",                                        {{REG_INT, .reg = R3, .val_int =
+			{"mov -34234, r1\nmov 4323, r2\nsub r1, r2, r3",                                             {{REG_INT, .reg = R3, .val_int =
 			-34234 -
 			4323}}},
-			{"sub r1, 123, r2",                                                                     {{REG_INT, .reg = R2, .val_int = -123}}},
+			{"sub r1, 123, r2",                                                                          {{REG_INT, .reg = R2, .val_int = -123}}},
 
 			// mul
-			{"mov 0xffff, r1\nmov 4323, r2\nmul r1, r2, r3",                                        {{REG_INT, .reg = R3, .val_int =
+			{"mov 0xffff, r1\nmov 4323, r2\nmul r1, r2, r3",                                             {{REG_INT, .reg = R3, .val_int =
 			0xffff *
 			4323}}},
-			{"mov -34234, r1\nmov 4323, r2\nmul r1, r2, r3",                                        {{REG_INT, .reg = R3, .val_int =
+			{"mov -34234, r1\nmov 4323, r2\nmul r1, r2, r3",                                             {{REG_INT, .reg = R3, .val_int =
 			-34234 *
 			4323}}},
-			{"mov 3421, r1\nmul r1, 123, r2",                                                       {{REG_INT, .reg = R2, .val_int =
+			{"mov 3421, r1\nmul r1, 123, r2",                                                            {{REG_INT, .reg = R2, .val_int =
 			3421 *
 			123}}},
 
 			// div
-			{"mov 0xffff, r1\nmov 7, r2\ndiv r1, r2, r3",                                           {{REG_INT, .reg = R3, .val_int =
+			{"mov 0xffff, r1\nmov 7, r2\ndiv r1, r2, r3",                                                {{REG_INT, .reg = R3, .val_int =
 			0xffff /
 			7}}},
-			{"mov -34234, r1\nmov 7, r2\ndiv r1, r2, r3",                                           {{REG_INT, .reg = R3, .val_int =
+			{"mov -34234, r1\nmov 7, r2\ndiv r1, r2, r3",                                                {{REG_INT, .reg = R3, .val_int =
 			-34234 /
 			7}}},
-			{"mov 3421, r1\ndiv r1, 7, r2",                                                         {{REG_INT, .reg = R2, .val_int =
+			{"mov 3421, r1\ndiv r1, 7, r2",                                                              {{REG_INT, .reg = R2, .val_int =
 			3421 /
 			7}}},
 
 			// divu
-			{"mov 0xffff, r1\nmov 7, r2\ndivu r1, r2, r3",                                          {{REG_INT, .reg = R3, .val_uint =
+			{"mov 0xffff, r1\nmov 7, r2\ndivu r1, r2, r3",                                               {{REG_INT, .reg = R3, .val_uint =
 			0xffff /
 			7}}},
-			{"mov -34234, r1\nmov 7, r2\ndivu r1, r2, r3",                                          {{REG_INT, .reg = R3, .val_uint =
+			{"mov -34234, r1\nmov 7, r2\ndivu r1, r2, r3",                                               {{REG_INT, .reg = R3, .val_uint =
 			((uint32_t) -34234) /
 			7}}},
-			{"mov 3421, r1\ndivu r1, 7, r2",                                                        {{REG_INT, .reg = R2, .val_uint =
+			{"mov 3421, r1\ndivu r1, 7, r2",                                                             {{REG_INT, .reg = R2, .val_uint =
 			3421 /
 			7}}},
 
 			// rem
-			{"mov 0xffff, r1\nmov 7, r2\nrem r1, r2, r3",                                           {{REG_INT, .reg = R3, .val_int =
+			{"mov 0xffff, r1\nmov 7, r2\nrem r1, r2, r3",                                                {{REG_INT, .reg = R3, .val_int =
 			0xffff %
 			7}}},
-			{"mov -34234, r1\nmov 7, r2\nrem r1, r2, r3",                                           {{REG_INT, .reg = R3, .val_int =
+			{"mov -34234, r1\nmov 7, r2\nrem r1, r2, r3",                                                {{REG_INT, .reg = R3, .val_int =
 			-34234 %
 			7}}},
-			{"mov 3421, r1\nrem r1, 7, r2",                                                         {{REG_INT, .reg = R2, .val_int =
+			{"mov 3421, r1\nrem r1, 7, r2",                                                              {{REG_INT, .reg = R2, .val_int =
 			3421 %
 			7}}},
 
 			// remu
-			{"mov 0xffff, r1\nmov 7, r2\nremu r1, r2, r3",                                          {{REG_INT, .reg = R3, .val_uint =
+			{"mov 0xffff, r1\nmov 7, r2\nremu r1, r2, r3",                                               {{REG_INT, .reg = R3, .val_uint =
 			0xffff %
 			7}}},
-			{"mov -34234, r1\nmov 7, r2\nremu r1, r2, r3",                                          {{REG_INT, .reg = R3, .val_uint =
+			{"mov -34234, r1\nmov 7, r2\nremu r1, r2, r3",                                               {{REG_INT, .reg = R3, .val_uint =
 			(uint32_t) -34234 %
 			7}}},
-			{"mov 3421, r1\nremu r1, 7, r2",                                                        {{REG_INT, .reg = R2, .val_uint =
+			{"mov 3421, r1\nremu r1, 7, r2",                                                             {{REG_INT, .reg = R2, .val_uint =
 			3421 %
 			7}}},
 
 			// addf
-			{"mov 123.456, r1\nmov -234.567, r2\naddf r1, r2, r3",                                  {{REG_FLOAT, .reg = R3, .val_float =
+			{"mov 123.456, r1\nmov -234.567, r2\naddf r1, r2, r3",                                       {{REG_FLOAT, .reg = R3, .val_float =
 			123.456f +
 			-234.567f}}},
-			{"addf r1, 123.456, r2",                                                                {{REG_FLOAT, .reg = R2, .val_float = 123.456}}},
-			{"addf r1, 123, r2",                                                                    {{REG_FLOAT, .reg = R2, .val_float = 123}}},
+			{"addf r1, 123.456, r2",                                                                     {{REG_FLOAT, .reg = R2, .val_float = 123.456}}},
+			{"addf r1, 123, r2",                                                                         {{REG_FLOAT, .reg = R2, .val_float = 123}}},
 
 			// subf
-			{"mov 123.456, r1\nmov 234.567, r2\nsubf r1, r2, r3",                                   {{REG_FLOAT, .reg = R3, .val_float =
+			{"mov 123.456, r1\nmov 234.567, r2\nsubf r1, r2, r3",                                        {{REG_FLOAT, .reg = R3, .val_float =
 			123.456f -
 			234.567f}}},
-			{"subf r1, 123.456, r2",                                                                {{REG_FLOAT, .reg = R2, .val_float = -123.456f}}},
+			{"subf r1, 123.456, r2",                                                                     {{REG_FLOAT, .reg = R2, .val_float = -123.456f}}},
 
 			// mulf
-			{"mov 123.456, r1\nmov 234.567, r2\nmulf r1, r2, r3",                                   {{REG_FLOAT, .reg = R3, .val_float =
+			{"mov 123.456, r1\nmov 234.567, r2\nmulf r1, r2, r3",                                        {{REG_FLOAT, .reg = R3, .val_float =
 			123.456f *
 			234.567f}}},
-			{"mov 123.456, r1\nmulf r1, 234.567, r2",                                               {{REG_FLOAT, .reg = R2, .val_float =
+			{"mov 123.456, r1\nmulf r1, 234.567, r2",                                                    {{REG_FLOAT, .reg = R2, .val_float =
 			123.456f *
 			234.567f}}},
 
 			// divf
-			{"mov 123.456, r1\nmov 234.567, r2\ndivf r1, r2, r3",                                   {{REG_FLOAT, .reg = R3, .val_float =
+			{"mov 123.456, r1\nmov 234.567, r2\ndivf r1, r2, r3",                                        {{REG_FLOAT, .reg = R3, .val_float =
 			123.456f /
 			234.567f}}},
-			{"mov 123.456, r1\ndivf r1, 234.567, r2",                                               {{REG_FLOAT, .reg = R2, .val_float =
+			{"mov 123.456, r1\ndivf r1, 234.567, r2",                                                    {{REG_FLOAT, .reg = R2, .val_float =
 			123.456f /
 			234.567f}}},
 			// cos, sin, atan2, sqrt, pow
-			{"mov 123.456, r1\ncosf r1, r2",                                                        {{REG_FLOAT, .reg = R2, .val_float = cosf(
+			{"mov 123.456, r1\ncosf r1, r2",                                                             {{REG_FLOAT, .reg = R2, .val_float = cosf(
 					123.456f)}}},
-			{"mov 123.456, r1\nsinf r1, r2",                                                        {{REG_FLOAT, .reg = R2, .val_float = sinf(
+			{"mov 123.456, r1\nsinf r1, r2",                                                             {{REG_FLOAT, .reg = R2, .val_float = sinf(
 					123.456f)}}},
-			{"mov 123.456, r1\nmov 234.567, r2\natan2f r1, r2, r3",                                 {{REG_FLOAT, .reg = R3, .val_float = atan2f(
+			{"mov 123.456, r1\nmov 234.567, r2\natan2f r1, r2, r3",                                      {{REG_FLOAT, .reg = R3, .val_float = atan2f(
 					123.456f, 234.567f)}}},
-			{"mov 123.456, r1\nsqrtf r1, r2",                                                       {{REG_FLOAT, .reg = R2, .val_float = sqrtf(
+			{"mov 123.456, r1\nsqrtf r1, r2",                                                            {{REG_FLOAT, .reg = R2, .val_float = sqrtf(
 					123.456f)}}},
-			{"mov 123.456, r1\nmov 234.567, r2\npowf r1, r2, r3",                                   {{REG_FLOAT, .reg = R3, .val_float = powf(
+			{"mov 123.456, r1\nmov 234.567, r2\npowf r1, r2, r3",                                        {{REG_FLOAT, .reg = R3, .val_float = powf(
 					123.456f, 234.567f)}}},
-			{"mov 123.456, r1\npowf r1, 4, r3",                                                     {{REG_FLOAT, .reg = R3, .val_float = powf(
+			{"mov 123.456, r1\npowf r1, 4, r3",                                                          {{REG_FLOAT, .reg = R3, .val_float = powf(
 					123.456f, 4.0f)}}},
-			{"mov 123, r1\ni2f r1, r1",                                                             {{REG_FLOAT, .reg = R1, .val_float = 123}}},
-			{"mov 123.456, r1\nf2i r1, r1",                                                         {{REG_FLOAT, .reg = R1, .val_int = 123}}},
+			{"mov 123, r1\ni2f r1, r1",                                                                  {{REG_FLOAT, .reg = R1, .val_float = 123}}},
+			{"mov 123.456, r1\nf2i r1, r1",                                                              {{REG_FLOAT, .reg = R1, .val_int = 123}}},
 
 			// not, and, or, xor, shl, shr
-			{"mov 0xf0f0f, r1\nnot r1, r1",                                                         {{REG_INT, .reg = R1, .val_int = ~0xf0f0f}}},
-			{"not 0xf0f0f, r1",                                                                     {{REG_INT, .reg = R1, .val_int = ~0xf0f0f}}},
-			{"mov 0xf0f0f, r1\nmov 0xf0f0, r2\nand r1, r2, r3",                                     {{REG_INT, .reg = R3, .val_int =
+			{"mov 0xf0f0f, r1\nnot r1, r1",                                                              {{REG_INT, .reg = R1, .val_int = ~0xf0f0f}}},
+			{"not 0xf0f0f, r1",                                                                          {{REG_INT, .reg = R1, .val_int = ~0xf0f0f}}},
+			{"mov 0xf0f0f, r1\nmov 0xf0f0, r2\nand r1, r2, r3",                                          {{REG_INT, .reg = R3, .val_int =
 			0xf0f0f &
 			0xf0f0}}},
-			{"mov 0xf0f0f, r1\nand r1, 0xf0f0, r3",                                                 {{REG_INT, .reg = R3, .val_int =
+			{"mov 0xf0f0f, r1\nand r1, 0xf0f0, r3",                                                      {{REG_INT, .reg = R3, .val_int =
 			0xf0f0f &
 			0xf0f0}}},
-			{"mov 0xf0f0f, r1\nmov 0xf0f0, r2\nor r1, r2, r3",                                      {{REG_INT, .reg = R3, .val_int =
+			{"mov 0xf0f0f, r1\nmov 0xf0f0, r2\nor r1, r2, r3",                                           {{REG_INT, .reg = R3, .val_int =
 			0xf0f0f |
 			0xf0f0}}},
-			{"mov 0xf0f0f, r1\nor r1, 0xf0f0, r3",                                                  {{REG_INT, .reg = R3, .val_int =
+			{"mov 0xf0f0f, r1\nor r1, 0xf0f0, r3",                                                       {{REG_INT, .reg = R3, .val_int =
 			0xf0f0f |
 			0xf0f0}}},
-			{"mov 0xf0f0f, r1\nmov 0xf0f0, r2\nxor r1, r2, r3",                                     {{REG_INT, .reg = R3, .val_int =
+			{"mov 0xf0f0f, r1\nmov 0xf0f0, r2\nxor r1, r2, r3",                                          {{REG_INT, .reg = R3, .val_int =
 			0xf0f0f ^
 			0xf0f0}}},
-			{"mov 0xf0f0f, r1\nxor r1, 0xf0f0, r3",                                                 {{REG_INT, .reg = R3, .val_int =
+			{"mov 0xf0f0f, r1\nxor r1, 0xf0f0, r3",                                                      {{REG_INT, .reg = R3, .val_int =
 			0xf0f0f ^
 			0xf0f0}}},
-			{"mov 0xf0f0f, r1\nmov 4, r2\nshl r1, r2, r3",                                          {{REG_INT, .reg = R3, .val_int =
+			{"mov 0xf0f0f, r1\nmov 4, r2\nshl r1, r2, r3",                                               {{REG_INT, .reg = R3, .val_int =
 			0xf0f0f
 					<< 4}}},
-			{"mov 0xf0f0f, r1\nshl r1, 4, r3",                                                      {{REG_INT, .reg = R3, .val_int =
+			{"mov 0xf0f0f, r1\nshl r1, 4, r3",                                                           {{REG_INT, .reg = R3, .val_int =
 			0xf0f0f
 					<< 4}}},
-			{"mov 0xf0f0f, r1\nmov 4, r2\nshr r1, r2, r3",                                          {{REG_INT, .reg = R3, .val_int =
+			{"mov 0xf0f0f, r1\nmov 4, r2\nshr r1, r2, r3",                                               {{REG_INT, .reg = R3, .val_int =
 			0xf0f0f
 					>> 4}}},
-			{"mov 0xf0f0f, r1\nshr r1, 4, r3",                                                      {{REG_INT, .reg = R3, .val_int =
+			{"mov 0xf0f0f, r1\nshr r1, 4, r3",                                                           {{REG_INT, .reg = R3, .val_int =
 			0xf0f0f
 					>> 4}}},
 
 			// cmp
-			{"mov -11, r1\nmov 22, r2\ncmp r1, r2, r3",                                             {{REG_INT, .reg = R3, .val_int = -1}}},
-			{"mov 33, r1\nmov -31, r2\ncmp r1, r2, r3",                                             {{REG_INT, .reg = R3, .val_int = 1}}},
-			{"mov 1, r1\nmov 1, r2\ncmp r1, r2, r3",                                                {{REG_INT, .reg = R3, .val_int = 0}}},
-			{"mov 1, r1\ncmp r1, 2, r3",                                                            {{REG_INT, .reg = R3, .val_int = -1}}},
-			{"mov 1, r1\ncmp r1, -1, r3",                                                           {{REG_INT, .reg = R3, .val_int = 1}}},
-			{"mov 1, r1\ncmp r1, 1, r3",                                                            {{REG_INT, .reg = R3, .val_int = 0}}},
+			{"mov -11, r1\nmov 22, r2\ncmp r1, r2, r3",                                                  {{REG_INT, .reg = R3, .val_int = -1}}},
+			{"mov 33, r1\nmov -31, r2\ncmp r1, r2, r3",                                                  {{REG_INT, .reg = R3, .val_int = 1}}},
+			{"mov 1, r1\nmov 1, r2\ncmp r1, r2, r3",                                                     {{REG_INT, .reg = R3, .val_int = 0}}},
+			{"mov 1, r1\ncmp r1, 2, r3",                                                                 {{REG_INT, .reg = R3, .val_int = -1}}},
+			{"mov 1, r1\ncmp r1, -1, r3",                                                                {{REG_INT, .reg = R3, .val_int = 1}}},
+			{"mov 1, r1\ncmp r1, 1, r3",                                                                 {{REG_INT, .reg = R3, .val_int = 0}}},
 
 			// cmpu
-			{"mov -11, r1\nmov 22, r2\ncmpu r1, r2, r3",                                            {{REG_INT, .reg = R3, .val_int = 1}}},
-			{"mov 33, r1\nmov -31, r2\ncmpu r1, r2, r3",                                            {{REG_INT, .reg = R3, .val_int = -1}}},
-			{"mov 1, r1\nmov 1, r2\ncmpu r1, r2, r3",                                               {{REG_INT, .reg = R3, .val_int = 0}}},
-			{"mov 2, r1\ncmpu r1, 1, r3",                                                           {{REG_INT, .reg = R3, .val_int = 1}}},
-			{"mov 1, r1\ncmpu r1, -1, r3",                                                          {{REG_INT, .reg = R3, .val_int = -1}}},
-			{"mov 1, r1\ncmpu r1, 1, r3",                                                           {{REG_INT, .reg = R3, .val_int = 0}}},
+			{"mov -11, r1\nmov 22, r2\ncmpu r1, r2, r3",                                                 {{REG_INT, .reg = R3, .val_int = 1}}},
+			{"mov 33, r1\nmov -31, r2\ncmpu r1, r2, r3",                                                 {{REG_INT, .reg = R3, .val_int = -1}}},
+			{"mov 1, r1\nmov 1, r2\ncmpu r1, r2, r3",                                                    {{REG_INT, .reg = R3, .val_int = 0}}},
+			{"mov 2, r1\ncmpu r1, 1, r3",                                                                {{REG_INT, .reg = R3, .val_int = 1}}},
+			{"mov 1, r1\ncmpu r1, -1, r3",                                                               {{REG_INT, .reg = R3, .val_int = -1}}},
+			{"mov 1, r1\ncmpu r1, 1, r3",                                                                {{REG_INT, .reg = R3, .val_int = 0}}},
 
 			// cmpf
-			{"mov -134.3, r1\nmov 22.34, r2\ncmpf r1, r2, r3",                                      {{REG_INT, .reg = R3, .val_int = -1}}},
-			{"mov 33.43, r1\nmov -31.234, r2\ncmpf r1, r2, r3",                                     {{REG_INT, .reg = R3, .val_int = 1}}},
-			{"mov 1.432, r1\nmov 1.432, r2\ncmpf r1, r2, r3",                                       {{REG_INT, .reg = R3, .val_int = 0}}},
+			{"mov -134.3, r1\nmov 22.34, r2\ncmpf r1, r2, r3",                                           {{REG_INT, .reg = R3, .val_int = -1}}},
+			{"mov 33.43, r1\nmov -31.234, r2\ncmpf r1, r2, r3",                                          {{REG_INT, .reg = R3, .val_int = 1}}},
+			{"mov 1.432, r1\nmov 1.432, r2\ncmpf r1, r2, r3",                                            {{REG_INT, .reg = R3, .val_int = 0}}},
 
 			// jmp, je, jne, jl, jg, jle, jge
-			{"jmp l\nhalt\nl: mov 123, r1\n",                                                       {{REG_INT, .reg = PC, .val_uint = 24}, {REG_INT, .reg = R1, .val_int = 123}}},
-			{"mov 1, r1\ncmp r1, 1, r1\nje r1, l\nhalt\nl: mov 123, r1\n",                          {{REG_INT, .reg = PC, .val_uint = 40}, {REG_INT, .reg = R1, .val_int = 123}}},
-			{"mov 1, r1\ncmp r1, 2, r2\nje r2, l\nmov 123, r1\nl: halt\n",                          {{REG_INT, .reg = PC, .val_uint = 36}, {REG_INT, .reg = R1, .val_int = 123}}},
-			{"mov 1, r1\ncmp r1, 2, r1\njne r1, l\nhalt\nl: mov 123, r1\n",                         {{REG_INT, .reg = PC, .val_uint = 40}, {REG_INT, .reg = R1, .val_int = 123}}},
-			{"mov 1, r1\ncmp r1, 1, r2\njne r2, l\nmov 123, r1\nl: halt\n",                         {{REG_INT, .reg = PC, .val_uint = 36}, {REG_INT, .reg = R1, .val_int = 123}}},
-			{"mov 1, r1\ncmp r1, 2, r1\njl r1, l\nhalt\nl: mov 123, r1\n",                          {{REG_INT, .reg = PC, .val_uint = 40}, {REG_INT, .reg = R1, .val_int = 123}}},
-			{"mov 1, r1\ncmp r1, -1, r2\njl r2, l\nmov 123, r1\nl: halt\n",                         {{REG_INT, .reg = PC, .val_uint = 36}, {REG_INT, .reg = R1, .val_int = 123}}},
-			{"mov 2, r1\ncmp r1, 1, r1\njg r1, l\nhalt\nl: mov 123, r1\n",                          {{REG_INT, .reg = PC, .val_uint = 40}, {REG_INT, .reg = R1, .val_int = 123}}},
-			{"mov -1, r1\ncmp r1, 1, r2\njg r2, l\nmov 123, r1\nl: halt\n",                         {{REG_INT, .reg = PC, .val_uint = 36}, {REG_INT, .reg = R1, .val_int = 123}}},
-			{"mov 1, r1\ncmp r1, 1, r1\njle r1, l\nhalt\nl: mov 123, r1\n",                         {{REG_INT, .reg = PC, .val_uint = 40}, {REG_INT, .reg = R1, .val_int = 123}}},
-			{"mov -1, r1\ncmp r1, 1, r1\njle r1, l\nhalt\nl: mov 123, r1\n",                        {{REG_INT, .reg = PC, .val_uint = 40}, {REG_INT, .reg = R1, .val_int = 123}}},
-			{"mov 1, r1\ncmp r1, -1, r2\njle r2, l\nmov 123, r1\nl: halt\n",                        {{REG_INT, .reg = PC, .val_uint = 36}, {REG_INT, .reg = R1, .val_int = 123}}},
-			{"mov 1, r1\ncmp r1, 1, r1\njge r1, l\nhalt\nl: mov 123, r1\n",                         {{REG_INT, .reg = PC, .val_uint = 40}, {REG_INT, .reg = R1, .val_int = 123}}},
-			{"mov 1, r1\ncmp r1, -1, r1\njge r1, l\nhalt\nl: mov 123, r1\n",                        {{REG_INT, .reg = PC, .val_uint = 40}, {REG_INT, .reg = R1, .val_int = 123}}},
-			{"mov -1, r1\ncmp r1, 1, r2\njge r2, l\nmov 123, r1\nl: halt\n",                        {{REG_INT, .reg = PC, .val_uint = 36}, {REG_INT, .reg = R1, .val_int = 123}}},
+			{"jmp l\nhalt\nl: mov 123, r1\n",                                                            {{REG_INT, .reg = PC, .val_uint = 24}, {REG_INT, .reg = R1, .val_int = 123}}},
+			{"mov 1, r1\ncmp r1, 1, r1\nje r1, l\nhalt\nl: mov 123, r1\n",                               {{REG_INT, .reg = PC, .val_uint = 40}, {REG_INT, .reg = R1, .val_int = 123}}},
+			{"mov 1, r1\ncmp r1, 2, r2\nje r2, l\nmov 123, r1\nl: halt\n",                               {{REG_INT, .reg = PC, .val_uint = 36}, {REG_INT, .reg = R1, .val_int = 123}}},
+			{"mov 1, r1\ncmp r1, 2, r1\njne r1, l\nhalt\nl: mov 123, r1\n",                              {{REG_INT, .reg = PC, .val_uint = 40}, {REG_INT, .reg = R1, .val_int = 123}}},
+			{"mov 1, r1\ncmp r1, 1, r2\njne r2, l\nmov 123, r1\nl: halt\n",                              {{REG_INT, .reg = PC, .val_uint = 36}, {REG_INT, .reg = R1, .val_int = 123}}},
+			{"mov 1, r1\ncmp r1, 2, r1\njl r1, l\nhalt\nl: mov 123, r1\n",                               {{REG_INT, .reg = PC, .val_uint = 40}, {REG_INT, .reg = R1, .val_int = 123}}},
+			{"mov 1, r1\ncmp r1, -1, r2\njl r2, l\nmov 123, r1\nl: halt\n",                              {{REG_INT, .reg = PC, .val_uint = 36}, {REG_INT, .reg = R1, .val_int = 123}}},
+			{"mov 2, r1\ncmp r1, 1, r1\njg r1, l\nhalt\nl: mov 123, r1\n",                               {{REG_INT, .reg = PC, .val_uint = 40}, {REG_INT, .reg = R1, .val_int = 123}}},
+			{"mov -1, r1\ncmp r1, 1, r2\njg r2, l\nmov 123, r1\nl: halt\n",                              {{REG_INT, .reg = PC, .val_uint = 36}, {REG_INT, .reg = R1, .val_int = 123}}},
+			{"mov 1, r1\ncmp r1, 1, r1\njle r1, l\nhalt\nl: mov 123, r1\n",                              {{REG_INT, .reg = PC, .val_uint = 40}, {REG_INT, .reg = R1, .val_int = 123}}},
+			{"mov -1, r1\ncmp r1, 1, r1\njle r1, l\nhalt\nl: mov 123, r1\n",                             {{REG_INT, .reg = PC, .val_uint = 40}, {REG_INT, .reg = R1, .val_int = 123}}},
+			{"mov 1, r1\ncmp r1, -1, r2\njle r2, l\nmov 123, r1\nl: halt\n",                             {{REG_INT, .reg = PC, .val_uint = 36}, {REG_INT, .reg = R1, .val_int = 123}}},
+			{"mov 1, r1\ncmp r1, 1, r1\njge r1, l\nhalt\nl: mov 123, r1\n",                              {{REG_INT, .reg = PC, .val_uint = 40}, {REG_INT, .reg = R1, .val_int = 123}}},
+			{"mov 1, r1\ncmp r1, -1, r1\njge r1, l\nhalt\nl: mov 123, r1\n",                             {{REG_INT, .reg = PC, .val_uint = 40}, {REG_INT, .reg = R1, .val_int = 123}}},
+			{"mov -1, r1\ncmp r1, 1, r2\njge r2, l\nmov 123, r1\nl: halt\n",                             {{REG_INT, .reg = PC, .val_uint = 36}, {REG_INT, .reg = R1, .val_int = 123}}},
 
 
-			// load, store
-			{"load a, 1, r1\nhalt\na: byte 1 int 123\n",                                            {{REG_INT, .reg = R1, .val_int = 123}}},
-			{"mov a, r1\nload r1, 2, r2\nhalt\na: byte 1 x 2 int 123",                              {{REG_INT, .reg = R2, .val_int = 123}}},
-			{"mov 123, r1\nstore r1, a, 0\nhalt\na: int 123",                                       {{MEM_INT, .address =
-			5 * 4, .val_int = 123}}},
-			{"mov 123, r1\nmov a, r2\nstore r1, r2, 0\nhalt\nreserve byte x 1\na: reserve int x 1", {{REG_INT, .reg = R2, .val_int = 25},  {MEM_INT, .address =
-			6 * 4 + 1, .val_int = 123}}},
+			// load, store int
+			{"ld a, 1, r1\nhalt\na: byte 1 int 0xdeadbeef\n",                                            {{REG_INT, .reg = R1, .val_int = 0xdeadbeef}}},
+			{"mov a, r1\nld r1, 2, r2\nhalt\na: byte 0 x 2 int 0xdeadbeef",                              {{REG_INT, .reg = R2, .val_int = 0xdeadbeef}}},
+			{"mov 0xdeadbeef, r1\nsto r1, a, 0\nhalt\na: int 123",                                       {{MEM_INT, .address =
+			5 * 4, .val_int = 0xdeadbeef}}},
+			{"mov 0xdeadbeef, r1\nmov a, r2\nsto r1, r2, 0\nhalt\nreserve byte x 1\na: reserve int x 1", {{REG_INT, .reg = R2, .val_int = 25},  {MEM_INT, .address =
+			6 * 4 + 1, .val_int = 0xdeadbeef}}},
 
-			//{"jump h\nbyte 123\nh: halt", {{MEM_BYTE, .address = 0, .val_int = 0}}},
-			//{"halt",                      {{MEM_SHORT, .address = 0, .val_int = 0}}}
+			// load, store float
+			{"ld a, 1, r1\nhalt\na: byte 1 float 123.456\n",                                             {{REG_FLOAT, .reg = R1, .val_float = 123.456}}},
+			{"mov a, r1\nld r1, 2, r2\nhalt\na: byte 0 x 2 float 123.456",                               {{REG_FLOAT, .reg = R2, .val_float = 123.456}}},
+			{"mov 123.456, r1\nsto r1, a, 0\nhalt\na: float 123.456",                                    {{MEM_FLOAT, .address =
+			5 * 4, .val_float = 123.456}}},
+			{"mov 123.456, r1\nmov a, r2\nsto r1, r2, 0\nhalt\nreserve byte x 1\na: reserve float x 1",  {{REG_INT, .reg = R2, .val_int = 25},  {MEM_FLOAT, .address =
+			6 * 4 + 1, .val_float = 123.456}}},
+
+			// load, store byte
+			{"ldb a, 1, r1\nhalt\na: byte 1 byte -1\n",                                                  {{REG_INT, .reg = R1, .val_int = 0xff}}},
+			{"mov a, r1\nldb r1, 2, r2\nhalt\na: byte 0 x 2 byte -1",                                    {{REG_INT, .reg = R2, .val_int = 0xff}}},
+			{"mov -1, r1\nstob r1, a, 0\nhalt\na: byte 0 byte 123",                                      {{MEM_INT, .address =
+			5 * 4, .val_int = 0x7bff}}}, // 0x7bff to check if we write more than 1 byte
+			{"mov -1, r1\nmov a, r2\nstob r1, r2, 0\nhalt\nreserve byte x 1\na: reserve byte x 1",       {{REG_INT, .reg = R2, .val_int = 25},  {MEM_INT, .address =
+			6 * 4 + 1, .val_int = 0xff}}},
+
+			// load, store short
+			{"lds a, 1, r1\nhalt\na: byte 1 short -1\n",                                                 {{REG_INT, .reg = R1, .val_int = 0xffff}}},
+			{"mov a, r1\nlds r1, 2, r2\nhalt\na: byte 0 x 2 short -1",                                   {{REG_INT, .reg = R2, .val_int = 0xffff}}},
+			{"mov -1, r1\nstos r1, a, 0\nhalt\na: short 0 short 123",                                    {{MEM_INT, .address =
+			5 * 4, .val_int = 0x7bffff}}}, // 0x7bffff to check if we write more than 2 bytes
+			{"mov -1, r1\nmov a, r2\nstos r1, r2, 0\nhalt\nreserve byte x 1\na: reserve byte x 1",       {{REG_INT, .reg = R2, .val_int = 25},  {MEM_INT, .address =
+			6 * 4 + 1, .val_int = 0xffff}}},
 	};
 	for (size_t i = 0; i < sizeof(tests) / sizeof(test_case); i++) {
 		test_case *t = &tests[i];
