@@ -72,6 +72,7 @@ typedef enum ulang_opcode {
 	SQRT,
 	POW,
 	POW_VAL,
+	RAND,
 	INT_TO_FLOAT,
 	FLOAT_TO_INT,
 	NOT,
@@ -174,6 +175,7 @@ static opcode opcodes[] = {
 		{SQRT,                   STR_OBJ("sqrtf"),      {UL_REG,         UL_REG}},
 		{POW,                    STR_OBJ("powf"),       {UL_REG,         UL_REG,     UL_REG}},
 		{POW_VAL,                STR_OBJ("powf"),       {UL_REG,         UL_FLT,     UL_REG}},
+		{RAND,                   STR_OBJ("rand"),       {UL_REG}},
 		{INT_TO_FLOAT,           STR_OBJ("i2f"),        {UL_REG,         UL_REG}},
 		{FLOAT_TO_INT,           STR_OBJ("f2i"),        {UL_REG,         UL_REG}},
 
@@ -1221,38 +1223,35 @@ void ulang_program_free(ulang_program *program) {
 }
 
 ulang_bool default_interrupts(uint32_t intNum, ulang_vm *vm) {
-	switch (intNum) {
-		case 0:
-			do {
-				ulang_vm_print(vm);
-				prompt:
-				printf("> ");
-				char c;
-				do { c = getchar(); } while (c == '\n' || c == '\r');
+	if (intNum == 0) {
+		do {
+			ulang_vm_print(vm);
+			prompt:
+			printf("> ");
+			int c;
+			do { c = getchar(); } while (c == '\n' || c == '\r');
 
-				switch (c) {
-					case 's': {
-						if (!ulang_vm_step(vm)) return UL_FALSE;
-						break;
-					}
-					case 'c':
-						return UL_TRUE;
-					case 'p': {
-						ulang_vm_print(vm);
-					}
-					case 'h':
-					default: {
-						printf("s    step one instruction\n");
-						printf("c    continue execution\n");
-						printf("p    print registers and source location\n");
-						goto prompt;
-					}
+			switch (c) {
+				case 's': {
+					if (!ulang_vm_step(vm)) return UL_FALSE;
+					break;
 				}
-			} while (-1);
-			return UL_TRUE;
-		default:
-			return UL_TRUE;
+				case 'c':
+					return UL_TRUE;
+				case 'p': {
+					ulang_vm_print(vm);
+				}
+				case 'h':
+				default: {
+					printf("s    step one instruction\n");
+					printf("c    continue execution\n");
+					printf("p    print registers and source location\n");
+					goto prompt;
+				}
+			}
+		} while (-1);
 	}
+	return UL_TRUE;
 }
 
 // BOZO need to throw an error in case memory sizes are bollocks
@@ -1383,6 +1382,10 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 		case POW_VAL: {
 			float val = VAL_F;
 			REG2_F = powf(REG1_F, val);
+			break;
+		}
+		case RAND: {
+			REG1_F = (float) rand() / (float) (RAND_MAX);
 			break;
 		}
 		case INT_TO_FLOAT:
@@ -1670,6 +1673,27 @@ void ulang_vm_print(ulang_vm *vm) {
 			printf("%s %.*s\n", i == lineNum ? "-->" : "   ", (int) line.data.length, line.data.data);
 		}
 	}
+}
+
+int32_t ulang_vm_pop_int(ulang_vm *vm) {
+	int32_t val;
+	memcpy(&val, vm->memory + vm->registers[15].ui, 4);
+	vm->registers[15].ui += 4;
+	return val;
+}
+
+uint32_t ulang_vm_pop_uint(ulang_vm *vm) {
+	uint32_t val;
+	memcpy(&val, vm->memory + vm->registers[15].ui, 4);
+	vm->registers[15].ui += 4;
+	return val;
+}
+
+float ulang_vm_pop_float(ulang_vm *vm) {
+	float val;
+	memcpy(&val, vm->memory + vm->registers[15].ui, 4);
+	vm->registers[15].ui += 4;
+	return val;
 }
 
 void ulang_vm_free(ulang_vm *vm) {

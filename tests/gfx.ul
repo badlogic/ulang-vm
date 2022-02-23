@@ -1,0 +1,30 @@
+# frame buffer, 320x240 @ 4 bytes per pixel (argb)
+buffer: reserve int x 76800
+
+loop:
+   # generate a random pixel
+   rand r1
+   mulf r1, 319, r1
+   f2i r1, r1
+   rand r2
+   mulf r2, 239, r2
+   f2i r2, r2
+   rand r3
+   mulf r3, 0xffffff, r3
+   f2i r3, r3
+   or r3, 0xff000000, r3
+
+   # calculate its address in the buffer
+   mul r2, 320, r2
+   add r2, r1, r1
+   shl r1, 2, r1
+   add r1, buffer, r1
+
+   # store the pixel's color at the pixel address
+   sto r3, r1, 0
+
+   # update the window contents with the buffer
+   push buffer
+   intr 1
+
+   jmp loop

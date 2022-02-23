@@ -125,6 +125,12 @@ void ulang_vm_init(ulang_vm *vm, ulang_program *program);
 
 ulang_bool ulang_vm_step(ulang_vm *vm);
 
+int32_t ulang_vm_pop_int(ulang_vm *vm);
+
+uint32_t ulang_vm_pop_uint(ulang_vm *vm);
+
+float ulang_vm_pop_float(ulang_vm *vm);
+
 void ulang_vm_print(ulang_vm *vm);
 
 void ulang_vm_free(ulang_vm *vm);
