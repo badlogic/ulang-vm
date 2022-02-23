@@ -87,11 +87,11 @@ typedef enum ulang_opcode {
 	SHR,
 	SHR_VAL,
 	CMP,
-	CMP_VAL,
+	CMP_REG_VAL,
 	CMP_UNSIGNED,
-	CMP_UNSIGNED_VAL,
+	CMP_UNSIGNED_REG_VAL,
 	CMP_FLOAT,
-	CMP_FLOAT_VAL,
+	CMP_FLOAT_REG_VAL,
 	JUMP,
 	JUMP_EQUAL,
 	JUMP_NOT_EQUAL,
@@ -141,6 +141,7 @@ typedef struct opcode {
 	operand_type operands[3];
 	int numOperands;
 	ulang_bool hasValueOperand;
+	uint32_t index;
 } opcode;
 
 static opcode opcodes[] = {
@@ -190,11 +191,11 @@ static opcode opcodes[] = {
 		{SHR_VAL,                STR_OBJ("shr"),        {UL_REG,         UL_OFF,     UL_REG}},
 
 		{CMP,                    STR_OBJ("cmp"),        {UL_REG,         UL_REG,     UL_REG}},
-		{CMP_VAL,                STR_OBJ("cmp"),        {UL_REG,         UL_LBL_INT, UL_REG}},
+		{CMP_REG_VAL,            STR_OBJ("cmp"),        {UL_REG,         UL_LBL_INT, UL_REG}},
 		{CMP_UNSIGNED,           STR_OBJ("cmpu"),       {UL_REG,         UL_REG,     UL_REG}},
-		{CMP_UNSIGNED_VAL,       STR_OBJ("cmpu"),       {UL_REG,         UL_LBL_INT, UL_REG}},
+		{CMP_UNSIGNED_REG_VAL,   STR_OBJ("cmpu"),       {UL_REG,         UL_LBL_INT, UL_REG}},
 		{CMP_FLOAT,              STR_OBJ("cmpf"),       {UL_REG,         UL_REG,     UL_REG}},
-		{CMP_FLOAT_VAL,          STR_OBJ("cmpf"),       {UL_REG,         UL_FLT,     UL_REG}},
+		{CMP_FLOAT_REG_VAL,      STR_OBJ("cmpf"),       {UL_REG,         UL_FLT,     UL_REG}},
 
 
 		{JUMP,                   STR_OBJ("jmp"),        {UL_LBL_INT}},
@@ -285,6 +286,7 @@ static void init_opcodes_and_registers() {
 
 	for (size_t i = 0; i < opcodeLength; i++) {
 		opcode *opcode = &opcodes[i];
+		opcode->index = i;
 		for (int j = 0; j < 3; j++) {
 			if (opcode->operands[j] == UL_NIL) break;
 			if (opcode->operands[j] == UL_LBL_INT || opcode->operands[j] == UL_LBL_INT_FLT ||
@@ -1144,9 +1146,9 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 					}
 				}
 				if (fittingOp) break;
-				if (op->code + 1 == opcodeLength) break;
-				if (!string_equals(&op->name, &opcodes[op->code + 1].name)) break;
-				op = &opcodes[op->code + 1];
+				if (op->index + 1 == opcodeLength) break;
+				if (!string_equals(&op->name, &opcodes[op->index + 1].name)) break;
+				op = &opcodes[op->index + 1];
 			}
 			if (!fittingOp) goto _compilation_error;
 			if (error->is_set) ulang_error_free(error);
@@ -1392,7 +1394,7 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 		case CMP:
 			REG3 = SIGNUM(REG1 - REG2);
 			break;
-		case CMP_VAL: {
+		case CMP_REG_VAL: {
 			int32_t val = VAL;
 			REG2 = SIGNUM(REG1 - val);
 			break;
@@ -1406,7 +1408,7 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 				REG3 = 0;
 			break;
 		}
-		case CMP_UNSIGNED_VAL: {
+		case CMP_UNSIGNED_REG_VAL: {
 			uint32_t reg1 = REG1_U;
 			uint32_t val = VAL;
 			if (reg1 < val) REG2 = -1;
@@ -1424,7 +1426,7 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 				REG3 = 0;
 			break;
 		}
-		case CMP_FLOAT_VAL: {
+		case CMP_FLOAT_REG_VAL: {
 			float reg1 = REG1_F;
 			float val = VAL_F;
 			if (reg1 < val) REG2 = -1;

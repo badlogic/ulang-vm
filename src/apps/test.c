@@ -45,7 +45,16 @@ ulang_bool test(size_t testNum, test_case *test) {
 	ulang_error error = {0};
 	ulang_vm vm = {0};
 
-	ulang_file_from_memory("test.ul", test->code, &file);
+	size_t codeLen = strlen(test->code);
+	if (!strcmp(test->code + codeLen - 3, ".ul")) {
+		if (!ulang_file_read(test->code, &file)) {
+			printf("Couldn't read test file %s\n", test->code);
+			return UL_FALSE;
+		}
+	} else {
+		ulang_file_from_memory("test.ul", test->code, &file);
+	}
+
 	if (!strcmp(file.data, "intr 0\nhalt")) {
 		printf("");
 	}
@@ -292,21 +301,24 @@ int main(int argc, char **argv) {
 			{"mov -1, r1\nmov a, r2\nstob r1, r2, 0\nhalt\nreserve byte x 1\na: reserve byte x 1",       {{REG_INT, .reg = R2, .val_int = 25},  {MEM_INT, .address = 6 * 4 + 1, .val_int = 0xff}}},
 
 			// load, store short
-			{"lds a, 1, r1\nhalt\na: byte 1 short -1\n",                                                 {{REG_INT, .reg = R1, .val_int = 0xffff}}},
-			{"mov a, r1\nlds r1, 2, r2\nhalt\na: byte 0 x 2 short -1",                                   {{REG_INT, .reg = R2, .val_int = 0xffff}}},
-			{"mov -1, r1\nstos r1, a, 0\nhalt\na: short 0 short 123",                                    {{MEM_INT, .address = 5 * 4, .val_int = 0x7bffff}}}, // 0x7bffff to check if we write more than 2 bytes
-			{"mov -1, r1\nmov a, r2\nstos r1, r2, 0\nhalt\nreserve byte x 1\na: reserve byte x 1",       {{REG_INT, .reg = R2, .val_int = 25},  {MEM_INT, .address = 6 * 4 + 1, .val_int = 0xffff}}},
-			{"mov 123, r1\npush r1\nhalt\n",                                                             {{REG_INT, .reg = SP, .val_int = UL_VM_MEMORY_SIZE - 4}, {MEM_INT, .address = UL_VM_MEMORY_SIZE - 4, .val_int = 123}}},
-			{"push 123\nhalt\n",                                                                         {{REG_INT, .reg = SP, .val_int = UL_VM_MEMORY_SIZE - 4}, {MEM_INT, .address = UL_VM_MEMORY_SIZE - 4, .val_int = 123}}},
-			{"push 123.456\nhalt\n",                                                                     {{REG_INT, .reg = SP, .val_int = UL_VM_MEMORY_SIZE - 4}, {MEM_FLOAT, .address = UL_VM_MEMORY_SIZE - 4, .val_float = 123.456}}},
-			{"stackalloc 4\nhalt",                                                                       {{REG_INT, .reg = SP, .val_int = UL_VM_MEMORY_SIZE - 4 * 4}}},
-			{"push 123\npush 456.7\npop r1\npop r2\nhalt",                                               {{REG_INT, .reg = R2, .val_int = 123}, {REG_FLOAT, .reg = R1, .val_float = 456.7}}},
-			{"push 123\npush 456.7\npop 2\nhalt",                                               		 {{REG_INT, .reg = SP, .val_int = UL_VM_MEMORY_SIZE}}},
-			{"call f\nhalt\nf: halt",                                               		 {{REG_INT, .reg = PC, .val_uint = 4 * 4}}},
-			{"mov f, r1\ncall r1\nhalt\nf: halt",                                               		 {{REG_INT, .reg = PC, .val_uint = 5 * 4}}},
-			{"call f\nmov 123, r2\nhalt\nf: ret",                                               		 {{REG_INT, .reg = PC, .val_uint = 5 * 4}, {REG_INT, .reg = R2, .val_uint = 123}}},
-			{"push 1\ncall f\nmov 123, r2\nhalt\nf: retn 1",                                               		 {{REG_INT, .reg = PC, .val_uint = 7 * 4}, {REG_INT, .reg = SP, .val_uint = UL_VM_MEMORY_SIZE}, {REG_INT, .reg = R2, .val_uint = 123}}},
-			{"intr 0\nhalt"}
+			{"lds a, 1, r1\nhalt\na: byte 1 short -1\n",                                            {{REG_INT, .reg = R1, .val_int = 0xffff}}},
+			{"mov a, r1\nlds r1, 2, r2\nhalt\na: byte 0 x 2 short -1",                              {{REG_INT, .reg = R2, .val_int = 0xffff}}},
+			{"mov -1, r1\nstos r1, a, 0\nhalt\na: short 0 short 123",                               {{MEM_INT, .address = 5 * 4, .val_int = 0x7bffff}}}, // 0x7bffff to check if we write more than 2 bytes
+			{"mov -1, r1\nmov a, r2\nstos r1, r2, 0\nhalt\nreserve byte x 1\na: reserve byte x 1", {{REG_INT, .reg = R2, .val_int = 25},  {MEM_INT, .address = 6 * 4 + 1, .val_int = 0xffff}}},
+			{"mov 123, r1\npush r1\nhalt\n",                                                      {{REG_INT, .reg = SP, .val_int = UL_VM_MEMORY_SIZE - 4}, {MEM_INT, .address = UL_VM_MEMORY_SIZE - 4, .val_int = 123}}},
+			{"push 123\nhalt\n",                                                                  {{REG_INT, .reg = SP, .val_int = UL_VM_MEMORY_SIZE - 4}, {MEM_INT, .address = UL_VM_MEMORY_SIZE - 4, .val_int = 123}}},
+			{"push 123.456\nhalt\n",                                                              {{REG_INT, .reg = SP, .val_int = UL_VM_MEMORY_SIZE - 4}, {MEM_FLOAT, .address = UL_VM_MEMORY_SIZE - 4, .val_float = 123.456}}},
+			{"stackalloc 4\nhalt",                                                                {{REG_INT, .reg = SP, .val_int = UL_VM_MEMORY_SIZE - 4 * 4}}},
+			{"push 123\npush 456.7\npop r1\npop r2\nhalt",                                        {{REG_INT, .reg = R2, .val_int = 123}, {REG_FLOAT, .reg = R1, .val_float = 456.7}}},
+			{"push 123\npush 456.7\npop 2\nhalt",                                           	  {{REG_INT, .reg = SP, .val_int = UL_VM_MEMORY_SIZE}}},
+			{"call f\nhalt\nf: halt",                                               			  {{REG_INT, .reg = PC, .val_uint = 4 * 4}}},
+			{"mov f, r1\ncall r1\nhalt\nf: halt",                                           	{{REG_INT, .reg = PC, .val_uint = 5 * 4}}},
+			{"call f\nmov 123, r2\nhalt\nf: ret",                                           {{REG_INT, .reg = PC, .val_uint = 5 * 4}, {REG_INT, .reg = R2, .val_uint = 123}}},
+			{"push 1\ncall f\nmov 123, r2\nhalt\nf: retn 1",                                      {{REG_INT, .reg = PC, .val_uint = 7 * 4}, {REG_INT, .reg = SP, .val_uint = UL_VM_MEMORY_SIZE}, {REG_INT, .reg = R2, .val_uint = 123}}},
+			// {"intr 0\nhalt"},
+
+			// fib
+			{"tests/fib.ul", {{REG_INT, .reg = R14, .val_uint = 832040}}}
 	};
 	// @formatter:on
 

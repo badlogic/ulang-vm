@@ -1,4 +1,4 @@
-   push 42
+   push 30
    call fib
    halt
 
