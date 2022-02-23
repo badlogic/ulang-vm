@@ -1,5 +1,7 @@
+#include <stdlib.h>
 #include <stdio.h>
 #include <ulang.h>
+#include <MiniFB.h>
 
 int main(int argc, char **argv) {
 	if (argc != 2) {
@@ -24,13 +26,11 @@ int main(int argc, char **argv) {
 
 	ulang_vm vm = {0};
 	ulang_vm_init(&vm, &program);
-	while (ulang_vm_step(&vm)) {
-		ulang_vm_print(&vm);
-	}
-	ulang_vm_free(&vm);
+	while (ulang_vm_step(&vm));
+	if (vm.error.is_set) ulang_error_print(&vm.error);
 
+	ulang_vm_free(&vm);
 	ulang_program_free(&program);
 	ulang_file_free(&file);
-	ulang_print_memory();
 	return 0;
 }

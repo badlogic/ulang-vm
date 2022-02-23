@@ -8,6 +8,7 @@
 #define STR(str) str, sizeof(str) - 1
 #define STR_OBJ(str) (ulang_string){ str, sizeof(str) - 1 }
 #define MAX(a, b) (a > b ? a : b)
+#define MIN(a, b) (a < b ? a : b)
 
 #define ARRAY_IMPLEMENT(name, itemType) \
     typedef struct name { size_t size; size_t capacity; itemType* items; } name; \
@@ -119,11 +120,9 @@ typedef enum ulang_opcode {
 	POP_OFF,
 	CALL_REG,
 	CALL_VAL,
-	RETURN,
-	PORT_WRITE_REG,
-	PORT_WRITE_VAL,
-	PORT_READ_REG,
-	PORT_READ_OFF,
+	RET,
+	RETN,
+	INTR
 } ulang_opcode;
 
 typedef enum operand_type {
@@ -235,12 +234,11 @@ static opcode opcodes[] = {
 		{CALL_REG,               STR_OBJ("call"),       {UL_REG}},
 		{CALL_VAL,               STR_OBJ("call"),       {UL_LBL_INT}},
 
-		{RETURN,                 STR_OBJ("return"),     {UL_OFF}},
+		{RET,                    STR_OBJ("ret")},
+		{RETN,                   STR_OBJ("retn"),       {UL_OFF}},
 
-		{PORT_WRITE_REG,         STR_OBJ("port_write"), {UL_REG,         UL_OFF}},
-		{PORT_WRITE_VAL,         STR_OBJ("port_write"), {UL_INT,         UL_OFF}},
-		{PORT_READ_REG,          STR_OBJ("port_read"),  {UL_REG,         UL_REG}},
-		{PORT_READ_OFF,          STR_OBJ("port_read"),  {UL_OFF,         UL_REG}},
+
+		{INTR,                   STR_OBJ("intr"),       {UL_OFF}},
 };
 
 static size_t opcodeLength = sizeof(opcodes) / sizeof(opcode);
@@ -791,6 +789,8 @@ ARRAY_IMPLEMENT(label_array, ulang_label)
 
 ARRAY_IMPLEMENT(byte_array, uint8_t)
 
+ARRAY_IMPLEMENT(int_array, uint32_t)
+
 static void emit_byte(byte_array *code, token *value, int repeat) {
 	int val = token_to_int(value);
 	val &= 0xff;
@@ -945,6 +945,8 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 	byte_array_init_inplace(&code, 16);
 	byte_array data;
 	byte_array_init_inplace(&data, 16);
+	int_array addressToLine;
+	int_array_init_inplace(&addressToLine, 16);
 	size_t numReservedBytes = 0;
 
 	while (has_more_tokens(&stream)) {
@@ -1023,7 +1025,7 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 				while (-1) {
 					token value;
 					if (!next_token(&stream, &value, error)) goto _compilation_error;
-					if (value.type == TOKEN_INTEGER) value.type == TOKEN_FLOAT;
+					if (value.type == TOKEN_INTEGER) value.type = TOKEN_FLOAT;
 					if (value.type != TOKEN_FLOAT) {
 						ulang_error_init(error, file, value.span, "Expected a floating point value.");
 						goto _compilation_error;
@@ -1150,6 +1152,8 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 			if (error->is_set) ulang_error_free(error);
 
 			set_label_targets(&labels, UL_LT_CODE, code.size);
+			int_array_add(&addressToLine, tok.span.startLine);
+			if (fittingOp->hasValueOperand) int_array_add(&addressToLine, tok.span.startLine);
 			if (!emit_op(file, fittingOp, operands, &patches, &code, error)) goto _compilation_error;
 		}
 	}
@@ -1193,6 +1197,9 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 	program->reservedBytes = numReservedBytes;
 	program->labels = labels.items;
 	program->labelsLength = labels.size;
+	program->addressToLine = addressToLine.items;
+	program->addressToLineLength = addressToLine.size;
+	program->file = file;
 	return UL_TRUE;
 
 	_compilation_error:
@@ -1200,6 +1207,7 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 	label_array_free_inplace(&labels);
 	byte_array_free_inplace(&code);
 	byte_array_free_inplace(&data);
+	int_array_free_inplace(&addressToLine);
 	return UL_FALSE;
 }
 
@@ -1207,6 +1215,42 @@ void ulang_program_free(ulang_program *program) {
 	ulang_free(program->code);
 	ulang_free(program->data);
 	ulang_free(program->labels);
+	ulang_free(program->addressToLine);
+}
+
+ulang_bool default_interrupts(uint32_t intNum, ulang_vm *vm) {
+	switch (intNum) {
+		case 0:
+			do {
+				ulang_vm_print(vm);
+				prompt:
+				printf("> ");
+				char c;
+				do { c = getchar(); } while (c == '\n' || c == '\r');
+
+				switch (c) {
+					case 's': {
+						if (!ulang_vm_step(vm)) return UL_FALSE;
+						break;
+					}
+					case 'c':
+						return UL_TRUE;
+					case 'p': {
+						ulang_vm_print(vm);
+					}
+					case 'h':
+					default: {
+						printf("s    step one instruction\n");
+						printf("c    continue execution\n");
+						printf("p    print registers and source location\n");
+						goto prompt;
+					}
+				}
+			} while (-1);
+			return UL_TRUE;
+		default:
+			return UL_TRUE;
+	}
 }
 
 // BOZO need to throw an error in case memory sizes are bollocks
@@ -1214,10 +1258,14 @@ void ulang_vm_init(ulang_vm *vm, ulang_program *program) {
 	vm->memorySizeBytes = 1024 * 1024 * 32;
 	vm->memory = ulang_alloc(vm->memorySizeBytes);
 	memset(vm->registers, 0, sizeof(ulang_value) * 16);
+	memset(vm->interruptHandlers, 0, sizeof(ulang_interrupt_handler) * 256);
 	memset(vm->memory, 0, vm->memorySizeBytes);
 	memcpy(vm->memory, program->code, program->codeLength);
 	memcpy(vm->memory + program->codeLength, program->data, program->dataLength);
-	vm->registers[15].ui = vm->memorySizeBytes - 4;
+	vm->registers[15].ui = vm->memorySizeBytes;
+
+	vm->interruptHandlers[0] = default_interrupts;
+	vm->program = program;
 }
 
 #define DECODE_OP(word) ((word) & 0x7f)
@@ -1534,8 +1582,8 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 			break;
 		}
 		case STACKALLOC: {
-			uint32_t numBytes = DECODE_OFF(word);
-			SP -= numBytes;
+			uint32_t numWords = DECODE_OFF(word);
+			SP -= numWords << 2;
 			break;
 		}
 		case POP_REG: {
@@ -1549,32 +1597,39 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 			break;
 		}
 		case CALL_REG: {
-			SP += 4;
+			SP -= 4;
 			memcpy(vm->memory + SP, &PC, 4);
 			PC = REG1_U;
 			break;
 		}
 		case CALL_VAL: {
-			SP += 4;
-			memcpy(vm->memory + SP, &PC, 4);
-			PC = VAL_U;
-			break;
-		}
-		case RETURN: {
-			uint32_t addr;
-			memcpy(&addr, &vm->memory[SP], 4);
+			uint32_t addr = VAL_U;
 			SP -= 4;
+			memcpy(vm->memory + SP, &PC, 4);
 			PC = addr;
 			break;
 		}
-		case PORT_WRITE_REG:
+		case RET: {
+			uint32_t addr;
+			memcpy(&addr, &vm->memory[SP], 4);
+			SP += 4;
+			PC = addr;
 			break;
-		case PORT_WRITE_VAL:
+		}
+		case RETN: {
+			uint32_t addr;
+			memcpy(&addr, &vm->memory[SP], 4);
+			SP += 4 + DECODE_OFF(word) * 4;
+			PC = addr;
 			break;
-		case PORT_READ_REG:
+		}
+		case INTR: {
+			uint32_t intNum = DECODE_OFF(word);
+			if (intNum < 0 || intNum > 255 || !vm->interruptHandlers[intNum])
+				break;
+			if (!vm->interruptHandlers[intNum](intNum, vm)) return UL_FALSE;
 			break;
-		case PORT_READ_OFF:
-			break;
+		}
 		default:
 			vm->registers[14].ui -= 4; // reset PC to the unknown instruction.
 			return UL_FALSE;
@@ -1585,11 +1640,26 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 void ulang_vm_print(ulang_vm *vm) {
 	ulang_value *regs = vm->registers;
 	for (int i = 0; i < 16; i++) {
-		printf("%.*s: %i (0x%x), %f\n", (int) registers[i].name.length, registers[i].name.data, regs[i].i, regs[i].i,
+		printf("%.*s: %i (0x%x), %f ", (int) registers[i].name.length, registers[i].name.data, regs[i].i, regs[i].i,
 			   regs[i].fl);
+		if ((i + 1) % 4 == 0) printf("\n");
+	}
+
+	if (vm->program && vm->program->file) {
+		ulang_file_get_lines(vm->program->file);
+		uint32_t pc = (vm->registers[14].ui) >> 2;
+		if (pc < 0 || pc >= vm->program->addressToLineLength) return;
+		int lineNum = (int) vm->program->addressToLine[pc];
+
+		for (int i = MAX(1, lineNum - 2); i < MIN((int) vm->program->file->numLines, lineNum + 3); i++) {
+			ulang_line line = vm->program->file->lines[i];
+			printf("(%.*s:%i): ", (int) vm->program->file->fileName.length, vm->program->file->fileName.data, line.lineNumber);
+			printf("%s %.*s\n", i == lineNum ? "-->" : "   ", (int) line.data.length, line.data.data);
+		}
 	}
 }
 
 void ulang_vm_free(ulang_vm *vm) {
 	ulang_free(vm->memory);
+	if (vm->error.is_set) ulang_error_free(&vm->error);
 }

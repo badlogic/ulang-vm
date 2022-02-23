@@ -1,0 +1,23 @@
+   push 3
+   call fib
+   intr 0
+   halt
+
+fib:
+   ld sp, 4, r1
+   intr 0
+
+   cmp r1, 0, r2
+   jne r2, not_zero
+   mov 0, r14
+   retn 1
+
+not_zero:
+   cmp r1, 2, r2
+   jg r2, not_one_two
+   mov 1, r14
+   retn 1
+
+not_one_two:
+   mov 1234, r14
+   retn 1

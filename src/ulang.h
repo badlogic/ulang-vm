@@ -67,6 +67,9 @@ typedef struct ulang_program {
 	size_t reservedBytes;
 	ulang_label *labels;
 	size_t labelsLength;
+	ulang_file *file;
+	uint32_t *addressToLine;
+	uint32_t addressToLineLength;
 } ulang_program;
 
 typedef union ulang_value {
@@ -77,10 +80,17 @@ typedef union ulang_value {
 	float fl;
 } ulang_value;
 
+struct ulang_vm;
+
+typedef ulang_bool (*ulang_interrupt_handler)(uint32_t intNum, struct ulang_vm *vm);
+
 typedef struct ulang_vm {
 	ulang_value registers[16];
 	uint8_t *memory;
 	size_t memorySizeBytes;
+	ulang_interrupt_handler interruptHandlers[256];
+	ulang_error error;
+	ulang_program *program;
 } ulang_vm;
 
 // memory
