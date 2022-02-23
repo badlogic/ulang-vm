@@ -8,10 +8,11 @@
 extern "C" {
 #endif
 
-// types
+// defines & types
 #define UL_TRUE -1
 #define UL_FALSE 0
 typedef int ulang_bool;
+#define UL_VM_MEMORY_SIZE (1024 * 1024 * 32)
 
 typedef struct ulang_string {
 	char *data;

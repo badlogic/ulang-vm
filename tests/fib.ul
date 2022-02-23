@@ -1,23 +1,33 @@
-   push 3
+   push 42
    call fib
-   intr 0
    halt
 
 fib:
+   # n == 0? return 0
    ld sp, 4, r1
-   intr 0
-
    cmp r1, 0, r2
    jne r2, not_zero
    mov 0, r14
    retn 1
 
 not_zero:
+   # n == 1 || n == 2? return 1
    cmp r1, 2, r2
    jg r2, not_one_two
    mov 1, r14
    retn 1
 
 not_one_two:
-   mov 1234, r14
+   # fib(n-1) + fib(n-2)
+   sub r1, 1, r1
+   push r1
+   call fib
+   push r14
+
+   ld sp, 8, r1
+   sub r1, 2, r1
+   push r1
+   call fib
+   pop r13
+   add r14, r13, r14
    retn 1

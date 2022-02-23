@@ -1255,7 +1255,7 @@ ulang_bool default_interrupts(uint32_t intNum, ulang_vm *vm) {
 
 // BOZO need to throw an error in case memory sizes are bollocks
 void ulang_vm_init(ulang_vm *vm, ulang_program *program) {
-	vm->memorySizeBytes = 1024 * 1024 * 32;
+	vm->memorySizeBytes = UL_VM_MEMORY_SIZE;
 	vm->memory = ulang_alloc(vm->memorySizeBytes);
 	memset(vm->registers, 0, sizeof(ulang_value) * 16);
 	memset(vm->interruptHandlers, 0, sizeof(ulang_interrupt_handler) * 256);
@@ -1643,6 +1643,17 @@ void ulang_vm_print(ulang_vm *vm) {
 		printf("%.*s: %i (0x%x), %f ", (int) registers[i].name.length, registers[i].name.data, regs[i].i, regs[i].i,
 			   regs[i].fl);
 		if ((i + 1) % 4 == 0) printf("\n");
+	}
+
+	for (int i = 0; i < 5; i++) {
+		uint32_t stackAddr = vm->registers[15].ui;
+		stackAddr += i * 4;
+		if (stackAddr > UL_VM_MEMORY_SIZE - 4) break;
+		int32_t val_i;
+		float val_f;
+		memcpy(&val_i, &vm->memory[stackAddr], 4);
+		memcpy(&val_f, &vm->memory[stackAddr], 4);
+		printf("sp+%i: %i (0x%x), %f\n", i * 4, val_i, val_i, val_f);
 	}
 
 	if (vm->program && vm->program->file) {
