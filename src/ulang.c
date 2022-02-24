@@ -603,6 +603,18 @@ static ulang_span end_span(character_stream *stream) {
 	return span;
 }
 
+static void start_span_inplace(character_stream *stream, ulang_span *span) {
+	span->endLine = stream->index;
+	span->startLine = stream->line;
+}
+
+static void end_span_inplace(character_stream *stream, ulang_span *span) {
+	span->data.data = stream->data->data + span->endLine;
+	span->data.length = stream->index - span->endLine;
+	span->startLine = stream->spanLineStart;
+	span->endLine = stream->line;
+}
+
 static ulang_bool span_matches(ulang_span *span, const char *needle, size_t length) {
 	if (span->data.length != length) return UL_FALSE;
 
@@ -642,7 +654,7 @@ static ulang_bool next_token(character_stream *stream, token *token, ulang_error
 	}
 	start_span(stream);
 
-	if (match(stream, "-", UL_TRUE) || match_digit(stream, UL_FALSE)) {
+	if (match_digit(stream, UL_FALSE)) {
 		token->type = TOKEN_INTEGER;
 		if (match(stream, "0x", UL_TRUE)) {
 			while (match_hex(stream));
@@ -669,7 +681,6 @@ static ulang_bool next_token(character_stream *stream, token *token, ulang_error
 		ulang_bool matchedEndQuote = UL_FALSE;
 		token->type = TOKEN_STRING;
 		while (has_more(stream)) {
-			// Note: escape sequences like \n are parsed in the AST
 			if (match(stream, "\\", UL_TRUE)) {
 				consume(stream);
 			}
@@ -711,38 +722,51 @@ static ulang_bool next_token(character_stream *stream, token *token, ulang_error
 static ulang_bool
 next_token_matches(character_stream *stream, const char *needle, size_t size, ulang_bool consume) {
 	character_stream stream_copy = *stream;
-	// BOZO this needs to be cleaned up in case of error below
-	ulang_error error;
+	ulang_error error = {0};
 	token token;
-	if (!next_token(&stream_copy, &token, &error)) return UL_FALSE;
-	if (token.type == TOKEN_EOF) return UL_FALSE;
+	if (!next_token(&stream_copy, &token, &error)) {
+		if (error.is_set) ulang_error_free(&error);
+		return UL_FALSE;
+	}
+	if (token.type == TOKEN_EOF) {
+		if (error.is_set) ulang_error_free(&error);
+		return UL_FALSE;
+	}
 	ulang_bool matches = span_matches(&token.span, needle, size);
-	if (matches && consume) next_token(stream, &token, &error);
+	if (matches && consume) *stream = stream_copy;
+	if (error.is_set) ulang_error_free(&error);
 	return matches;
 }
 
 static ulang_bool
 next_token_matches_type(character_stream *stream, token *token, token_type type, ulang_bool consume) {
 	character_stream stream_copy = *stream;
-	// BOZO this needs to be cleaned up in case of error below
-	ulang_error error;
-	if (!next_token(&stream_copy, token, &error)) return UL_FALSE;
-	if (token->type != type) return UL_FALSE;
-	if (consume) next_token(stream, token, &error);
+	ulang_error error = {0};
+	if (!next_token(&stream_copy, token, &error)) {
+		if (error.is_set) ulang_error_free(&error);
+		return UL_FALSE;
+	}
+	if (token->type != type) {
+		if (error.is_set) ulang_error_free(&error);
+		return UL_FALSE;
+	}
+	if (consume) *stream = stream_copy;
 	return UL_TRUE;
 }
 
-#define EXPECT_TOKEN(stream, str, error) { \
-    token _token; \
-    if (!next_token(&(stream), &_token, error)) goto _compilation_error; \
-    if (_token.type == TOKEN_EOF) { \
-        ulang_error_init(error, (stream).data, _token.span, "Unexpected end of file, expected '%.*s'", (str).length, (str).data); \
-        goto _compilation_error; \
-    } \
-    if (!span_matches(&_token.span, (str).data, (str).length)) { \
-        ulang_error_init(error, (stream).data, _token.span, "Expected %.*s", (str).length, (str).data); \
-        goto _compilation_error; \
-    } \
+static ulang_bool
+expect_token(character_stream *stream, char *str, size_t len, ulang_error *error) {
+	token token;
+	if (!next_token(stream, &token, error)) return UL_FALSE;
+	if (token.type == TOKEN_EOF) {
+		ulang_error_init(error, stream->data, token.span, "Unexpected end of file, expected '%.*s'", len, str);
+		return UL_FALSE;
+	}
+	if (!span_matches(&token.span, str, len)) {
+		ulang_error_init(error, stream->data, token.span, "Expected %.*s", len, str);
+		return UL_FALSE;
+	}
+	return UL_TRUE;
 }
 
 static reg *token_matches_register(token *token) {
@@ -783,6 +807,229 @@ static float token_to_float(token *token) {
 	return val;
 }
 
+static void parse_repeat(character_stream *stream, int *numRepeat, ulang_error *error) {
+	if (!next_token_matches(stream, STR("x"), UL_TRUE)) return;
+	token token;
+	if (!next_token_matches_type(stream, &token, TOKEN_INTEGER, UL_TRUE)) {
+		ulang_error_init(error, stream->data, token.span, "Expected an integer value after 'x'.");
+		return;
+	}
+	*numRepeat = token_to_int(&token);
+	if (*numRepeat < 0) {
+		ulang_error_init(error, stream->data, token.span, "Number of repetitions can not be negative.");
+		return;
+	}
+}
+
+typedef enum expression_type {
+	ET_FLOAT,
+	ET_INT,
+	ET_FLOAT_INT
+} expression_type;
+
+typedef struct expression_value {
+	expression_type type;
+	int32_t i;
+	float f;
+} expression_value;
+
+static ulang_string unaryOperators[] = {STR_OBJ("~"), STR_OBJ("+"), STR_OBJ("-"), {0}};
+
+static ulang_string binaryOperators[][4] = {
+		{STR_OBJ("|"), STR_OBJ("&"), STR_OBJ("^"), {0}},
+		{STR_OBJ("+"), STR_OBJ("-"), {0}},
+		{STR_OBJ("/"), STR_OBJ("*"), STR_OBJ("%"), {0}}
+};
+
+static ulang_bool parse_expression(character_stream *stream, expression_value *value, ulang_span *span, ulang_error *error);
+
+static ulang_bool parse_unary_operator(character_stream *stream, expression_value *value, ulang_error *error) {
+	ulang_string *op = unaryOperators;
+	while (op->data) {
+		if (next_token_matches(stream, op->data, op->length, UL_FALSE)) break;
+		op++;
+	}
+	if (op->data) {
+		token opToken;
+		next_token(stream, &opToken, error);
+		expression_value exprValue;
+		if (!parse_unary_operator(stream, &exprValue, error) || error->is_set) return UL_FALSE;
+		switch (opToken.span.data.data[0]) {
+			case '~':
+				if (exprValue.type == ET_FLOAT) {
+					ulang_error_init(error, stream->data, opToken.span, "Operator ~ can not be used with float values.");
+					return UL_FALSE;
+				}
+				value->type = ET_INT;
+				value->i = ~exprValue.i;
+				value->f = (float) value->i;
+				break;
+			case '+':
+				if (exprValue.type == ET_INT) {
+					value->type = ET_INT;
+					value->i = exprValue.i;
+					value->f = (float) value->i;
+				} else {
+					value->type = ET_FLOAT;
+					value->f = exprValue.f;
+				}
+				break;
+			case '-':
+				if (exprValue.type == ET_INT) {
+					value->type = ET_INT;
+					value->i = -exprValue.i;
+					value->f = (float) value->i;
+				} else {
+					value->type = ET_FLOAT;
+					value->f = -exprValue.f;
+				}
+				break;
+		}
+		return UL_TRUE;
+	} else {
+		if (next_token_matches(stream, STR("("), UL_TRUE)) {
+			if (!parse_expression(stream, value, NULL, error) || error->is_set) return UL_FALSE;
+			if (!expect_token(stream, STR(")"), error)) return UL_FALSE;
+			return UL_TRUE;
+		} else {
+			token literal;
+			if (!next_token(stream, &literal, error)) return UL_FALSE;
+			switch (literal.type) {
+				case TOKEN_INTEGER:
+					value->type = ET_INT;
+					value->i = token_to_int(&literal);
+					value->f = (float) value->i;
+					return UL_TRUE;
+				case TOKEN_FLOAT:
+					value->type = ET_FLOAT;
+					value->f = token_to_float(&literal);
+					return UL_TRUE;
+				default:
+					ulang_error_init(error, stream->data, literal.span, "Expected an integer or a float value.");
+					return UL_FALSE;
+			}
+		}
+	}
+}
+
+static ulang_bool parse_binary_operator(character_stream *stream, expression_value *value, ulang_error *error, uint32_t level) {
+	uint32_t nextLevel = level + 1;
+	expression_value left;
+	if (nextLevel == 3) {
+		if (!parse_unary_operator(stream, &left, error) || error->is_set) return UL_FALSE;
+	} else {
+		if (!parse_binary_operator(stream, &left, error, nextLevel) || error->is_set) return UL_FALSE;
+	}
+
+	while (has_more_tokens(stream)) {
+		ulang_string *op = binaryOperators[level];
+		while (op->data) {
+			if (next_token_matches(stream, op->data, op->length, UL_FALSE)) break;
+			op++;
+		}
+		if (op->data == NULL) break;
+
+		token opToken;
+		next_token(stream, &opToken, error);
+		expression_value right;
+		if (nextLevel == 3) {
+			if (!parse_unary_operator(stream, &right, error) || error->is_set) return UL_FALSE;
+		} else {
+			if (!parse_binary_operator(stream, &right, error, nextLevel) || error->is_set) return UL_FALSE;
+		}
+
+		switch (opToken.span.data.data[0]) {
+			case '|':
+				if (left.type == ET_FLOAT || right.type == ET_FLOAT) {
+					ulang_error_init(error, stream->data, opToken.span, "Operator | can not be used with float values.");
+					return UL_FALSE;
+				}
+				value->type = ET_INT;
+				value->i = left.i | right.i;
+				break;
+			case '&':
+				if (left.type == ET_FLOAT || right.type == ET_FLOAT) {
+					ulang_error_init(error, stream->data, opToken.span, "Operator & can not be used with float values.");
+					return UL_FALSE;
+				}
+				value->type = ET_INT;
+				value->i = left.i & right.i;
+				break;
+			case '^':
+				if (left.type == ET_FLOAT || right.type == ET_FLOAT) {
+					ulang_error_init(error, stream->data, opToken.span, "Operator ^ can not be used with float values.");
+					return UL_FALSE;
+				}
+				value->type = ET_INT;
+				value->i = left.i ^ right.i;
+				break;
+			case '+':
+				if (left.type == ET_FLOAT || right.type == ET_FLOAT) {
+					value->type = ET_FLOAT;
+					value->f = left.f + right.f;
+				} else {
+					value->type = ET_INT;
+					value->i = left.i + right.i;
+					value->f = (float) value->i;
+				}
+				break;
+			case '-':
+				if (left.type == ET_FLOAT || right.type == ET_FLOAT) {
+					value->type = ET_FLOAT;
+					value->f = left.f - right.f;
+				} else {
+					value->type = ET_INT;
+					value->i = left.i - right.i;
+					value->f = (float) value->i;
+				}
+				break;
+			case '*':
+				if (left.type == ET_FLOAT || right.type == ET_FLOAT) {
+					value->type = ET_FLOAT;
+					value->f = left.f * right.f;
+				} else {
+					value->type = ET_INT;
+					value->i = left.i * right.i;
+					value->f = (float) value->i;
+				}
+				break;
+			case '/':
+				if (left.type == ET_FLOAT || right.type == ET_FLOAT) {
+					value->type = ET_FLOAT;
+					value->f = left.f / right.f;
+				} else {
+					value->type = ET_INT;
+					value->i = left.i / right.i;
+					value->f = (float) value->i;
+				}
+				break;
+			case '%':
+				if (left.type == ET_FLOAT || right.type == ET_FLOAT) {
+					ulang_error_init(error, stream->data, opToken.span, "Operator % can not be used with float values.");
+					return UL_FALSE;
+				} else {
+					value->type = ET_INT;
+					value->i = left.i % right.i;
+					value->f = (float) value->i;
+				}
+				break;
+		}
+
+		left = *value;
+	}
+	value->type = left.type;
+	value->f = left.f;
+	value->i = left.i;
+	return UL_TRUE;
+}
+
+static ulang_bool parse_expression(character_stream *stream, expression_value *value, ulang_span *span, ulang_error *error) {
+	if (span) start_span_inplace(stream, span);
+	ulang_bool result = parse_binary_operator(stream, value, error, 0);
+	if (span) end_span_inplace(stream, span);
+	return result;
+}
+
 typedef struct patch {
 	ulang_span label;
 	size_t patchAddress;
@@ -795,16 +1042,16 @@ ARRAY_IMPLEMENT(byte_array, uint8_t)
 
 ARRAY_IMPLEMENT(int_array, uint32_t)
 
-static void emit_byte(byte_array *code, token *value, int repeat) {
-	int val = token_to_int(value);
+static void emit_byte(byte_array *code, expression_value *value, int repeat) {
+	int val = value->i;
 	val &= 0xff;
 	for (int i = 0; i < repeat; i++) {
 		byte_array_add(code, (uint8_t) val);
 	}
 }
 
-static void emit_short(byte_array *code, token *value, int repeat) {
-	int val = token_to_int(value);
+static void emit_short(byte_array *code, expression_value *value, int repeat) {
+	int val = value->i;
 	val &= 0xffff;
 	byte_array_ensure(code, 2 * repeat);
 	for (int i = 0; i < repeat; i++) {
@@ -813,8 +1060,8 @@ static void emit_short(byte_array *code, token *value, int repeat) {
 	}
 }
 
-static void emit_int(byte_array *code, token *value, int repeat) {
-	int val = token_to_int(value);
+static void emit_int(byte_array *code, expression_value *value, int repeat) {
+	int val = value->i;
 	byte_array_ensure(code, 4 * repeat);
 	for (int i = 0; i < repeat; i++) {
 		memcpy(&code->items[code->size], &val, 4);
@@ -822,8 +1069,8 @@ static void emit_int(byte_array *code, token *value, int repeat) {
 	}
 }
 
-static void emit_float(byte_array *code, token *value, int repeat) {
-	float val = token_to_float(value);
+static void emit_float(byte_array *code, expression_value *value, int repeat) {
+	float val = value->f;
 	byte_array_ensure(code, 4 * repeat);
 	for (int i = 0; i < repeat; i++) {
 		memcpy(&code->items[code->size], &val, 4);
@@ -913,20 +1160,6 @@ emit_op(ulang_file *file, opcode *op, token operands[3], patch_array *patches, b
 	return UL_TRUE;
 }
 
-static void parse_repeat(character_stream *stream, int *numRepeat, ulang_error *error) {
-	if (!next_token_matches(stream, STR("x"), UL_TRUE)) return;
-	token token;
-	if (!next_token_matches_type(stream, &token, TOKEN_INTEGER, UL_TRUE)) {
-		ulang_error_init(error, stream->data, token.span, "Expected an integer value after 'x'.");
-		return;
-	}
-	*numRepeat = token_to_int(&token);
-	if (*numRepeat < 0) {
-		ulang_error_init(error, stream->data, token.span, "Number of repetitions can not be negative.");
-		return;
-	}
-}
-
 static void set_label_targets(label_array *labels, ulang_label_target target, size_t address) {
 	for (int i = (int) labels->size - 1; i >= 0; i--) {
 		if (labels->items[i].target != UL_LT_UNINITIALIZED) break;
@@ -967,19 +1200,27 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 			if (span_matches(&tok.span, STR("byte"))) {
 				while (-1) {
 					token value;
-					if (!next_token(&stream, &value, error)) goto _compilation_error;
-					if (value.type != TOKEN_INTEGER && value.type != TOKEN_STRING) {
-						ulang_error_init(error, file, value.span, "Expected an integer value or string literal.");
-						goto _compilation_error;
+					if (next_token_matches_type(&stream, &value, TOKEN_STRING, UL_FALSE)) {
+						next_token(&stream, &value, error);
+						int numRepeat = 1;
+						parse_repeat(&stream, &numRepeat, error);
+						if (error->is_set) goto _compilation_error;
+						set_label_targets(&labels, UL_LT_DATA, data.size);
+						emit_string(&data, &value, numRepeat);
+					} else {
+						expression_value exprValue;
+						ulang_span span = {0};
+						if (!parse_expression(&stream, &exprValue, &span, error)) goto _compilation_error;
+						if (exprValue.type != ET_INT) {
+							ulang_error_init(error, file, span, "Expression must evaluate to an integer value.");
+							goto _compilation_error;
+						}
+						int numRepeat = 1;
+						parse_repeat(&stream, &numRepeat, error);
+						if (error->is_set) goto _compilation_error;
+						set_label_targets(&labels, UL_LT_DATA, data.size);
+						emit_byte(&data, &exprValue, numRepeat);
 					}
-
-					int numRepeat = 1;
-					parse_repeat(&stream, &numRepeat, error);
-					if (error->is_set) goto _compilation_error;
-
-					set_label_targets(&labels, UL_LT_DATA, data.size);
-					if (value.type == TOKEN_INTEGER) emit_byte(&data, &value, numRepeat);
-					else emit_string(&data, &value, numRepeat);
 					if (!next_token_matches(&stream, STR(","), UL_TRUE)) break;
 				}
 				continue;
@@ -987,19 +1228,18 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 
 			if (span_matches(&tok.span, STR("short"))) {
 				while (-1) {
-					token value;
-					if (!next_token(&stream, &value, error)) goto _compilation_error;
-					if (value.type != TOKEN_INTEGER) {
-						ulang_error_init(error, file, value.span, "Expected an integer value.");
+					expression_value exprValue;
+					ulang_span span = {0};
+					if (!parse_expression(&stream, &exprValue, &span, error)) goto _compilation_error;
+					if (exprValue.type != ET_INT) {
+						ulang_error_init(error, file, span, "Expression must evaluate to an integer value.");
 						goto _compilation_error;
 					}
-
 					int numRepeat = 1;
 					parse_repeat(&stream, &numRepeat, error);
 					if (error->is_set) goto _compilation_error;
-
 					set_label_targets(&labels, UL_LT_DATA, data.size);
-					emit_short(&data, &value, numRepeat);
+					emit_short(&data, &exprValue, numRepeat);
 					if (!next_token_matches(&stream, STR(","), UL_TRUE)) break;
 				}
 				continue;
@@ -1007,19 +1247,18 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 
 			if (span_matches(&tok.span, STR("int"))) {
 				while (-1) {
-					token value;
-					if (!next_token(&stream, &value, error)) goto _compilation_error;
-					if (value.type != TOKEN_INTEGER) {
-						ulang_error_init(error, file, value.span, "Expected an integer value.");
+					expression_value exprValue;
+					ulang_span span = {0};
+					if (!parse_expression(&stream, &exprValue, &span, error)) goto _compilation_error;
+					if (exprValue.type != ET_INT) {
+						ulang_error_init(error, file, span, "Expression must evaluate to an integer value.");
 						goto _compilation_error;
 					}
-
 					int numRepeat = 1;
 					parse_repeat(&stream, &numRepeat, error);
 					if (error->is_set) goto _compilation_error;
-
 					set_label_targets(&labels, UL_LT_DATA, data.size);
-					emit_int(&data, &value, numRepeat);
+					emit_int(&data, &exprValue, numRepeat);
 					if (!next_token_matches(&stream, STR(","), UL_TRUE)) break;
 				}
 				continue;
@@ -1027,20 +1266,18 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 
 			if (span_matches(&tok.span, STR("float"))) {
 				while (-1) {
-					token value;
-					if (!next_token(&stream, &value, error)) goto _compilation_error;
-					if (value.type == TOKEN_INTEGER) value.type = TOKEN_FLOAT;
-					if (value.type != TOKEN_FLOAT) {
-						ulang_error_init(error, file, value.span, "Expected a floating point value.");
+					expression_value exprValue;
+					ulang_span span = {0};
+					if (!parse_expression(&stream, &exprValue, &span, error)) goto _compilation_error;
+					if (exprValue.type != ET_FLOAT) {
+						ulang_error_init(error, file, span, "Expression must evaluate to a float value.");
 						goto _compilation_error;
 					}
-
 					int numRepeat = 1;
 					parse_repeat(&stream, &numRepeat, error);
 					if (error->is_set) goto _compilation_error;
-
 					set_label_targets(&labels, UL_LT_DATA, data.size);
-					emit_float(&data, &value, numRepeat);
+					emit_float(&data, &exprValue, numRepeat);
 					if (!next_token_matches(&stream, STR(","), UL_TRUE)) break;
 				}
 				continue;
@@ -1060,17 +1297,18 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 					goto _compilation_error;
 				}
 
-				EXPECT_TOKEN(stream, STR_OBJ("x"), error)
-				token value;
-				if (!next_token(&stream, &value, error)) goto _compilation_error;
-				if (value.type != TOKEN_INTEGER) {
-					ulang_error_init(error, file, value.span, "Expected a number.");
+				if (!expect_token(&stream, STR("x"), error)) goto _compilation_error;
+				expression_value exprValue;
+				ulang_span span = {0};
+				if (!parse_expression(&stream, &exprValue, &span, error)) goto _compilation_error;
+				if (exprValue.type != ET_INT) {
+					ulang_error_init(error, file, span, "Expression must evaluate to an integer value.");
 					goto _compilation_error;
 				}
 
-				size_t numBytes = typeSize * token_to_int(&value);
+				size_t numBytes = typeSize * exprValue.i;
 				if (numBytes <= 0) {
-					ulang_error_init(error, file, value.span, "Number of reserved bytes must be > 0.");
+					ulang_error_init(error, file, span, "Number of reserved bytes must be > 0.");
 					goto _compilation_error;
 				}
 				set_label_targets(&labels, UL_LT_RESERVED_DATA, numReservedBytes);
@@ -1079,7 +1317,7 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 			}
 
 			// Otherwise, we have a label
-			EXPECT_TOKEN(stream, STR_OBJ(":"), error)
+			if (!expect_token(&stream, STR(":"), error)) goto _compilation_error;
 			ulang_label label = {tok.span, UL_LT_UNINITIALIZED, 0};
 			label_array_add(&labels, label);
 		} else {
@@ -1092,7 +1330,8 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 					goto _compilation_error;
 				}
 
-				if (i < op->numOperands - 1) EXPECT_TOKEN(stream, STR_OBJ(","), error)
+				if (i < op->numOperands - 1)
+					if (!expect_token(&stream, STR(","), error)) goto _compilation_error;
 			}
 
 			opcode *fittingOp = NULL;

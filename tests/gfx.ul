@@ -1,5 +1,5 @@
 # frame buffer, 320x240 @ 4 bytes per pixel (argb)
-buffer: reserve int x 76800
+buffer: reserve byte x 320 * 240 * 4
 
 loop:
    # generate a random pixel
