@@ -94,6 +94,11 @@ typedef struct ulang_vm {
 	ulang_program *program;
 } ulang_vm;
 
+// string, span
+ulang_bool ulang_string_equals(ulang_string *a, ulang_string *b);
+
+ulang_bool ulang_span_matches(ulang_span *span, const char *needle, size_t length);
+
 // memory
 void *ulang_alloc(size_t num_bytes);
 
