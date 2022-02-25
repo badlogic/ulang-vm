@@ -4,10 +4,10 @@ buffer: reserve byte x 320 * 240 * 4
 loop:
    # generate a random pixel
    rand r1
-   mulf r1, 319, r1
+   mulf r1, 320 - 1, r1
    f2i r1, r1
    rand r2
-   mulf r2, 239, r2
+   mulf r2, 240 - 1, r2
    f2i r2, r2
    rand r3
    mulf r3, 0xffffff, r3
