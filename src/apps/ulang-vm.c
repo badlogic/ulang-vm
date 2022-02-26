@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <ulang.h>
 #include <MiniFB.h>
+#include <string.h>
 
 static struct mfb_window *window;
 
@@ -9,8 +10,10 @@ static ulang_bool interruptHandler(uint32_t intNum, ulang_vm *vm) {
 	if (intNum == 1) {
 		uint32_t offset = ulang_vm_pop_uint(vm);
 		uint8_t *addr = &vm->memory[offset];
-		if (mfb_update(window, addr) < 0) return UL_FALSE;
+		if (mfb_update_ex(window, addr, 320, 240) < 0) return UL_FALSE;
 		// if (!mfb_wait_sync(window)) return UL_FALSE;
+	} else if (intNum == 2) {
+		printf("%i\n", ulang_vm_pop_uint(vm));
 	}
 	return UL_TRUE;
 }
@@ -36,7 +39,7 @@ int main(int argc, char **argv) {
 		return -1;
 	}
 
-	window = mfb_open("ulang-vm", 320, 240);
+	window = mfb_open("ulang-vm", 640, 480);
 	if (!window) {
 		printf("Couldn't create window.");
 		ulang_error_print(&error);
@@ -48,6 +51,7 @@ int main(int argc, char **argv) {
 	ulang_vm vm = {0};
 	ulang_vm_init(&vm, &program);
 	vm.interruptHandlers[1] = interruptHandler;
+	vm.interruptHandlers[2] = interruptHandler;
 	while (ulang_vm_step(&vm));
 	if (vm.error.is_set) ulang_error_print(&vm.error);
 	ulang_vm_print(&vm);

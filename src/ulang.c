@@ -57,6 +57,7 @@ ARRAY_IMPLEMENT(int_array, uint32_t)
 
 typedef enum ulang_opcode {
 	HALT,
+	BREAK,
 	ADD,
 	ADD_VAL,
 	SUB,
@@ -118,6 +119,7 @@ typedef enum ulang_opcode {
 	LOAD_REG,
 	LOAD_VAL,
 	STORE_REG,
+	STORE_REG_REG,
 	STORE_VAL,
 	LOAD_BYTE_REG,
 	LOAD_BYTE_VAL,
@@ -160,6 +162,7 @@ typedef struct opcode {
 
 static opcode opcodes[] = {
 		{HALT,                   STR_OBJ("halt")},
+		{BREAK,                  STR_OBJ("brk"),        {UL_REG,         UL_LBL_INT_FLT}},
 		{ADD,                    STR_OBJ("add"),        {UL_REG,         UL_REG,     UL_REG}},
 		{ADD_VAL,                STR_OBJ("add"),        {UL_REG,         UL_LBL_INT, UL_REG}},
 		{SUB,                    STR_OBJ("sub"),        {UL_REG,         UL_REG,     UL_REG}},
@@ -227,6 +230,7 @@ static opcode opcodes[] = {
 		{LOAD_REG,               STR_OBJ("ld"),         {UL_REG,         UL_OFF,     UL_REG}},
 		{LOAD_VAL,               STR_OBJ("ld"),         {UL_LBL_INT,     UL_OFF,     UL_REG}},
 		{STORE_REG,              STR_OBJ("sto"),        {UL_REG,         UL_REG,     UL_OFF}},
+		{STORE_REG_REG,          STR_OBJ("sto"),        {UL_REG,         UL_REG,     UL_REG}},
 		{STORE_VAL,              STR_OBJ("sto"),        {UL_REG,         UL_LBL_INT, UL_OFF}},
 
 		{LOAD_BYTE_REG,          STR_OBJ("ldb"),        {UL_REG,         UL_OFF,     UL_REG}},
@@ -488,7 +492,7 @@ typedef struct {
 	uint32_t line;
 } char_stream;
 
-static void character_stream_init(char_stream *stream, ulang_file *fileData) {
+static void char_stream_init(char_stream *stream, ulang_file *fileData) {
 	stream->data = fileData;
 	stream->index = 0;
 	stream->line = 1;
@@ -629,7 +633,7 @@ typedef enum token_type {
 	TOKEN_EOF
 } token_type;
 
-typedef struct {
+typedef struct token {
 	ulang_span span;
 	token_type type;
 } token;
@@ -695,7 +699,7 @@ static float token_to_float(token *token) {
 
 static ulang_bool tokenize(ulang_file *file, token_array *tokens, ulang_error *error) {
 	char_stream stream;
-	character_stream_init(&stream, file);
+	char_stream_init(&stream, file);
 
 	while (char_stream_has_more(&stream)) {
 		char_stream_skip_white_space(&stream);
@@ -1518,34 +1522,196 @@ void ulang_program_free(ulang_program *program) {
 	ulang_free(program->addressToLine);
 }
 
-ulang_bool default_interrupts(uint32_t intNum, ulang_vm *vm) {
-	if (intNum == 0) {
-		do {
-			ulang_vm_print(vm);
-			prompt:
-			printf("> ");
-			int c;
-			do { c = getchar(); } while (c == '\n' || c == '\r');
+ulang_bool debug(ulang_vm *vm) {
+	do {
+		ulang_vm_print(vm);
+		prompt:
+		printf("> ");
 
-			switch (c) {
-				case 's': {
-					if (!ulang_vm_step(vm)) return UL_FALSE;
-					break;
-				}
-				case 'c':
-					return UL_TRUE;
-				case 'p': {
-					ulang_vm_print(vm);
-				}
-				case 'h':
-				default: {
-					printf("   s    step one instruction\n");
-					printf("   c    continue execution\n");
-					printf("   p    print registers and source location\n");
-					goto prompt;
+		char buffer[256];
+		token_array tokens = {0};
+		ulang_error error = {0};
+		token_array_init_inplace(&tokens, 5);
+
+		if (!fgets(buffer, 256, stdin)) continue;
+		ulang_file input = (ulang_file) {{"input", 5}, buffer, strlen(buffer)};
+		if (!tokenize(&input, &tokens, &error)) {
+			ulang_error_print(&error);
+			ulang_error_free(&error);
+			token_array_free_inplace(&tokens);
+			goto prompt;
+		}
+
+		if (tokens.size == 0) {
+			token_array_free_inplace(&tokens);
+			goto prompt;
+		}
+
+		token_stream stream = {&input, &tokens, 0};
+		token *cmd = token_stream_consume(&stream);
+
+		if (ulang_span_matches(&cmd->span, STR("h"))) {
+			printf("   s                         step one instruction\n");
+			printf("   c                         continue execution\n");
+			printf("   r <addr> <num> <b|i|f>?   read <num> words starting at address <addr>\n");
+			printf("                             (b)yte, (i)nt, and (f)loat specify the word type\n");
+			printf("   w <num> <addr> <b|i|f>?   write the word <num> to address <addr>\n");
+			printf("                             (b)yte, (i)nt, and (f)loat specify the word type\n");
+			printf("   l <label>?                 print the address of all labels, or the specified <label>\n");
+			printf("   p                         print the registers and stack\n");
+			token_array_free_inplace(&tokens);
+			goto prompt;
+		}
+
+		if (ulang_span_matches(&cmd->span, STR("s"))) {
+			if (!ulang_vm_step(vm)) {
+				token_array_free_inplace(&tokens);
+				return UL_FALSE;
+			}
+			continue;
+		}
+
+		if (ulang_span_matches(&cmd->span, STR("c"))) {
+			token_array_free_inplace(&tokens);
+			return UL_TRUE;
+		}
+
+		if (ulang_span_matches(&cmd->span, STR("p"))) {
+			token_array_free_inplace(&tokens);
+			continue;
+		}
+
+		if (ulang_span_matches(&cmd->span, STR("r"))) {
+			ulang_span span;
+			expression_value addr;
+			if (!parse_expression(&stream, &addr, &span, &error)) {
+				ulang_error_print(&error);
+				ulang_error_free(&error);
+				token_array_free_inplace(&tokens);
+				goto prompt;
+			}
+			if (addr.type != ET_INT) {
+				printf("Error: <addr> must be an integer value.\n");
+				token_array_free_inplace(&tokens);
+				goto prompt;
+			}
+			expression_value numWords;
+			if (!parse_expression(&stream, &numWords, &span, &error)) {
+				ulang_error_print(&error);
+				ulang_error_free(&error);
+				token_array_free_inplace(&tokens);
+				goto prompt;
+			}
+			if (numWords.type != ET_INT) {
+				printf("Error: <num> must be an integer value.\n");
+				token_array_free_inplace(&tokens);
+				goto prompt;
+			}
+
+			int type = 1; // 0 = byte, 1 = int, 2 = float
+			if (token_stream_match_string(&stream, STR("b"), UL_TRUE)) type = 0;
+			else if (token_stream_match_string(&stream, STR("i"), UL_TRUE)) type = 1;
+			else if (token_stream_match_string(&stream, STR("f"), UL_TRUE)) type = 2;
+
+			uint8_t *mem = vm->memory + addr.i;
+			for (int i = 0; i < numWords.i; i++) {
+				ulang_value val = {0};
+				switch (type) {
+					case 0:
+						memcpy(&val, mem, 1);
+						printf("mem[%p]: 0x%x %i\n", (void *) (mem - vm->memory), val.i, val.i);
+						mem += 1;
+						break;
+					case 1:
+						memcpy(&val, mem, 4);
+						printf("mem[%p]: 0x%x %i\n", (void *) (mem - vm->memory), val.i, val.i);
+						mem += 4;
+						break;
+					case 2:
+						memcpy(&val, mem, 4);
+						printf("mem[%p]: %f\n", (void *) (mem - vm->memory), val.fl);
+						mem += 4;
+						break;
 				}
 			}
-		} while (-1);
+			token_array_free_inplace(&tokens);
+			goto prompt;
+		}
+
+		if (ulang_span_matches(&cmd->span, STR("w"))) {
+			ulang_span span;
+			expression_value num;
+			if (!parse_expression(&stream, &num, &span, &error)) {
+				ulang_error_print(&error);
+				ulang_error_free(&error);
+				token_array_free_inplace(&tokens);
+				goto prompt;
+			}
+			if (num.type == ET_FLOAT) memcpy(&num.i, &num.f, 4);
+			expression_value addr;
+			if (!parse_expression(&stream, &addr, &span, &error)) {
+				ulang_error_print(&error);
+				ulang_error_free(&error);
+				token_array_free_inplace(&tokens);
+				goto prompt;
+			}
+			if (addr.type != ET_INT) {
+				printf("Error: <addr> must be an integer value.\n");
+				token_array_free_inplace(&tokens);
+				goto prompt;
+			}
+
+			int type = 1; // 0 = byte, 1 = int, 2 = float
+			if (token_stream_match_string(&stream, STR("b"), UL_TRUE)) type = 0;
+			else if (token_stream_match_string(&stream, STR("i"), UL_TRUE)) type = 1;
+			else if (token_stream_match_string(&stream, STR("f"), UL_TRUE)) type = 2;
+
+			uint8_t *mem = vm->memory + addr.i;
+			switch (type) {
+				case 0:
+					memcpy(mem, &num.i, 1);
+					break;
+				default:
+					memcpy(mem, &num.i, 4);
+					break;
+			}
+			token_array_free_inplace(&tokens);
+			goto prompt;
+		}
+
+		if (ulang_span_matches(&cmd->span, STR("l"))) {
+			token *label = token_stream_consume(&stream);
+			if (label && label->type != TOKEN_IDENTIFIER) label = NULL;
+			ulang_label *labels = vm->program->labels;
+			for (int i = 0; i < (int) vm->program->labelsLength; i++) {
+				if (label && !ulang_span_matches(&label->span, labels[i].label.data.data, labels[i].label.data.length)) continue;
+				size_t addr = labels[i].address;
+				switch (labels[i].target) {
+					case UL_LT_UNINITIALIZED:
+					case UL_LT_CODE:
+						break;
+					case UL_LT_DATA:
+						addr += vm->program->codeLength;
+						break;
+					case UL_LT_RESERVED_DATA:
+						addr += vm->program->codeLength + vm->program->dataLength;
+						break;
+				}
+				printf("%.*s: %zu %p\n", labels[i].label.data.length, labels[i].label.data.data, addr, (void *) addr);
+			}
+			goto prompt;
+		}
+
+		printf("Error: unknown command");
+		token_array_free_inplace(&tokens);
+		goto prompt;
+	} while (-1);
+	return UL_TRUE;
+}
+
+ulang_bool default_interrupts(uint32_t intNum, ulang_vm *vm) {
+	if (intNum == 0) {
+		return debug(vm);
 	}
 	return UL_TRUE;
 }
@@ -1594,6 +1760,13 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 	switch (op) {
 		case HALT:
 			return UL_FALSE;
+		case BREAK: {
+			uint32_t val = VAL_U;
+			if (val == REG1_U) {
+				if (!debug(vm)) return UL_FALSE;
+			}
+			break;
+		}
 		case ADD:
 			REG3 = REG1 + REG2;
 			break;
@@ -1765,10 +1938,10 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 			REG2 = REG1 << DECODE_OFF(word);
 			break;
 		case SHR:
-			REG3 = REG1 >> REG2;
+			REG3_U = REG1_U >> REG2_U;
 			break;
 		case SHR_VAL:
-			REG2 = REG1 >> DECODE_OFF(word);
+			REG2_U = REG1_U >> DECODE_OFF(word);
 			break;
 		case JUMP: {
 			uint32_t addr = VAL_U;
@@ -1824,6 +1997,11 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 		case STORE_REG: {
 			uint32_t addr = REG2_U + DECODE_OFF(word);
 			memcpy(&vm->memory[addr], &REG1_U, 4);
+			break;
+		}
+		case STORE_REG_REG: {
+			int32_t addr = REG2 + REG3;
+			memcpy(&vm->memory[addr], &REG1, 4);
 			break;
 		}
 		case STORE_VAL: {

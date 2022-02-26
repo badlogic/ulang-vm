@@ -135,7 +135,7 @@ ulang_bool test(size_t testNum, test_case *test) {
 			case REG_FLOAT: {
 				float regValue = vm.registers[check->reg].fl;
 				float expValue = check->val_float;
-				if (regValue != expValue) {
+				if (fabs(regValue - expValue) > 0.00001f) { // epsilon check due to fast math.
 					snprintf(checkErrorMessage, sizeof checkErrorMessage, "Value in register [%s]: %f != %f)\n",
 							 reg_names[check->reg], regValue, expValue);
 					goto error;
@@ -219,6 +219,7 @@ int main(int argc, char **argv) {
 			// divf
 			{"mov 123.456, r1\nmov 234.567, r2\ndivf r1, r2, r3",                                        {{REG_FLOAT, .reg = R3, .val_float = 123.456f / 234.567f}}},
 			{"mov 123.456, r1\ndivf r1, 234.567, r2",                                                    {{REG_FLOAT, .reg = R2, .val_float = 123.456f / 234.567f}}},
+
 			// cos, sin, atan2, sqrt, pow
 			{"mov 123.456, r1\ncosf r1, r2",                                                             {{REG_FLOAT, .reg = R2, .val_float = cosf(123.456f)}}},
 			{"mov 123.456, r1\nsinf r1, r2",                                                             {{REG_FLOAT, .reg = R2, .val_float = sinf(123.456f)}}},
