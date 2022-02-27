@@ -133,7 +133,7 @@ ulang_bool test(size_t testNum, test_case *test) {
 				break;
 			}
 			case REG_FLOAT: {
-				float regValue = vm.registers[check->reg].fl;
+				float regValue = vm.registers[check->reg].f;
 				float expValue = check->val_float;
 				if (fabs(regValue - expValue) > 0.00001f) { // epsilon check due to fast math.
 					snprintf(checkErrorMessage, sizeof checkErrorMessage, "Value in register [%s]: %f != %f)\n",
@@ -160,7 +160,7 @@ ulang_bool test(size_t testNum, test_case *test) {
 int main(int argc, char **argv) {
 	// @formatter:off
 	test_case tests[] = {
-			{"halt",                                                                                     {{REG_INT, .reg = PC, .val_uint = 4}}},
+			{"asdfas",                                                                                     {{REG_INT, .reg = PC, .val_uint = 4}}},
 
 			// Test mov first, as we need it for the other tests
 			{"mov 123, r1",                                                                              {{REG_INT, .reg = R1, .val_int = 123}}},

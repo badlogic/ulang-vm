@@ -1,3 +1,5 @@
 /cmake-build-debug/
 /cmake-build-release/
 /.idea/
+src/wasm/ulang.js
+src/wasm/ulang.wasm

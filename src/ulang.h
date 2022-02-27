@@ -30,15 +30,6 @@ typedef struct ulang_line {
 	uint32_t lineNumber;
 } ulang_line;
 
-struct ulang_file;
-
-typedef struct ulang_error {
-	struct ulang_file *file;
-	ulang_span span;
-	ulang_string message;
-	ulang_bool is_set;
-} ulang_error;
-
 typedef struct ulang_file {
 	ulang_string fileName;
 	char *data;
@@ -46,6 +37,14 @@ typedef struct ulang_file {
 	ulang_line *lines;
 	size_t numLines;
 } ulang_file;
+
+typedef struct ulang_error {
+	ulang_file *file;
+	ulang_span span;
+	ulang_string message;
+	ulang_bool is_set;
+} ulang_error;
+
 
 typedef enum ulang_label_target {
 	UL_LT_UNINITIALIZED,
@@ -78,18 +77,18 @@ typedef union ulang_value {
 	int16_t s;
 	int32_t i;
 	uint32_t ui;
-	float fl;
+	float f;
 } ulang_value;
 
 struct ulang_vm;
 
-typedef ulang_bool (*ulang_interrupt_handler)(uint32_t intNum, struct ulang_vm *vm);
+typedef ulang_bool (*ulang_syscall)(uint32_t intNum, struct ulang_vm *vm);
 
 typedef struct ulang_vm {
 	ulang_value registers[16];
 	uint8_t *memory;
 	size_t memorySizeBytes;
-	ulang_interrupt_handler interruptHandlers[256];
+	ulang_syscall syscalls[256];
 	ulang_error error;
 	ulang_program *program;
 } ulang_vm;

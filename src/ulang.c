@@ -5,6 +5,12 @@
 #include <stdarg.h>
 #include <math.h>
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten/emscripten.h>
+#else
+#define EMSCRIPTEN_KEEPALIVE
+#endif
+
 #define STR(str) str, sizeof(str) - 1
 #define STR_OBJ(str) (ulang_string){ str, sizeof(str) - 1 }
 #define MAX(a, b) (a > b ? a : b)
@@ -101,6 +107,8 @@ typedef enum ulang_opcode {
 	SHL_VAL,
 	SHR,
 	SHR_VAL,
+	SHRU,
+	SHRU_VAL,
 	CMP,
 	CMP_REG_VAL,
 	CMP_UNSIGNED,
@@ -207,6 +215,8 @@ static opcode opcodes[] = {
 		{SHL_VAL,                STR_OBJ("shl"),        {UL_REG,         UL_OFF,     UL_REG}},
 		{SHR,                    STR_OBJ("shr"),        {UL_REG,         UL_REG,     UL_REG}},
 		{SHR_VAL,                STR_OBJ("shr"),        {UL_REG,         UL_OFF,     UL_REG}},
+		{SHRU,                   STR_OBJ("shru"),       {UL_REG,         UL_REG,     UL_REG}},
+		{SHRU_VAL,               STR_OBJ("shru"),       {UL_REG,         UL_OFF,     UL_REG}},
 
 		{CMP,                    STR_OBJ("cmp"),        {UL_REG,         UL_REG,     UL_REG}},
 		{CMP_REG_VAL,            STR_OBJ("cmp"),        {UL_REG,         UL_LBL_INT, UL_REG}},
@@ -318,17 +328,24 @@ void *ulang_alloc(size_t numBytes) {
 	return malloc(numBytes);
 }
 
+EMSCRIPTEN_KEEPALIVE void *ulang_calloc(size_t numBytes) {
+	allocs++;
+	void *result = malloc(numBytes);
+	memset(result, 0, numBytes);
+	return result;
+}
+
 void *ulang_realloc(void *old, size_t numBytes) {
 	return realloc(old, numBytes);
 }
 
-void ulang_free(void *ptr) {
+EMSCRIPTEN_KEEPALIVE void ulang_free(void *ptr) {
 	if (!ptr) return;
 	frees++;
 	free(ptr);
 }
 
-void ulang_print_memory() {
+EMSCRIPTEN_KEEPALIVE void ulang_print_memory() {
 	printf("Allocations: %i\nFrees: %i\n", allocs, frees);
 }
 
@@ -357,7 +374,7 @@ ulang_bool ulang_file_read(const char *fileName, ulang_file *file) {
 	return UL_TRUE;
 }
 
-ulang_bool ulang_file_from_memory(const char *fileName, const char *content, ulang_file *file) {
+EMSCRIPTEN_KEEPALIVE ulang_bool ulang_file_from_memory(const char *fileName, const char *content, ulang_file *file) {
 	size_t len = strlen(content);
 	file->data = ulang_alloc(len + 1);
 	memcpy(file->data, content, len);
@@ -372,7 +389,7 @@ ulang_bool ulang_file_from_memory(const char *fileName, const char *content, ula
 	return UL_TRUE;
 }
 
-void ulang_file_free(ulang_file *file) {
+EMSCRIPTEN_KEEPALIVE void ulang_file_free(ulang_file *file) {
 	ulang_free(file->fileName.data);
 	ulang_free(file->data);
 	file->fileName.data = NULL;
@@ -385,7 +402,7 @@ void ulang_file_free(ulang_file *file) {
 	}
 }
 
-static void ulang_error_init(ulang_error *error, ulang_file *file, ulang_span *span, const char *msg, ...) {
+void ulang_error_init(ulang_error *error, ulang_file *file, ulang_span *span, const char *msg, ...) {
 	va_list args;
 	va_start(args, msg);
 	char scratch[1];
@@ -404,8 +421,8 @@ static void ulang_error_init(ulang_error *error, ulang_file *file, ulang_span *s
 	error->is_set = UL_TRUE;
 }
 
-void ulang_error_free(ulang_error *error) {
-	ulang_free(error->message.data);
+EMSCRIPTEN_KEEPALIVE void ulang_error_free(ulang_error *error) {
+	if (error->is_set) ulang_free(error->message.data);
 	error->is_set = UL_FALSE;
 	error->file = NULL;
 	error->message.data = NULL;
@@ -422,6 +439,7 @@ static void ulang_file_get_lines(ulang_file *file) {
 		uint8_t c = data[i];
 		if (c == '\n') numLines++;
 	}
+	if (dataLength > 0 && numLines == 0) numLines++;
 	file->numLines = numLines;
 	file->lines = ulang_alloc(sizeof(ulang_line) * (numLines + 2));
 
@@ -438,12 +456,12 @@ static void ulang_file_get_lines(ulang_file *file) {
 	}
 
 	if (lineStart < file->length) {
-		ulang_line line = {{data + lineStart, file->length - lineStart}, addedLines};
+		ulang_line line = {{data + lineStart, file->length - lineStart}, addedLines + 1};
 		file->lines[addedLines + 1] = line;
 	}
 }
 
-void ulang_error_print(ulang_error *error) {
+EMSCRIPTEN_KEEPALIVE void ulang_error_print(ulang_error *error) {
 	ulang_file *source = error->file;
 	ulang_file_get_lines(source);
 	ulang_line *line = &source->lines[error->span.startLine];
@@ -458,6 +476,7 @@ void ulang_error_print(ulang_error *error) {
 		int32_t errorEnd = errorStart + (int32_t) error->span.data.length - 1;
 		for (int32_t i = 0, n = (int32_t) line->data.length; i < n; i++) {
 			ulang_bool useTab = line->data.data[i] == '\t';
+			// BOZO non ASCII characters use > 1 bytes, so the ^ doesn't match up. E.g. 'ö' > '^^'
 			printf("%s", i >= errorStart && i <= errorEnd ? "^" : (useTab ? "\t" : " "));
 		}
 		printf("\n");
@@ -825,7 +844,7 @@ token_stream_expect(token_stream *stream, token_type type, ulang_error *error) {
 
 		if (lastToken == NULL) {
 			ulang_file_get_lines(stream->file);
-			ulang_line *lastLine = &stream->file->lines[stream->file->numLines - 1];
+			ulang_line *lastLine = &stream->file->lines[stream->file->numLines];
 			ulang_span span = (ulang_span) {lastLine->data, lastLine->lineNumber, lastLine->lineNumber};
 			ulang_error_init(error, stream->file, &span, "Expected a '%s' token, but reached the end of the source.",
 							 token_type_to_string(type));
@@ -847,7 +866,7 @@ token_stream_expect_string(token_stream *stream, char *str, size_t len, ulang_er
 
 		if (lastToken == NULL) {
 			ulang_file_get_lines(stream->file);
-			ulang_line *lastLine = &stream->file->lines[stream->file->numLines - 1];
+			ulang_line *lastLine = &stream->file->lines[stream->file->numLines];
 			ulang_span span = (ulang_span) {lastLine->data, lastLine->lineNumber, lastLine->lineNumber};
 			ulang_error_init(error, stream->file, &span, "Expected '%.*s', but reached the end of the source.",
 							 len, str);
@@ -1221,7 +1240,7 @@ static void set_label_targets(label_array *labels, ulang_label_target target, si
 	}
 }
 
-ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *error) {
+EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *error) {
 	error->is_set = UL_FALSE;
 	init_opcodes_and_registers();
 
@@ -1515,7 +1534,7 @@ ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *
 	return UL_FALSE;
 }
 
-void ulang_program_free(ulang_program *program) {
+EMSCRIPTEN_KEEPALIVE void ulang_program_free(ulang_program *program) {
 	ulang_free(program->code);
 	ulang_free(program->data);
 	ulang_free(program->labels);
@@ -1629,7 +1648,7 @@ ulang_bool debug(ulang_vm *vm) {
 						break;
 					case 2:
 						memcpy(&val, mem, 4);
-						printf("mem[%p]: %f\n", (void *) (mem - vm->memory), val.fl);
+						printf("mem[%p]: %f\n", (void *) (mem - vm->memory), val.f);
 						mem += 4;
 						break;
 				}
@@ -1709,7 +1728,7 @@ ulang_bool debug(ulang_vm *vm) {
 	return UL_TRUE;
 }
 
-ulang_bool default_interrupts(uint32_t intNum, ulang_vm *vm) {
+ulang_bool default_syscall(uint32_t intNum, ulang_vm *vm) {
 	if (intNum == 0) {
 		return debug(vm);
 	}
@@ -1717,17 +1736,17 @@ ulang_bool default_interrupts(uint32_t intNum, ulang_vm *vm) {
 }
 
 // BOZO need to throw an error in case memory sizes are bollocks
-void ulang_vm_init(ulang_vm *vm, ulang_program *program) {
+EMSCRIPTEN_KEEPALIVE void ulang_vm_init(ulang_vm *vm, ulang_program *program) {
 	vm->memorySizeBytes = UL_VM_MEMORY_SIZE;
 	vm->memory = ulang_alloc(vm->memorySizeBytes);
 	memset(vm->registers, 0, sizeof(ulang_value) * 16);
-	memset(vm->interruptHandlers, 0, sizeof(ulang_interrupt_handler) * 256);
+	memset(vm->syscalls, 0, sizeof(ulang_syscall) * 256);
 	memset(vm->memory, 0, vm->memorySizeBytes);
 	memcpy(vm->memory, program->code, program->codeLength);
 	memcpy(vm->memory + program->codeLength, program->data, program->dataLength);
 	vm->registers[15].ui = vm->memorySizeBytes;
 
-	vm->interruptHandlers[0] = default_interrupts;
+	vm->syscalls[0] = default_syscall;
 	vm->program = program;
 }
 
@@ -1740,9 +1759,9 @@ void ulang_vm_init(ulang_vm *vm, ulang_program *program) {
 #define REG1_U regs[DECODE_REG(word, 0)].ui
 #define REG2_U regs[DECODE_REG(word, 1)].ui
 #define REG3_U regs[DECODE_REG(word, 2)].ui
-#define REG1_F regs[DECODE_REG(word, 0)].fl
-#define REG2_F regs[DECODE_REG(word, 1)].fl
-#define REG3_F regs[DECODE_REG(word, 2)].fl
+#define REG1_F regs[DECODE_REG(word, 0)].f
+#define REG2_F regs[DECODE_REG(word, 1)].f
+#define REG3_F regs[DECODE_REG(word, 2)].f
 #define VAL *((int32_t *) &vm->memory[regs[14].ui]); regs[14].ui += 4
 #define VAL_U *((uint32_t *) &vm->memory[regs[14].ui]); regs[14].ui += 4
 #define VAL_F *((float *) &vm->memory[regs[14].ui]); regs[14].ui += 4
@@ -1750,7 +1769,7 @@ void ulang_vm_init(ulang_vm *vm, ulang_program *program) {
 #define PC regs[14].ui
 #define SP regs[15].ui
 
-ulang_bool ulang_vm_step(ulang_vm *vm) {
+EMSCRIPTEN_KEEPALIVE ulang_bool ulang_vm_step(ulang_vm *vm) {
 	ulang_value *regs = vm->registers;
 	uint32_t word;
 	memcpy(&word, &vm->memory[PC], 4);
@@ -1938,9 +1957,15 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 			REG2 = REG1 << DECODE_OFF(word);
 			break;
 		case SHR:
-			REG3_U = REG1_U >> REG2_U;
+			REG3 = REG1 >> REG2;
 			break;
 		case SHR_VAL:
+			REG2 = REG1 >> DECODE_OFF(word);
+			break;
+		case SHRU:
+			REG3_U = REG1_U >> REG2_U;
+			break;
+		case SHRU_VAL:
 			REG2_U = REG1_U >> DECODE_OFF(word);
 			break;
 		case JUMP: {
@@ -2104,9 +2129,9 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 		}
 		case INTR: {
 			uint32_t intNum = DECODE_OFF(word);
-			if (intNum < 0 || intNum > 255 || !vm->interruptHandlers[intNum])
+			if (intNum < 0 || intNum > 255 || !vm->syscalls[intNum])
 				break;
-			if (!vm->interruptHandlers[intNum](intNum, vm)) return UL_FALSE;
+			if (!vm->syscalls[intNum](intNum, vm)) return UL_FALSE;
 			break;
 		}
 		default:
@@ -2116,11 +2141,11 @@ ulang_bool ulang_vm_step(ulang_vm *vm) {
 	return UL_TRUE;
 }
 
-void ulang_vm_print(ulang_vm *vm) {
+EMSCRIPTEN_KEEPALIVE void ulang_vm_print(ulang_vm *vm) {
 	ulang_value *regs = vm->registers;
 	for (int i = 0; i < 16; i++) {
 		printf("%.*s: %i (0x%x), %f ", (int) registers[i].name.length, registers[i].name.data, regs[i].i, regs[i].i,
-			   regs[i].fl);
+			   regs[i].f);
 		if ((i + 1) % 4 == 0) printf("\n");
 	}
 
@@ -2149,28 +2174,101 @@ void ulang_vm_print(ulang_vm *vm) {
 	}
 }
 
-int32_t ulang_vm_pop_int(ulang_vm *vm) {
+EMSCRIPTEN_KEEPALIVE int32_t ulang_vm_pop_int(ulang_vm *vm) {
 	int32_t val;
 	memcpy(&val, vm->memory + vm->registers[15].ui, 4);
 	vm->registers[15].ui += 4;
 	return val;
 }
 
-uint32_t ulang_vm_pop_uint(ulang_vm *vm) {
+EMSCRIPTEN_KEEPALIVE uint32_t ulang_vm_pop_uint(ulang_vm *vm) {
 	uint32_t val;
 	memcpy(&val, vm->memory + vm->registers[15].ui, 4);
 	vm->registers[15].ui += 4;
 	return val;
 }
 
-float ulang_vm_pop_float(ulang_vm *vm) {
+EMSCRIPTEN_KEEPALIVE float ulang_vm_pop_float(ulang_vm *vm) {
 	float val;
 	memcpy(&val, vm->memory + vm->registers[15].ui, 4);
 	vm->registers[15].ui += 4;
 	return val;
 }
 
-void ulang_vm_free(ulang_vm *vm) {
+EMSCRIPTEN_KEEPALIVE void ulang_vm_free(ulang_vm *vm) {
 	ulang_free(vm->memory);
 	if (vm->error.is_set) ulang_error_free(&vm->error);
+}
+
+typedef enum UlangType {
+	UL_TYPE_FILE,
+	UL_TYPE_ERROR,
+	UL_TYPE_PROGRAM,
+	UL_TYPE_VM
+} UlangType;
+
+EMSCRIPTEN_KEEPALIVE int ulang_sizeof(UlangType type) {
+	switch (type) {
+		case UL_TYPE_FILE:
+			return sizeof(ulang_file);
+		case UL_TYPE_ERROR:
+			return sizeof(ulang_error);
+		case UL_TYPE_PROGRAM:
+			return sizeof(ulang_program);
+		case UL_TYPE_VM:
+			return sizeof(ulang_vm);
+	}
+}
+
+EMSCRIPTEN_KEEPALIVE void ulang_print_offsets() {
+	printf("ulang_string (size=%lu)\n", sizeof(ulang_string));
+	printf("   data: %lu\n", offsetof(ulang_string, data));
+	printf("   length: %lu\n", offsetof(ulang_string, length));
+
+	printf("ulang_span (size=%lu)\n", sizeof(ulang_span));
+	printf("   data: %lu\n", offsetof(ulang_span, data));
+	printf("   startLine: %lu\n", offsetof(ulang_span, startLine));
+	printf("   endLine: %lu\n", offsetof(ulang_span, endLine));
+
+	printf("ulang_line (size=%lu)\n", sizeof(ulang_line));
+	printf("   data: %lu\n", offsetof(ulang_line, data));
+	printf("   lineNumber: %lu\n", offsetof(ulang_line, lineNumber));
+
+	printf("ulang_file (size=%lu)\n", sizeof(ulang_file));
+	printf("   fileName: %lu\n", offsetof(ulang_file, fileName));
+	printf("   data: %lu\n", offsetof(ulang_file, data));
+	printf("   length: %lu\n", offsetof(ulang_file, length));
+	printf("   lines: %lu\n", offsetof(ulang_file, lines));
+	printf("   numLines: %lu\n", offsetof(ulang_file, numLines));
+
+	printf("ulang_error (size=%lu)\n", sizeof(ulang_error));
+	printf("   file: %lu\n", offsetof(ulang_error, file));
+	printf("   span: %lu\n", offsetof(ulang_error, span));
+	printf("   message: %lu\n", offsetof(ulang_error, message));
+	printf("   is_set: %lu\n", offsetof(ulang_error, is_set));
+
+	printf("ulang_label (size=%lu)\n", sizeof(ulang_label));
+	printf("   label: %lu\n", offsetof(ulang_label, label));
+	printf("   target: %lu\n", offsetof(ulang_label, target));
+	printf("   target: %lu\n", offsetof(ulang_label, address));
+
+	printf("ulang_program (size=%lu)\n", sizeof(ulang_program));
+	printf("   code: %lu\n", offsetof(ulang_program, code));
+	printf("   codeLength: %lu\n", offsetof(ulang_program, codeLength));
+	printf("   data: %lu\n", offsetof(ulang_program, data));
+	printf("   dataLength: %lu\n", offsetof(ulang_program, dataLength));
+	printf("   reservedBytes: %lu\n", offsetof(ulang_program, reservedBytes));
+	printf("   labels: %lu\n", offsetof(ulang_program, labels));
+	printf("   labelsLength: %lu\n", offsetof(ulang_program, labelsLength));
+	printf("   file: %lu\n", offsetof(ulang_program, file));
+	printf("   addressToLine: %lu\n", offsetof(ulang_program, addressToLine));
+	printf("   addressToLineLength: %lu\n", offsetof(ulang_program, addressToLineLength));
+
+	printf("ulang_vm (size=%lu)\n", sizeof(ulang_vm));
+	printf("   registers: %lu\n", offsetof(ulang_vm, registers));
+	printf("   memory: %lu\n", offsetof(ulang_vm, memory));
+	printf("   memorySizeBytes: %lu\n", offsetof(ulang_vm, memorySizeBytes));
+	printf("   syscalls: %lu\n", offsetof(ulang_vm, syscalls));
+	printf("   error: %lu\n", offsetof(ulang_vm, error));
+	printf("   program: %lu\n", offsetof(ulang_vm, program));
 }
