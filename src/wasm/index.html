@@ -72,6 +72,7 @@
             language: "ulang"
         });
 
+        let deltaDecorations = [];
         editor.onDidChangeModelContent((e) => {
             stdout.innerHTML = "";
 
@@ -80,6 +81,14 @@
             var program = ulang.newProgram();
             if (!ulang.compile(file, program, error)) {
                 error.print();
+                let lineNumber = error.span().startLine();
+                let str = error.span().data().toString();
+                let line = file.lines()[lineNumber].data().toString();
+                let startCol = line.indexOf(str) + 1;
+                let endCol = startCol + str.length;
+                deltaDecorations = editor.deltaDecorations(deltaDecorations, [{range: new monaco.Range(lineNumber, startCol, lineNumber, endCol), options: {inlineClassName: '.squiggly-error'}}]);
+            } else {
+                deltaDecorations = editor.deltaDecorations(deltaDecorations, []);
             }
             error.free();
             program.free();
