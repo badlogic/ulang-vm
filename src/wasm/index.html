@@ -123,12 +123,17 @@
                 let result = compile(editor.getValue(0));
                 if (result.error.isSet()) {
                     result.error.print();
-                    let lineNumber = result.error.span().startLine();
-                    let str = result.error.span().data().toString();
-                    let line = result.file.lines()[lineNumber].data().toString();
-                    let startCol = line.indexOf(str) + 1;
-                    let endCol = startCol + str.length;
-                    deltaDecorations = editor.deltaDecorations(deltaDecorations, [{range: new monaco.Range(lineNumber, startCol, lineNumber, endCol), options: {inlineClassName: '.squiggly-error'}}]);
+                    let startLineNumber = result.error.span().startLine();
+                    let startLine = result.file.lines()[startLineNumber]
+                    let endLineNumber = result.error.span().endLine();
+                    let endLine = result.file.lines()[endLineNumber];
+
+                    let spanStart = result.error.span().data().data();
+                    let spanEnd = spanStart + result.error.span().data().length();
+
+                    let startCol = spanStart - startLine.data().data();
+                    let endCol = spanEnd - endLine.data().data();
+                    deltaDecorations = editor.deltaDecorations(deltaDecorations, [{range: new monaco.Range(startLineNumber, startCol, endLineNumber, endCol), options: {inlineClassName: '.squiggly-error'}}]);
                 } else {
                     deltaDecorations = editor.deltaDecorations(deltaDecorations, []);
                 }

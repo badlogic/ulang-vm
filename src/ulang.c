@@ -439,7 +439,7 @@ static void ulang_file_get_lines(ulang_file *file) {
 		uint8_t c = data[i];
 		if (c == '\n') numLines++;
 	}
-	if (dataLength > 0 && numLines == 0) numLines++;
+	if (dataLength > 0) numLines++;
 	file->numLines = numLines;
 	file->lines = ulang_alloc(sizeof(ulang_line) * (numLines + 2));
 
@@ -455,7 +455,7 @@ static void ulang_file_get_lines(ulang_file *file) {
 		}
 	}
 
-	if (lineStart < file->length) {
+	if (addedLines < numLines) {
 		ulang_line line = {{data + lineStart, file->length - lineStart}, addedLines + 1};
 		file->lines[addedLines + 1] = line;
 	}

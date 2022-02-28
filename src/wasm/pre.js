@@ -69,6 +69,7 @@ Module["onRuntimeInitialized"] = () => {
             data: () => nativeToJsString(filePtr + 8),
             lines: () => {
                 let lines = [];
+                lines.push({});
                 let linesPtr = getUint32(filePtr + 16);
                 let numLines = getUint32(filePtr + 20);
                 for (let i = 0; i < numLines; i++) {
