@@ -21,6 +21,8 @@ Module["onRuntimeInitialized"] = () => {
     const ulang_print_offsets = Module.cwrap("ulang_print_offsets", "void", []);
     const ulang_argb_to_rgba = Module.cwrap("ulang_argb_to_rgba", "ptr", ["ptr", "number"]);
 
+    ulang_print_offsets();
+
     ulang.argbToRgba = (ptr, numPixels) => ulang_argb_to_rgba(ptr, numPixels);
 
     const UL_TYPE_FILE = 0;
@@ -69,10 +71,9 @@ Module["onRuntimeInitialized"] = () => {
             data: () => nativeToJsString(filePtr + 8),
             lines: () => {
                 let lines = [];
-                lines.push({});
                 let linesPtr = getUint32(filePtr + 16);
                 let numLines = getUint32(filePtr + 20);
-                for (let i = 0; i < numLines; i++) {
+                for (let i = 0; i < numLines + 1; i++) {
                     lines.push(nativeToJsLine(linesPtr));
                     linesPtr += 12;
                 }

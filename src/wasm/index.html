@@ -111,34 +111,55 @@
         let editor = function () {
             defineUlangLanguage();
 
+            monaco.editor.onDidCreateModel((model) => {
+                let validate = () => {
+                    stdout.innerHTML = "";
+                    let result = compile(model.getValue());
+                    if (result.error.isSet()) {
+                        result.error.print();
+                        let base = result.file.data().data();
+                        let startLineNumber = result.error.span().startLine();
+                        let startLine = result.file.lines()[startLineNumber].data().data() - base;
+                        let endLineNumber = result.error.span().endLine();
+                        let endLine = result.file.lines()[endLineNumber].data().data() - base;
+
+                        let spanStart = result.error.span().data().data() - base;
+                        let spanEnd = spanStart + result.error.span().data().length();
+
+                        let startCol = spanStart - startLine + 1;
+                        let endCol = spanEnd - endLine + 1;
+
+                        let markers = [
+                            {
+                                severity: monaco.MarkerSeverity.Error,
+                                startLineNumber: startLineNumber,
+                                startColumn: startCol,
+                                endLineNumber: endLineNumber,
+                                endColumn: endCol,
+                                message: result.error.message().toString()
+                            }
+                        ];
+                        monaco.editor.setModelMarkers(model, "ulang", markers);
+                    } else {
+                        monaco.editor.setModelMarkers(model, "ulang", []);
+                    }
+                    result.free();
+                    ulang.printMemory();
+                }
+                model.onDidChangeContent(() => {
+                    validate();
+                });
+                validate();
+            });
+
             let editor = monaco.editor.create(document.getElementById("editor"), {
                 automaticLayout: true,
                 theme: "vs-dark",
                 language: "ulang"
             });
-            let deltaDecorations = [];
 
             editor.onDidChangeModelContent((e) => {
-                stdout.innerHTML = "";
-                let result = compile(editor.getValue(0));
-                if (result.error.isSet()) {
-                    result.error.print();
-                    let startLineNumber = result.error.span().startLine();
-                    let startLine = result.file.lines()[startLineNumber]
-                    let endLineNumber = result.error.span().endLine();
-                    let endLine = result.file.lines()[endLineNumber];
 
-                    let spanStart = result.error.span().data().data();
-                    let spanEnd = spanStart + result.error.span().data().length();
-
-                    let startCol = spanStart - startLine.data().data();
-                    let endCol = spanEnd - endLine.data().data();
-                    deltaDecorations = editor.deltaDecorations(deltaDecorations, [{range: new monaco.Range(startLineNumber, startCol, endLineNumber, endCol), options: {inlineClassName: '.squiggly-error'}}]);
-                } else {
-                    deltaDecorations = editor.deltaDecorations(deltaDecorations, []);
-                }
-                result.free();
-                ulang.printMemory();
             });
 
             editor.setValue(exampleFire);
