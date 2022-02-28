@@ -86,7 +86,7 @@ main_loop:
 
    # update buffer
    push buffer
-   intr 0x1
+   syscall 0x1
 
    push 1
    jmp main_loop

@@ -160,7 +160,7 @@ ulang_bool test(size_t testNum, test_case *test) {
 int main(int argc, char **argv) {
 	// @formatter:off
 	test_case tests[] = {
-			{"asdfas",                                                                                     {{REG_INT, .reg = PC, .val_uint = 4}}},
+			{"halt",                                                                                     {{REG_INT, .reg = PC, .val_uint = 4}}},
 
 			// Test mov first, as we need it for the other tests
 			{"mov 123, r1",                                                                              {{REG_INT, .reg = R1, .val_int = 123}}},
@@ -316,7 +316,7 @@ int main(int argc, char **argv) {
 			{"mov f, r1\ncall r1\nhalt\nf: halt",                                           	{{REG_INT, .reg = PC, .val_uint = 5 * 4}}},
 			{"call f\nmov 123, r2\nhalt\nf: ret",                                           {{REG_INT, .reg = PC, .val_uint = 5 * 4}, {REG_INT, .reg = R2, .val_uint = 123}}},
 			{"push 1\ncall f\nmov 123, r2\nhalt\nf: retn 1",                                      {{REG_INT, .reg = PC, .val_uint = 7 * 4}, {REG_INT, .reg = SP, .val_uint = UL_VM_MEMORY_SIZE}, {REG_INT, .reg = R2, .val_uint = 123}}},
-			// {"intr 0\nhalt"},
+			// {"syscall 0\nhalt"},
 
 			// fib
 			{"tests/fib.ul", {{REG_INT, .reg = R14, .val_uint = 832040}}}

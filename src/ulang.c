@@ -146,7 +146,7 @@ typedef enum ulang_opcode {
 	CALL_VAL,
 	RET,
 	RETN,
-	INTR
+	SYSCALL
 } ulang_opcode;
 
 typedef enum operand_type {
@@ -268,7 +268,7 @@ static opcode opcodes[] = {
 		{RETN,                   STR_OBJ("retn"),       {UL_OFF}},
 
 
-		{INTR,                   STR_OBJ("intr"),       {UL_OFF}},
+		{SYSCALL,                STR_OBJ("syscall"),    {UL_OFF}},
 };
 
 static size_t opcodeLength = sizeof(opcodes) / sizeof(opcode);
@@ -702,9 +702,9 @@ int token_to_int(token *token) {
 	ulang_string *str = &token->span.data;
 	char c = str->data[str->length];
 	str->data[str->length] = 0;
-	long val = strtol(str->data, NULL, 0);
+	int val = (int) strtoll(str->data, NULL, 0);
 	str->data[str->length] = c;
-	return (int) val;
+	return val;
 }
 
 static float token_to_float(token *token) {
@@ -1153,12 +1153,41 @@ static void emit_string(byte_array *code, token *value, int repeat) {
 	ulang_string str = value->span.data;
 	str.data++;
 	str.length -= 2;
-	byte_array_ensure(code, (str.length + 1) * repeat);
-	for (int i = 0; i < repeat; i++) {
-		memcpy(&code->items[code->size], str.data, str.length);
-		code->items[code->size + str.length] = 0;
-		code->size += str.length + 1;
+
+	char *cString = ulang_alloc(str.length + 1);
+	size_t i, j;
+	for (i = 0, j = 0; i < str.length; i++, j++) {
+		char c = str.data[i];
+		if (c == '\\') {
+			i++;
+			if (i == str.length) break;
+			c = str.data[i];
+			switch (c) {
+				case 'n':
+					cString[j] = '\n';
+					break;
+				case 'r':
+					cString[j] = '\r';
+					break;
+				case 't':
+					cString[j] = '\t';
+					break;
+				default:
+					cString[j] = c;
+					break;
+			}
+		} else {
+			cString[j] = c;
+		}
 	}
+	cString[j] = 0;
+
+	byte_array_ensure(code, (j + 1) * repeat);
+	for (i = 0; i < (size_t) repeat; i++) {
+		memcpy(&code->items[code->size], cString, j + 1);
+		code->size += j + 1;
+	}
+	ulang_free(cString);
 }
 
 #define ENCODE_OP(word, op) word |= op
@@ -1541,7 +1570,7 @@ EMSCRIPTEN_KEEPALIVE void ulang_program_free(ulang_program *program) {
 	ulang_free(program->addressToLine);
 }
 
-ulang_bool debug(ulang_vm *vm) {
+ulang_bool ulang_vm_debug(ulang_vm *vm) {
 	do {
 		ulang_vm_print(vm);
 		prompt:
@@ -1728,13 +1757,6 @@ ulang_bool debug(ulang_vm *vm) {
 	return UL_TRUE;
 }
 
-ulang_bool default_syscall(uint32_t intNum, ulang_vm *vm) {
-	if (intNum == 0) {
-		return debug(vm);
-	}
-	return UL_TRUE;
-}
-
 // BOZO need to throw an error in case memory sizes are bollocks
 EMSCRIPTEN_KEEPALIVE void ulang_vm_init(ulang_vm *vm, ulang_program *program) {
 	vm->memorySizeBytes = UL_VM_MEMORY_SIZE;
@@ -1745,8 +1767,6 @@ EMSCRIPTEN_KEEPALIVE void ulang_vm_init(ulang_vm *vm, ulang_program *program) {
 	memcpy(vm->memory, program->code, program->codeLength);
 	memcpy(vm->memory + program->codeLength, program->data, program->dataLength);
 	vm->registers[15].ui = vm->memorySizeBytes;
-
-	vm->syscalls[0] = default_syscall;
 	vm->program = program;
 }
 
@@ -1782,7 +1802,7 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_vm_step(ulang_vm *vm) {
 		case BREAK: {
 			uint32_t val = VAL_U;
 			if (val == REG1_U) {
-				if (!debug(vm)) return UL_FALSE;
+				if (!vm->syscalls[0](0, vm)) return UL_FALSE;
 			}
 			break;
 		}
@@ -2127,7 +2147,7 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_vm_step(ulang_vm *vm) {
 			PC = addr;
 			break;
 		}
-		case INTR: {
+		case SYSCALL: {
 			uint32_t intNum = DECODE_OFF(word);
 			if (intNum < 0 || intNum > 255 || !vm->syscalls[intNum])
 				break;
@@ -2137,6 +2157,13 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_vm_step(ulang_vm *vm) {
 		default:
 			vm->registers[14].ui -= 4; // reset PC to the unknown instruction.
 			return UL_FALSE;
+	}
+	return UL_TRUE;
+}
+
+EMSCRIPTEN_KEEPALIVE ulang_bool ulang_vm_step_n(ulang_vm *vm, uint32_t numInstructions) {
+	while (numInstructions--) {
+		if (!ulang_vm_step(vm)) return UL_FALSE;
 	}
 	return UL_TRUE;
 }
@@ -2271,4 +2298,19 @@ EMSCRIPTEN_KEEPALIVE void ulang_print_offsets() {
 	printf("   syscalls: %lu\n", offsetof(ulang_vm, syscalls));
 	printf("   error: %lu\n", offsetof(ulang_vm, error));
 	printf("   program: %lu\n", offsetof(ulang_vm, program));
+}
+
+EMSCRIPTEN_KEEPALIVE uint8_t *ulang_argb_to_rgba(uint8_t *argb, size_t numPixels) {
+	numPixels <<= 2;
+	for (int i = 0; i < numPixels; i += 4) {
+		uint8_t b = argb[i];
+		uint8_t g = argb[i + 1];
+		uint8_t r = argb[i + 2];
+		uint8_t a = argb[i + 3];
+		argb[i] = r;
+		argb[i + 1] = g;
+		argb[i + 2] = b;
+		argb[i + 3] = a;
+	}
+	return argb;
 }

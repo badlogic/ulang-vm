@@ -2,18 +2,43 @@
 #include <stdio.h>
 #include <ulang.h>
 #include <MiniFB.h>
-#include <string.h>
 
 static struct mfb_window *window;
 
 static ulang_bool syscallHandler(uint32_t intNum, ulang_vm *vm) {
-	if (intNum == 1) {
-		uint32_t offset = ulang_vm_pop_uint(vm);
-		uint8_t *addr = &vm->memory[offset];
-		if (mfb_update_ex(window, addr, 320, 240) < 0) return UL_FALSE;
-		if (!mfb_wait_sync(window)) return UL_FALSE;
-	} else if (intNum == 2) {
-		printf("%i\n", ulang_vm_pop_uint(vm));
+	switch (intNum) {
+		case 0:
+			return ulang_vm_debug(vm);
+		case 1: {
+			uint32_t offset = ulang_vm_pop_uint(vm);
+			uint8_t *addr = &vm->memory[offset];
+			if (mfb_update_ex(window, addr, 320, 240) < 0) return UL_FALSE;
+			if (!mfb_wait_sync(window)) return UL_FALSE;
+			return UL_TRUE;
+		}
+		case 2: {
+			int numArgs = ulang_vm_pop_uint(vm);
+			for (int i = 0; i < numArgs; i++) {
+				int argType = ulang_vm_pop_uint(vm);
+				switch (argType) {
+					case 0:
+						printf("%i", ulang_vm_pop_int(vm));
+						break;
+					case 1:
+						printf("0x%x", ulang_vm_pop_int(vm));
+						break;
+					case 2:
+						printf("%f", ulang_vm_pop_float(vm));
+						break;
+					case 3:
+						printf("%s", &vm->memory[ulang_vm_pop_uint(vm)]);
+						break;
+					default:
+						break;
+				}
+			}
+			printf("\n");
+		}
 	}
 	return UL_TRUE;
 }
@@ -50,6 +75,7 @@ int main(int argc, char **argv) {
 
 	ulang_vm vm = {0};
 	ulang_vm_init(&vm, &program);
+	vm.syscalls[0] = syscallHandler;
 	vm.syscalls[1] = syscallHandler;
 	vm.syscalls[2] = syscallHandler;
 	while (ulang_vm_step(&vm));

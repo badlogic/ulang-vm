@@ -25,6 +25,6 @@ loop:
 
    # update the window contents with the buffer
    push buffer
-   intr 1
+   syscall 0x1
 
    jmp loop

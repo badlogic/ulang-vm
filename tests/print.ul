@@ -1,0 +1,14 @@
+msg: byte "Hello world!\n"
+
+push 123
+push 0
+push 0xff00ff
+push 1
+push 123.456
+push 2
+push msg
+push 3
+push 4
+syscall 0x2
+halt
+d

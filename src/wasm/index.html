@@ -8,18 +8,23 @@
 <style>
     body {
         margin: 0;
-        padding: 1em;
+
         background: #333333;
         color: #E1E1E1;
         font-family: "Courier New";
+        height: 100vh;
     }
 
-    #container {
-        margin: 0 auto;
-        width: 800px;
+    .col {
         height: 100%;
         display: flex;
         flex-direction: column;
+    }
+
+    .row {
+        height: 100%;
+        display: flex;
+        flex-direction: row;
     }
 
     #editor {
@@ -28,12 +33,28 @@
     }
 
     #stdout {
-        width: 100%;
+        width: 50vw;
         height: 30%;
         background: #252526;
         overflow: auto;
         word-wrap: normal;
         font-size: 14px;
+        margin: 0;
+        padding: 1em;
+    }
+
+    #canvas {
+        background: black;
+        width: 50vw;
+        aspect-ratio: 320 / 240;
+        image-rendering: pixelated;
+        image-rendering: crisp-edges;
+    }
+
+    #debugger {
+        background: green;
+        width: 100%;
+        height: 100%;
     }
 </style>
 
@@ -45,69 +66,215 @@
 <script src="https://unpkg.com/monaco-editor@latest/min/vs/editor/editor.main.nls.js"></script>
 <script src="https://unpkg.com/monaco-editor@latest/min/vs/editor/editor.main.js"></script>
 
-<div id="container">
-    <h1>ulang playground</h1>
-    <div id="editor"></div>
-    <pre id="stdout"></pre>
+<div class="row">
+    <div class="col">
+        <div id="editor"></div>
+        <pre id="stdout"></pre>
+    </div>
+    <div class="col">
+        <canvas id="canvas" width="320" height="240"></canvas>
+        <div id="debugger">
+            <button id="debug-run">Run</button>
+            <button id="debug-stop">Stop</button>
+            <button id="debug-step">Step</button>
+        </div>
+    </div>
 </div>
 
 <script>
-    let editor = null;
-    let stdout = document.getElementById("stdout");
-    let oldConsoleLog = console.log;
-    console.log = (str) => {
-        stdout.innerHTML += str + "<br>"
-        oldConsoleLog(str);
-    }
-    let log = (str) => {
-        stdout.innerHTML += str + "\n";
-    }
-
     ulang().then((ulang) => {
-        createHighlighter();
-
-        editor = monaco.editor.create(document.getElementById("editor"), {
-            automaticLayout: true,
-            theme: "vs-dark",
-            language: "ulang"
-        });
-
-        let deltaDecorations = [];
-        editor.onDidChangeModelContent((e) => {
-            stdout.innerHTML = "";
-
-            var error = ulang.newError();
-            var file = ulang.newFile("source", editor.getValue());
-            var program = ulang.newProgram();
-            if (!ulang.compile(file, program, error)) {
-                error.print();
-                let lineNumber = error.span().startLine();
-                let str = error.span().data().toString();
-                let line = file.lines()[lineNumber].data().toString();
-                let startCol = line.indexOf(str) + 1;
-                let endCol = startCol + str.length;
-                deltaDecorations = editor.deltaDecorations(deltaDecorations, [{range: new monaco.Range(lineNumber, startCol, lineNumber, endCol), options: {inlineClassName: '.squiggly-error'}}]);
-            } else {
-                deltaDecorations = editor.deltaDecorations(deltaDecorations, []);
+        // Redirect stdout to print to the stdout element.
+        (function () {
+            let stdout = document.getElementById("stdout");
+            let oldLog = console.log;
+            console.log = (str) => {
+                stdout.innerHTML += str + "<br>";
+                oldLog(str);
             }
-            error.free();
-            program.free();
-            file.free();
-            ulang.printMemory();
-        });
+        }());
 
-        editor.setValue(code);
+        let compile = function (source) {
+            let result = {
+                error: ulang.newError(),
+                file: ulang.newFile("source", source),
+                program: ulang.newProgram(),
+                free: function () {
+                    this.program.free();
+                    this.file.free();
+                    this.error.free();
+                }
+            }
+            ulang.compile(result.file, result.program, result.error);
+            return result;
+        };
+
+        let editor = function () {
+            defineUlangLanguage();
+
+            let editor = monaco.editor.create(document.getElementById("editor"), {
+                automaticLayout: true,
+                theme: "vs-dark",
+                language: "ulang"
+            });
+            let deltaDecorations = [];
+
+            editor.onDidChangeModelContent((e) => {
+                stdout.innerHTML = "";
+                let result = compile(editor.getValue(0));
+                if (result.error.isSet()) {
+                    result.error.print();
+                    let lineNumber = result.error.span().startLine();
+                    let str = result.error.span().data().toString();
+                    let line = result.file.lines()[lineNumber].data().toString();
+                    let startCol = line.indexOf(str) + 1;
+                    let endCol = startCol + str.length;
+                    deltaDecorations = editor.deltaDecorations(deltaDecorations, [{range: new monaco.Range(lineNumber, startCol, lineNumber, endCol), options: {inlineClassName: '.squiggly-error'}}]);
+                } else {
+                    deltaDecorations = editor.deltaDecorations(deltaDecorations, []);
+                }
+                result.free();
+                ulang.printMemory();
+            });
+
+            editor.setValue(exampleFire);
+
+            this.getContent = () => editor.getValue(0);
+
+            return this;
+        }();
+
+        let debug = function (editor) {
+            const STATE_RUNNING = 0;
+            const STATE_PAUSED = 1;
+            const STATE_STOPPED = 2;
+
+            let canvas = document.getElementById("canvas");
+            let run = document.getElementById("debug-run");
+            let stop = document.getElementById("debug-stop");
+            let step = document.getElementById("debug-step");
+            let compilerResult = null;
+            let vm = null;
+            let vmStart = 0;
+            let executedInstructions = 0;
+            let state = STATE_STOPPED;
+            let vsyncHit = false;
+
+            let syscallHandler = (syscall, vmPtr) => {
+                let vm = ulang.nativeToJsVm(vmPtr);
+                switch (syscall) {
+                    case 0:
+                        return 0;
+                    case 1:
+                        let buffer = vm.popUint();
+                        ulang.argbToRgba(vm.memoryPtr() + buffer, 320 * 240);
+                        let frame = new Uint8ClampedArray(ulang.HEAPU8.buffer, vm.memoryPtr() + buffer, 320 * 240 * 4);
+                        let imageData = new ImageData(frame, 320, 240);
+                        canvas.getContext("2d").putImageData(imageData, 0, 0);
+                        vsyncHit = true;
+                        return 0;
+                    case 2: {
+                        let numArgs = vm.popUint();
+                        let str = "";
+                        for (let i = 0; i < numArgs; i++) {
+                            let argType = vm.popUint(vm);
+                            switch (argType) {
+                                case 0:
+                                    str += vm.popInt();
+                                    break;
+                                case 1:
+                                    str += "0x" + vm.popInt().toString(16);
+                                    break;
+                                case 2:
+                                    str += vm.popFloat();
+                                    break;
+                                case 3:
+                                    let strAddr = vm.popUint();
+                                    str += ulang.UTF8ArrayToString(ulang.HEAPU8, vm.memoryPtr() + strAddr);
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                        console.log(str);
+                        return -1;
+                    }
+                }
+            }
+            let syscallHandlerPtr = ulang.addFunction(syscallHandler, "iii");
+
+            run.addEventListener("click", () => {
+                if (compilerResult) {
+                    compilerResult.free();
+                    compilerResult = null;
+                }
+                if (vm) {
+                    vm.free();
+                    vm = null;
+                }
+
+                compilerResult = compile(editor.getContent());
+                if (compilerResult.error.isSet()) {
+                    alert("Can't run program with error.");
+                    compilerResult.free();
+                    return;
+                }
+                vm = ulang.newVm(compilerResult.program);
+                vm.setSyscall(0, syscallHandlerPtr);
+                vm.setSyscall(1, syscallHandlerPtr);
+                vm.setSyscall(2, syscallHandlerPtr);
+                vmStart = performance.now();
+                executedInstructions = 0;
+                state = STATE_RUNNING;
+                console.log("Starting vm.");
+                requestAnimationFrame(frame);
+            });
+            stop.addEventListener("click", () => {
+                if (state != STATE_RUNNING) return;
+                state = STATE_STOPPED;
+                printVmTime();
+                vm.print();
+            });
+
+            let printVmTime = () => {
+                let vmTime = (performance.now() - vmStart) / 1000;
+                console.log("VM took " + vmTime + " secs");
+                console.log("Executed " + executedInstructions + " instructions, " + ((executedInstructions / vmTime) | 0) + " ins/s");
+            }
+
+            let frame = () => {
+                if (state == STATE_RUNNING) {
+                    let frameStart = performance.now();
+                    const instsPerStep = 20000;
+                    while (true) {
+                        executedInstructions += instsPerStep;
+                        if (!vm.stepN(instsPerStep)) {
+                            if (vsyncHit) {
+                                vsyncHit = false;
+                                requestAnimationFrame(frame);
+                                return;
+                            }
+                            state = STATE_STOPPED;
+                            printVmTime();
+                            vm.print();
+                            return;
+                        }
+                        let frameTime = performance.now() - frameStart;
+                        if (frameTime > 16) {
+                            requestAnimationFrame(frame);
+                            return;
+                        }
+                    }
+                }
+            }
+
+            return this;
+        }(editor);
     });
 
-    let createHighlighter = () => {
-        monaco.languages.register({
-            id: 'ulang'
-        });
-
+    let defineUlangLanguage = () => {
+        monaco.languages.register({id: 'ulang'});
         monaco.languages.setMonarchTokensProvider('ulang', {
-            // Set defaultToken to invalid to see what you do not tokenize yet
             defaultToken: 'invalid',
-
             keywords: [
                 "halt", "brk", "add", "sub", "mul", "div", "divu", "rem", "remu", "addf", "subf", "mulf", "divf", "cosf", "sinf", "atan2", "sqrtf", "powf", "rand", "i2f", "f2i",
                 "not", "and", "or", "xor", "shl", "shr", "shru",
@@ -117,26 +284,12 @@
                 "ld", "sto", "ldb", "stob", "lds", "stos",
                 "push", "stackalloc", "pop",
                 "call", "ret", "retn",
-                "intr",
-
+                "syscall",
                 "reserve", "byte", "short", "int", "float"
             ],
-
-            operators: [
-                "~", "+", "-", "|", "&", "^", "/", "*", "%"
-            ],
-
-            registers: [
-                "r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "pc", "sp"
-            ],
-
-            // we include these common regular expressions
-            symbols: /[=><!~?:&|+\-*\/\^%]+/,
-
-            // C# style strings
+            operators: ["~", "+", "-", "|", "&", "^", "/", "*", "%"],
+            registers: ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "pc", "sp"],
             escapes: /\\(?:[abfnrtv\\"']|x[0-9A-Fa-f]{1,4}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})/,
-
-            // The main tokenizer for our languages
             tokenizer: {
                 root: [
                     // identifiers and keywords
@@ -147,38 +300,26 @@
                             '@default': 'annotation'
                         }
                     }],
-
-                    // whitespace
                     {include: '@whitespace'},
-
-                    // delimiters and operators
-                    [/@symbols/, {
+                    [/[=><!~?:&|+\-*\/\^%]+/, {
                         cases: {
                             '@operators': 'operator',
                             '@default': ''
                         }
                     }],
-
-                    // numbers
                     [/\d*\.\d+([eE][\-+]?\d+)?/, 'number.float'],
                     [/0[xX][0-9a-fA-F]+/, 'number.hex'],
                     [/\d+/, 'number'],
-
-                    // delimiter: after number because of .\d floats
                     [/[;,.]/, 'delimiter'],
-
-                    // strings
                     [/"([^"\\]|\\.)*$/, 'string.invalid'],  // non-teminated string
                     [/"/, {token: 'string.quote', bracket: '@open', next: '@string'}],
                 ],
-
                 string: [
                     [/[^\\"]+/, 'string'],
                     [/@escapes/, 'string.escape'],
                     [/\\./, 'string.escape.invalid'],
                     [/"/, {token: 'string.quote', bracket: '@close', next: '@pop'}]
                 ],
-
                 whitespace: [
                     [/[ \t\r\n]+/, 'white'],
                     [/#.*$/, 'comment'],
@@ -187,8 +328,7 @@
         });
     }
 
-    var code = `
-buffer: reserve int x 320 * 240 * 4
+    let exampleFire = `buffer: reserve int x 320 * 240 * 4
 fire: reserve byte x 320 * 240
 palette: int 0xff070707, 0xff1F0707, 0xff2F0F07, 0xff470F07, 0xff571707, 0xff671F07, 0xff771F07, 0xff8F2707, 0xff9F2F07, 0xffAF3F07, 0xffBF4707, 0xffC74707, 0xffDF4F07, 0xffDF5707, 0xffDF5707, 0xffD75F07, 0xffD75F07, 0xffD7670F, 0xffCF6F0F, 0xffCF770F, 0xffCF7F0F, 0xffCF8717, 0xffC78717, 0xffC78F17, 0xffC7971F, 0xffBF9F1F,0xffBF9F1F, 0xffBFA727, 0xffBFA727, 0xffBFAF2F, 0xffB7AF2F, 0xffB7B72F, 0xffB7B737, 0xffCFCF6F, 0xffDFDF9F, 0xffEFEFC7, 0xffFFFFFF
 
@@ -276,10 +416,60 @@ main_loop:
 
    # update buffer
    push buffer
-   intr 0x1
+   syscall 0x1
 
    push 1
    jmp main_loop
+`;
+
+    let exampleFib = `   push 30
+   call fib
+   halt
+
+fib:
+   # n == 0? return 0
+   ld sp, 4, r1
+   cmp r1, 0, r2
+   jne r2, not_zero
+   mov 0, r14
+   retn 1
+
+not_zero:
+   # n == 1 || n == 2? return 1
+   cmp r1, 2, r2
+   jg r2, not_one_two
+   mov 1, r14
+   retn 1
+
+not_one_two:
+   # fib(n-1) + fib(n-2)
+   sub r1, 1, r1
+   push r1
+   call fib
+   push r14
+
+   ld sp, 8, r1
+   sub r1, 2, r1
+   push r1
+   call fib
+   pop r13
+   add r14, r13, r14
+   retn 1
+`;
+
+    let examplePrint = `msg: byte "Hello world! "
+
+push 123
+push 0
+push 0xff00ff
+push 1
+push 123.456
+push 2
+push msg
+push 3
+push 4
+syscall 0x2
+halt
 `;
 </script>
 </body>
