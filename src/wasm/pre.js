@@ -12,6 +12,7 @@ Module["onRuntimeInitialized"] = () => {
     const ulang_vm_init = Module.cwrap("ulang_vm_init", "void", ["ptr", "ptr"]);
     const ulang_vm_step = Module.cwrap("ulang_vm_step", "number", ["ptr"]);
     const ulang_vm_step_n = Module.cwrap("ulang_vm_step_n", "number", ["ptr", "number"]);
+    const ulang_vm_step_n_bp = Module.cwrap("ulang_vm_step_n_bp", "number", ["ptr", "number", "ptr", "number"]);
     const ulang_vm_print = Module.cwrap("ulang_vm_print", "void", ["ptr"]);
     const ulang_vm_pop_int = Module.cwrap("ulang_vm_pop_int", "number", ["ptr"]);
     const ulang_vm_pop_uint = Module.cwrap("ulang_vm_pop_uint", "number", ["ptr"]);
@@ -30,12 +31,12 @@ Module["onRuntimeInitialized"] = () => {
     const UL_TYPE_PROGRAM = 2;
     const UL_TYPE_VM = 3;
 
-    let getInt8 = (ptr) => new DataView(Module.HEAPU8.buffer).getInt8(ptr);
-    let getInt16 = (ptr) => new DataView(Module.HEAPU8.buffer).getInt16(ptr, true);
-    let getUint32 = (ptr) => new DataView(Module.HEAPU8.buffer).getUint32(ptr, true);
-    let setUint32 = (ptr, val) => new DataView(Module.HEAPU8.buffer).setUint32(ptr, val, true);
-    let getInt32 = (ptr) => new DataView(Module.HEAPU8.buffer).getInt32(ptr, true);
-    let getFloat32 = (ptr) => new DataView(Module.HEAPU8.buffer).getFloat32(ptr, true);
+    let getInt8 = ulang.getInt8 = (ptr) => new DataView(Module.HEAPU8.buffer).getInt8(ptr);
+    let getInt16 = ulang.getInt16 = (ptr) => new DataView(Module.HEAPU8.buffer).getInt16(ptr, true);
+    let getUint32 = ulang.getUint32 = (ptr) => new DataView(Module.HEAPU8.buffer).getUint32(ptr, true);
+    let setUint32 = ulang.setUint32 = (ptr, val) => new DataView(Module.HEAPU8.buffer).setUint32(ptr, val, true);
+    let getInt32 = ulang.getInt32 = (ptr) => new DataView(Module.HEAPU8.buffer).getInt32(ptr, true);
+    let getFloat32 = ulang.getFloat32 = (ptr) => new DataView(Module.HEAPU8.buffer).getFloat32(ptr, true);
     let allocType = (type) => ulang_calloc(ulang_sizeof(type));
 
     let nativeToJsString = (stringPtr) => {
@@ -179,6 +180,7 @@ Module["onRuntimeInitialized"] = () => {
             program: () => nativeToJsProgram(getUint32(vmPtr + 1128)),
             step: () => ulang_vm_step(vmPtr) != 0,
             stepN: (n) => ulang_vm_step_n(vmPtr, n) != 0,
+            stepNBP: (n, bpPtr, numBp) => ulang_vm_step_n_bp(vmPtr, n, bpPtr, numBp),
             print: () => ulang_vm_print(vmPtr),
             popInt: () => ulang_vm_pop_int(vmPtr),
             popUint: () => ulang_vm_pop_uint(vmPtr),

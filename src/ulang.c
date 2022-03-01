@@ -2168,6 +2168,17 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_vm_step_n(ulang_vm *vm, uint32_t numInstru
 	return UL_TRUE;
 }
 
+EMSCRIPTEN_KEEPALIVE int32_t ulang_vm_step_n_bp(ulang_vm *vm, uint32_t numInstructions, uint32_t *breakpoints, uint32_t numBreakpoints) {
+	while (numInstructions--) {
+		uint32_t pc = vm->registers[14].ui;
+		for (size_t i = 0; i < numBreakpoints; i++) {
+			if (breakpoints[i] == pc) return i + 1;
+		}
+		if (!ulang_vm_step(vm)) return UL_FALSE;
+	}
+	return UL_TRUE;
+}
+
 EMSCRIPTEN_KEEPALIVE void ulang_vm_print(ulang_vm *vm) {
 	ulang_value *regs = vm->registers;
 	for (int i = 0; i < 16; i++) {

@@ -108,6 +108,11 @@
     .debug-curr-line {
         background: rgba(255, 240, 0, 0.1);
     }
+
+    .debug-breakpoint::before {
+        content: '⬤';
+        color: crimson;
+    }
 </style>
 
 <body>
@@ -165,12 +170,44 @@
             let vmStart = 0;
             let executedInstructions = 0;
             let vsyncHit = false;
+            let breakpoints = [];
+            let bpPtr = 0;
+            let numBps = 0;
+
+            this.setBreakpoints = (bps) => {
+                breakpoints = bps;
+                if (bpPtr != 0) {
+                    ulang.free(bpPtr);
+                    bpPtr = 0;
+                    numBps = 0;
+                }
+                if (state != STATE_STOPPED) calculateBreakpoints();
+            }
+
+            let calculateBreakpoints = () => {
+                if (bpPtr != 0) return bpPtr;
+                // Needs to come before the next line, as WASM memory can grow and pointers may get relocated
+                let addressToLine = vm.program().addressToLine();
+                let p = bpPtr = ulang.alloc(4 * breakpoints.length);
+                for (var i = 0; i < breakpoints.length; i++) {
+                    let bpLine = breakpoints[i];
+                    for (var j = 0; j < addressToLine.length; j++) {
+                        if (addressToLine[j] == bpLine) {
+                            ulang.setUint32(p, j * 4);
+                            p += 4;
+                            numBps++;
+                            break;
+                        }
+                    }
+                }
+                return bpPtr;
+            }
 
             let syscallHandler = (syscall, vmPtr) => {
                 let vm = ulang.nativeToJsVm(vmPtr);
                 switch (syscall) {
                     case 0:
-                        return 0;
+                        return -1;
                     case 1:
                         let buffer = vm.popUint();
                         ulang.argbToRgba(vm.memoryPtr() + buffer, 320 * 240);
@@ -223,7 +260,7 @@
                 if (compilerResult.error.isSet()) {
                     alert("Can't run program with errors.");
                     compilerResult.free();
-                    for (let i = 0; i < listeners.length; i++) listeners[i](this, STATE_STOPPED);
+                    if (stateChangeListener) stateChangeListener(this, state);
                     return;
                 }
                 vm = ulang.newVm(compilerResult.program);
@@ -232,8 +269,9 @@
                 vm.setSyscall(2, syscallHandlerPtr);
                 vmStart = performance.now();
                 executedInstructions = 0;
+                lastStepHitBreakpoint = false;
                 state = STATE_RUNNING;
-                for (let i = 0; i < listeners.length; i++) listeners[i](this, state);
+                if (stateChangeListener) stateChangeListener(this, state);
                 console.log("Starting vm.");
                 requestAnimationFrame(frame);
             }
@@ -241,7 +279,7 @@
             this.stop = () => {
                 if (state != STATE_RUNNING && state != STATE_PAUSED) return;
                 state = STATE_STOPPED;
-                for (let i = 0; i < listeners.length; i++) listeners[i](this, state);
+                if (stateChangeListener) stateChangeListener(this, state);
                 printVmTime();
                 vm.print();
             }
@@ -249,14 +287,14 @@
             this.pause = () => {
                 if (state != STATE_RUNNING) return;
                 state = STATE_PAUSED;
-                for (let i = 0; i < listeners.length; i++) listeners[i](this, state);
+                if (stateChangeListener) stateChangeListener(this, state);
                 vm.print();
             }
 
             this.continue = () => {
                 if (state != STATE_PAUSED) return;
                 state = STATE_RUNNING;
-                for (let i = 0; i < listeners.length; i++) listeners[i](this, state);
+                if (stateChangeListener) stateChangeListener(this, state);
                 vm.print();
                 requestAnimationFrame(frame);
             }
@@ -268,11 +306,11 @@
                         vsyncHit = false;
                     } else {
                         state = STATE_STOPPED;
-                        for (let i = 0; i < listeners.length; i++) listeners[i](this, state);
+                        if (stateChangeListener) stateChangeListener(this, state);
                         return;
                     }
                 }
-                for (let i = 0; i < listeners.length; i++) listeners[i](this, state);
+                if (stateChangeListener) stateChangeListener(this, state);
                 vm.print();
             }
 
@@ -290,20 +328,57 @@
                 console.log("Executed " + executedInstructions + " instructions, " + ((executedInstructions / vmTime) | 0) + " ins/s");
             }
 
+            let lastStepHitBreakpoint = false;
             let frame = () => {
                 if (state == STATE_RUNNING) {
                     let frameStart = performance.now();
                     const instsPerStep = 20000;
-                    while (true) {
-                        executedInstructions += instsPerStep;
-                        if (!vm.stepN(instsPerStep)) {
+
+                    // if we had a breakpoint in the last frame, we need
+                    // to step over the current instruction, so we don't
+                    // get stuck there.
+                    if (lastStepHitBreakpoint) {
+                        lastStepHitBreakpoint = false;
+                        if (!vm.step()) {
                             if (vsyncHit) {
                                 vsyncHit = false;
                                 requestAnimationFrame(frame);
                                 return;
                             }
                             state = STATE_STOPPED;
-                            for (let i = 0; i < listeners.length; i++) listeners[i](this, state);
+                            if (stateChangeListener) stateChangeListener(this, state);
+                            printVmTime();
+                            vm.print();
+                            return;
+                        }
+                    }
+
+                    while (true) {
+                        executedInstructions += instsPerStep;
+                        var result = false;
+                        if (breakpoints.length > 0) calculateBreakpoints();
+                        if (numBps > 0) {
+                            result = vm.stepNBP(instsPerStep, bpPtr, numBps);
+                            // hit a breakpoint, pause execution
+                            if (result >= 1) {
+                                lastStepHitBreakpoint = true;
+                                state = STATE_PAUSED;
+                                if (stateChangeListener) stateChangeListener(this, state);
+                                vm.print();
+                                return;
+                            }
+                        } else {
+                            result = vm.stepN(instsPerStep);
+                        }
+
+                        if (!result) {
+                            if (vsyncHit) {
+                                vsyncHit = false;
+                                requestAnimationFrame(frame);
+                                return;
+                            }
+                            state = STATE_STOPPED;
+                            if (stateChangeListener) stateChangeListener(this, state);
                             printVmTime();
                             vm.print();
                             return;
@@ -317,9 +392,9 @@
                 }
             }
 
-            let listeners = [];
-            this.addStateChangeListener = (listener) => {
-                listeners.push(listener);
+            let stateChangeListener = null;
+            this.setStateChangeListener = (listener) => {
+                stateChangeListener = listener;
             }
 
             return this;
@@ -328,12 +403,12 @@
         let editor = function () {
             defineUlangLanguage();
 
-            let decorations = [];
-
             let editorInternal = monaco.editor.create(document.getElementById("editor"), {
                 automaticLayout: true,
                 theme: "vs-dark",
-                language: "ulang"
+                language: "ulang",
+                glyphMargin: true,
+                tabSize: 3
             });
 
             editorInternal.onDidChangeModelContent(() => {
@@ -370,22 +445,73 @@
                 ulang.printMemory();
             });
 
-            this.getContent = () => editorInternal.getValue(0);
+            let decorations = [];
+            let breakpoints = {};
+            let currLine = null;
+
+            editorInternal.onMouseDown((e) => {
+                if (e.target.type !== 2) return;
+                toggleBreakpoint(e.target.range.startLineNumber);
+            });
+
+            let updateDecorations = () => {
+                let newDecorations = [];
+                for (var bpLine in breakpoints) {
+                    var bpDecoration = breakpoints[bpLine];
+                    if (bpDecoration) newDecorations.push(bpDecoration);
+                }
+                if (currLine) newDecorations.push(currLine);
+                decorations = editorInternal.deltaDecorations(decorations, newDecorations);
+            }
+
+            let toggleBreakpoint = (lineNumber) => {
+                let previousDecoration = breakpoints[lineNumber];
+                if (previousDecoration) {
+                    delete breakpoints[lineNumber];
+                } else {
+                    breakpoints[lineNumber] = {
+                        range: new monaco.Range(lineNumber, 1, lineNumber, 1),
+                        options: {
+                            isWholeLine: true,
+                            glyphMarginClassName: 'debug-breakpoint'
+                        }
+                    };
+                }
+                if (breakpointListener) breakpointListener(this.getBreakpoints());
+                updateDecorations();
+            }
+
+            this.getBreakpoints = () => {
+                var bpLines = [];
+                for (var bp in breakpoints) {
+                    bpLines.push(bp);
+                }
+                return bpLines;
+            }
 
             this.setCurrLine = (lineNum) => {
                 if (lineNum == -1) {
-                    decorations = editorInternal.deltaDecorations(decorations, []);
+                    currLine = null;
+                    updateDecorations();
                     return;
                 }
-                decorations = editorInternal.deltaDecorations(decorations, [{
+                currLine = {
                     range: new monaco.Range(lineNum, 1, lineNum, 1000),
                     options: {
                         isWholeLine: true,
                         className: "debug-curr-line",
                     }
-                }]);
+                }
+                updateDecorations();
                 editorInternal.revealPositionInCenter({lineNumber: lineNum, column: 1});
             };
+
+            this.getContent = () => editorInternal.getValue(0);
+
+            let breakpointListener;
+            this.setBreakpointListener = (listener) => {
+                breakpointListener = listener;
+            }
 
             editorInternal.setValue(exampleFire);
 
@@ -441,7 +567,7 @@
                 vmDebugger.step();
             });
 
-            vmDebugger.addStateChangeListener((vmDebugger, state) => {
+            vmDebugger.setStateChangeListener((vmDebugger, state) => {
                 setButtonStates(state);
 
                 switch (state) {
@@ -454,6 +580,10 @@
                         editor.setCurrLine(-1);
                         break;
                 }
+            });
+
+            editor.setBreakpointListener((breakpoints) => {
+                vmDebugger.setBreakpoints(breakpoints);
             });
 
             monaco.languages.registerHoverProvider('ulang', {

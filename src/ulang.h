@@ -131,6 +131,8 @@ ulang_bool ulang_vm_step(ulang_vm *vm);
 
 ulang_bool ulang_vm_step_n(ulang_vm *vm, uint32_t numInstructions);
 
+int32_t ulang_vm_step_n_bp(ulang_vm *vm, uint32_t numInstructions, uint32_t *breakpoints, uint32_t numBreakpoints);
+
 ulang_bool ulang_vm_debug(ulang_vm *vm);
 
 int32_t ulang_vm_pop_int(ulang_vm *vm);
