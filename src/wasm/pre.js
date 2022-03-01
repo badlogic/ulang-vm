@@ -175,8 +175,8 @@ Module["onRuntimeInitialized"] = () => {
                 if (num < 0 || num > 255) return;
                 setUint32(vmPtr + 72 + num * 4, call);
             },
-            error: () => nativeToJsError(vmPtr + 1096),
-            program: () => nativeToJsProgram(vmPtr + 1128),
+            error: () => nativeToJsError(getUint32(vmPtr + 1096)),
+            program: () => nativeToJsProgram(getUint32(vmPtr + 1128)),
             step: () => ulang_vm_step(vmPtr) != 0,
             stepN: (n) => ulang_vm_step_n(vmPtr, n) != 0,
             print: () => ulang_vm_print(vmPtr),

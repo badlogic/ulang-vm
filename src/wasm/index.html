@@ -6,6 +6,10 @@
 </head>
 
 <style>
+    * {
+        box-sizing: border-box;
+    }
+
     body {
         margin: 0;
 
@@ -28,19 +32,8 @@
     }
 
     #editor {
-        width: 100%;
-        height: 100%;
-    }
-
-    #stdout {
         width: 50vw;
-        height: 30%;
-        background: #252526;
-        overflow: auto;
-        word-wrap: normal;
-        font-size: 14px;
-        margin: 0;
-        padding: 1em;
+        height: 100%;
     }
 
     #canvas {
@@ -52,9 +45,68 @@
     }
 
     #debugger {
-        background: green;
         width: 100%;
         height: 100%;
+    }
+
+    #debugger-buttons {
+        display: flex;
+        flex-direction: row;
+        user-select: none;
+    }
+
+    .debugger-button {
+        width: 32px;
+        height: 32px;
+        background-size: 16px;
+        background-position: 50%;
+        background-repeat: no-repeat;
+        display: inline-block;
+        cursor: pointer;
+        opacity: 1;
+    }
+
+    .debugger-button:hover {
+        border: 1px solid #828282;
+    }
+
+    .debugger-button[disabled] {
+        color: rgba(1, 1, 1, 0.2);
+        cursor: default;
+        opacity: 0.4;
+    }
+
+    .debugger-button:active {
+        background-position: 60% 60%;
+    }
+
+    .run-icon {
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cdefs%3E%3Cstyle%3E.icon-canvas-transparent,.icon-vs-out{fill:%23252526}.icon-canvas-transparent{opacity:0}.icon-vs-action-green{fill:%2389d185}%3C/style%3E%3C/defs%3E%3Ctitle%3Econtinue%3C/title%3E%3Cpath class='icon-canvas-transparent' d='M16 0v16H0V0z' id='canvas'/%3E%3Cpath class='icon-vs-action-green' d='M4 1.5v13L12.667 8 4 1.5z' id='iconBg'/%3E%3C/svg%3E");
+        fill: green;
+    }
+
+    .debug-icon {
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cdefs%3E%3Cstyle%3E.icon-canvas-transparent,.icon-vs-out{fill:%23252526}.icon-canvas-transparent{opacity:0}.icon-vs-action-green{fill:%23f48771}%3C/style%3E%3C/defs%3E%3Ctitle%3Econtinue%3C/title%3E%3Cpath class='icon-vs-action-green' d='M8.667 10.325v2.832c0 .308.06.843-.249.843H7.333v-.667H8v-2.126l-.115-.12a2.362 2.362 0 0 1-3.113.072C4 10.385 4.079 9.333 4.917 8h-2.25v.667H2V7.582c0-.309.535-.249.843-.249h2.736zm-2-6.992H6v-.666h1.3c.307 0 .7.147.7.455v2.23l.491.583a1.3 1.3 0 0 1 1.276-1.14.6.6 0 0 1 .233.026V3.333h.667v1.746a.413.413 0 0 0 .255.255h1.745V6h-1.489c.018 0 .028.1.028.2a1.31 1.31 0 0 1-1.141 1.288l.583.512h2.231c.308 0 .455.389.455.7V10h-.667v-.667h-1.68l-4.32-4.2zM8 0a8 8 0 1 0 8 8 8 8 0 0 0-8-8zm6.667 8a6.634 6.634 0 0 1-1.508 4.216L3.784 2.841A6.662 6.662 0 0 1 14.667 8zM1.333 8a6.633 6.633 0 0 1 1.508-4.216l9.375 9.376A6.663 6.663 0 0 1 1.333 8z' id='iconBg'/%3E%3C/svg%3E");
+    }
+
+    .continue-icon {
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cdefs%3E%3Cstyle%3E.icon-canvas-transparent,.icon-vs-out{fill:%23252526}.icon-canvas-transparent{opacity:0}.icon-vs-action-blue{fill:%2375beff}%3C/style%3E%3C/defs%3E%3Ctitle%3Econtinue%3C/title%3E%3Cpath class='icon-canvas-transparent' d='M16 0v16H0V0z' id='canvas'/%3E%3Cpath class='icon-vs-action-blue' d='M3 3h2v10H3zm4.5 0v10L14 8z' id='iconBg'/%3E%3C/svg%3E");
+    }
+
+    .pause-icon {
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cdefs%3E%3Cstyle%3E.icon-canvas-transparent,.icon-vs-out{fill:%23252526}.icon-canvas-transparent{opacity:0}.icon-vs-action-blue{fill:%2375beff}%3C/style%3E%3C/defs%3E%3Ctitle%3Epause%3C/title%3E%3Cpath class='icon-canvas-transparent' d='M16 0v16H0V0z' id='canvas'/%3E%3Cpath class='icon-vs-action-blue' d='M4 3h2.5v10H4zm5.5 0v10H12V3z' id='iconBg'/%3E%3C/svg%3E");
+    }
+
+    .step-icon {
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cdefs%3E%3Cstyle%3E.icon-canvas-transparent,.icon-vs-out{fill:%23252526}.icon-canvas-transparent{opacity:0}.icon-vs-bg{fill:%23c5c5c5}.icon-vs-action-blue{fill:%2375beff}%3C/style%3E%3C/defs%3E%3Ctitle%3Estep-over%3C/title%3E%3Cpath class='icon-canvas-transparent' d='M16 0v16H0V0z' id='canvas'/%3E%3Cpath class='icon-vs-bg' d='M10 13a2 2 0 1 1-2-2 2 2 0 0 1 2 2z' id='iconBg'/%3E%3Cpath class='icon-vs-action-blue' d='M15 2v6H9V6h2.237a4.481 4.481 0 0 0-8.186 2H1.025A6.482 6.482 0 0 1 13 5.069V2z' id='colorAction'/%3E%3C/svg%3E");
+    }
+
+    .stop-icon {
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cdefs%3E%3Cstyle%3E.icon-canvas-transparent,.icon-vs-out{fill:%23252526}.icon-canvas-transparent{opacity:0}.icon-vs-action-red{fill:%23f48771}%3C/style%3E%3C/defs%3E%3Ctitle%3Estop%3C/title%3E%3Cpath class='icon-canvas-transparent' d='M16 0v16H0V0z' id='canvas'/%3E%3Cpath class='icon-vs-action-red' d='M13 3v10H3V3z' id='iconBg'/%3E%3C/svg%3E");
+    }
+
+    .debug-curr-line {
+        background: rgba(255, 240, 0, 0.1);
     }
 </style>
 
@@ -68,31 +120,24 @@
 
 <div class="row">
     <div class="col">
+        <div id="debugger-buttons">
+            <div id="debug-run" class="debugger-button run-icon"></div>
+            <div id="debug-continue" class="debugger-button continue-icon" style="display: none"></div>
+            <div id="debug-pause" class="debugger-button pause-icon" style="display: none"></div>
+            <div id="debug-step" class="debugger-button step-icon" style="display: none"></div>
+            <div id="debug-stop" class="debugger-button stop-icon" style="display: none"></div>
+        </div>
         <div id="editor"></div>
-        <pre id="stdout"></pre>
     </div>
     <div class="col">
         <canvas id="canvas" width="320" height="240"></canvas>
         <div id="debugger">
-            <button id="debug-run">Run</button>
-            <button id="debug-stop">Stop</button>
-            <button id="debug-step">Step</button>
         </div>
     </div>
 </div>
 
 <script>
     ulang().then((ulang) => {
-        // Redirect stdout to print to the stdout element.
-        (function () {
-            let stdout = document.getElementById("stdout");
-            let oldLog = console.log;
-            console.log = (str) => {
-                stdout.innerHTML += str + "<br>";
-                oldLog(str);
-            }
-        }());
-
         let compile = function (source) {
             let result = {
                 error: ulang.newError(),
@@ -108,81 +153,17 @@
             return result;
         };
 
-        let editor = function () {
-            defineUlangLanguage();
+        let vmDebugger = ((canvas) => {
+            this.STATE_RUNNING = 0;
+            this.STATE_PAUSED = 1;
+            this.STATE_STOPPED = 2;
 
-            monaco.editor.onDidCreateModel((model) => {
-                let validate = () => {
-                    stdout.innerHTML = "";
-                    let result = compile(model.getValue());
-                    if (result.error.isSet()) {
-                        result.error.print();
-                        let base = result.file.data().data();
-                        let startLineNumber = result.error.span().startLine();
-                        let startLine = result.file.lines()[startLineNumber].data().data() - base;
-                        let endLineNumber = result.error.span().endLine();
-                        let endLine = result.file.lines()[endLineNumber].data().data() - base;
+            this.vm = null;
+            this.state = STATE_STOPPED;
 
-                        let spanStart = result.error.span().data().data() - base;
-                        let spanEnd = spanStart + result.error.span().data().length();
-
-                        let startCol = spanStart - startLine + 1;
-                        let endCol = spanEnd - endLine + 1;
-
-                        let markers = [
-                            {
-                                severity: monaco.MarkerSeverity.Error,
-                                startLineNumber: startLineNumber,
-                                startColumn: startCol,
-                                endLineNumber: endLineNumber,
-                                endColumn: endCol,
-                                message: result.error.message().toString()
-                            }
-                        ];
-                        monaco.editor.setModelMarkers(model, "ulang", markers);
-                    } else {
-                        monaco.editor.setModelMarkers(model, "ulang", []);
-                    }
-                    result.free();
-                    ulang.printMemory();
-                }
-                model.onDidChangeContent(() => {
-                    validate();
-                });
-                validate();
-            });
-
-            let editor = monaco.editor.create(document.getElementById("editor"), {
-                automaticLayout: true,
-                theme: "vs-dark",
-                language: "ulang"
-            });
-
-            editor.onDidChangeModelContent((e) => {
-
-            });
-
-            editor.setValue(exampleFire);
-
-            this.getContent = () => editor.getValue(0);
-
-            return this;
-        }();
-
-        let debug = function (editor) {
-            const STATE_RUNNING = 0;
-            const STATE_PAUSED = 1;
-            const STATE_STOPPED = 2;
-
-            let canvas = document.getElementById("canvas");
-            let run = document.getElementById("debug-run");
-            let stop = document.getElementById("debug-stop");
-            let step = document.getElementById("debug-step");
-            let compilerResult = null;
-            let vm = null;
+            let compilerResult = null
             let vmStart = 0;
             let executedInstructions = 0;
-            let state = STATE_STOPPED;
             let vsyncHit = false;
 
             let syscallHandler = (syscall, vmPtr) => {
@@ -228,7 +209,7 @@
             }
             let syscallHandlerPtr = ulang.addFunction(syscallHandler, "iii");
 
-            run.addEventListener("click", () => {
+            this.run = (source) => {
                 if (compilerResult) {
                     compilerResult.free();
                     compilerResult = null;
@@ -238,10 +219,11 @@
                     vm = null;
                 }
 
-                compilerResult = compile(editor.getContent());
+                compilerResult = compile(source);
                 if (compilerResult.error.isSet()) {
-                    alert("Can't run program with error.");
+                    alert("Can't run program with errors.");
                     compilerResult.free();
+                    for (let i = 0; i < listeners.length; i++) listeners[i](this, STATE_STOPPED);
                     return;
                 }
                 vm = ulang.newVm(compilerResult.program);
@@ -251,15 +233,56 @@
                 vmStart = performance.now();
                 executedInstructions = 0;
                 state = STATE_RUNNING;
+                for (let i = 0; i < listeners.length; i++) listeners[i](this, state);
                 console.log("Starting vm.");
                 requestAnimationFrame(frame);
-            });
-            stop.addEventListener("click", () => {
-                if (state != STATE_RUNNING) return;
+            }
+
+            this.stop = () => {
+                if (state != STATE_RUNNING && state != STATE_PAUSED) return;
                 state = STATE_STOPPED;
+                for (let i = 0; i < listeners.length; i++) listeners[i](this, state);
                 printVmTime();
                 vm.print();
-            });
+            }
+
+            this.pause = () => {
+                if (state != STATE_RUNNING) return;
+                state = STATE_PAUSED;
+                for (let i = 0; i < listeners.length; i++) listeners[i](this, state);
+                vm.print();
+            }
+
+            this.continue = () => {
+                if (state != STATE_PAUSED) return;
+                state = STATE_RUNNING;
+                for (let i = 0; i < listeners.length; i++) listeners[i](this, state);
+                vm.print();
+                requestAnimationFrame(frame);
+            }
+
+            this.step = () => {
+                if (state != STATE_PAUSED) return;
+                if (!vm.step()) {
+                    if (vsyncHit) {
+                        vsyncHit = false;
+                    } else {
+                        state = STATE_STOPPED;
+                        for (let i = 0; i < listeners.length; i++) listeners[i](this, state);
+                        return;
+                    }
+                }
+                for (let i = 0; i < listeners.length; i++) listeners[i](this, state);
+                vm.print();
+            }
+
+            this.getCurrLine = () => {
+                if (state != STATE_PAUSED) return;
+                let pc = vm.registers()[14].ui() >> 2;
+                let addressToLine = vm.program().addressToLine();
+                if (pc >= addressToLine.length) return -1;
+                return addressToLine[pc];
+            }
 
             let printVmTime = () => {
                 let vmTime = (performance.now() - vmStart) / 1000;
@@ -280,6 +303,7 @@
                                 return;
                             }
                             state = STATE_STOPPED;
+                            for (let i = 0; i < listeners.length; i++) listeners[i](this, state);
                             printVmTime();
                             vm.print();
                             return;
@@ -293,8 +317,214 @@
                 }
             }
 
+            let listeners = [];
+            this.addStateChangeListener = (listener) => {
+                listeners.push(listener);
+            }
+
             return this;
-        }(editor);
+        })(document.getElementById("canvas"));
+
+        let editor = function () {
+            defineUlangLanguage();
+
+            let decorations = [];
+
+            let editorInternal = monaco.editor.create(document.getElementById("editor"), {
+                automaticLayout: true,
+                theme: "vs-dark",
+                language: "ulang"
+            });
+
+            editorInternal.onDidChangeModelContent(() => {
+                let result = compile(editorInternal.getValue());
+                if (result.error.isSet()) {
+                    result.error.print();
+                    let base = result.file.data().data();
+                    let startLineNumber = result.error.span().startLine();
+                    let startLine = result.file.lines()[startLineNumber].data().data() - base;
+                    let endLineNumber = result.error.span().endLine();
+                    let endLine = result.file.lines()[endLineNumber].data().data() - base;
+
+                    let spanStart = result.error.span().data().data() - base;
+                    let spanEnd = spanStart + result.error.span().data().length();
+
+                    let startCol = spanStart - startLine + 1;
+                    let endCol = spanEnd - endLine + 1;
+
+                    let markers = [
+                        {
+                            severity: monaco.MarkerSeverity.Error,
+                            startLineNumber: startLineNumber,
+                            startColumn: startCol,
+                            endLineNumber: endLineNumber,
+                            endColumn: endCol,
+                            message: result.error.message().toString()
+                        }
+                    ];
+                    monaco.editor.setModelMarkers(editorInternal.getModel(), "ulang", markers);
+                } else {
+                    monaco.editor.setModelMarkers(editorInternal.getModel(), "ulang", []);
+                }
+                result.free();
+                ulang.printMemory();
+            });
+
+            this.getContent = () => editorInternal.getValue(0);
+
+            this.setCurrLine = (lineNum) => {
+                if (lineNum == -1) {
+                    decorations = editorInternal.deltaDecorations(decorations, []);
+                    return;
+                }
+                decorations = editorInternal.deltaDecorations(decorations, [{
+                    range: new monaco.Range(lineNum, 1, lineNum, 1000),
+                    options: {
+                        isWholeLine: true,
+                        className: "debug-curr-line",
+                    }
+                }]);
+                editorInternal.revealPositionInCenter({lineNumber: lineNum, column: 1});
+            };
+
+            editorInternal.setValue(exampleFire);
+
+            return this;
+        }();
+
+        let debuggerUI = ((editor, vmDebugger) => {
+            let run = document.getElementById("debug-run");
+            let cont = document.getElementById("debug-continue");
+            let pause = document.getElementById("debug-pause");
+            let stop = document.getElementById("debug-stop");
+            let step = document.getElementById("debug-step");
+
+            let setButtonStates = (state) => {
+                switch (state) {
+                    case vmDebugger.STATE_RUNNING:
+                        run.style.display = "none";
+                        cont.style.display = "none";
+                        pause.style.display = "";
+                        stop.style.display = "";
+                        step.style.display = "none";
+                        break;
+                    case vmDebugger.STATE_PAUSED:
+                        run.style.display = "none";
+                        cont.style.display = "";
+                        pause.style.display = "none";
+                        stop.style.display = "";
+                        step.style.display = "";
+                        break;
+                    case vmDebugger.STATE_STOPPED:
+                        run.style.display = "";
+                        cont.style.display = "none";
+                        pause.style.display = "none";
+                        stop.style.display = "none";
+                        step.style.display = "none";
+                        break;
+                }
+            }
+
+            run.addEventListener("click", () => {
+                vmDebugger.run(editor.getContent());
+            });
+            cont.addEventListener("click", () => {
+                vmDebugger.continue();
+            });
+            pause.addEventListener("click", () => {
+                vmDebugger.pause();
+            });
+            stop.addEventListener("click", () => {
+                vmDebugger.stop();
+            });
+            step.addEventListener("click", () => {
+                vmDebugger.step();
+            });
+
+            vmDebugger.addStateChangeListener((vmDebugger, state) => {
+                setButtonStates(state);
+
+                switch (state) {
+                    case vmDebugger.STATE_PAUSED:
+                        let lineNum = vmDebugger.getCurrLine();
+                        editor.setCurrLine(lineNum);
+                        break;
+                    case vmDebugger.STATE_STOPPED:
+                    case vmDebugger.STATE_RUNNING:
+                        editor.setCurrLine(-1);
+                        break;
+                }
+            });
+
+            monaco.languages.registerHoverProvider('ulang', {
+                provideHover: (model, position) => {
+                    if (vmDebugger.state == STATE_PAUSED) {
+                        let lineNum = position.lineNumber;
+                        let startCol = position.column - 1;
+                        let endCol = position.column - 1;
+
+                        let line = editor.getContent().split("\n")[lineNum - 1];
+                        for (let i = startCol; i >= 0; i--) {
+                            let c = line.charAt(i);
+                            if (c == ' ' || c == '\n' || c == '\t' || c == "," || c == ":") break;
+                            startCol--;
+                        }
+                        startCol++;
+                        for (let i = endCol; i < line.length; i++) {
+                            let c = line.charAt(i);
+                            if (c == ' ' || c == '\n' || c == '\t' || c == "," || c == ":") break;
+                            endCol++;
+                        }
+                        if (startCol > endCol) return {};
+
+                        let token = line.substring(startCol, endCol);
+                        let regs = ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "pc", "sp"];
+                        let regIdx = -1;
+                        for (let i = 0; i < regs.length; i++) {
+                            if (token == regs[i]) {
+                                regIdx = i;
+                                break;
+                            }
+                        }
+
+                        let result = {};
+                        if (regIdx != -1) {
+                            let i = vmDebugger.vm.registers()[regIdx].i();
+                            let u = vmDebugger.vm.registers()[regIdx].ui();
+                            let h = "0x" + u.toString(16);
+                            let f = vmDebugger.vm.registers()[regIdx].f();
+                            result = {
+                                range: new monaco.Range(lineNum, startCol, lineNum, endCol),
+                                contents: [
+                                    {value: "**" + token + "**"},
+                                    {value: "```html\nint: " + i + "\nuint: " + u + "\nhex: " + h + "\nfloat: " + f + "\n"}
+                                ]
+                            };
+                        }
+
+                        let labels = vmDebugger.vm.program().labels();
+                        for (let i = 0; i < labels.length; i++) {
+                            let label = labels[i];
+                            if (label.label().data().toString() == token) {
+                                result = {
+                                    range: new monaco.Range(lineNum, startCol, lineNum, endCol),
+                                    contents: [
+                                        {value: "**" + token + "**"},
+                                        {value: "```html\naddress: 0x" + label.address().toString(16) + ", " + label.address().toString() + "\n"}
+                                    ]
+                                };
+                            }
+                        }
+                        return result;
+                    } else {
+                        return {};
+                    }
+                }
+            });
+
+            setButtonStates(vmDebugger.STATE_STOPPED);
+            return this;
+        })(editor, vmDebugger);
     });
 
     let defineUlangLanguage = () => {
