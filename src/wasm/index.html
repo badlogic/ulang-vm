@@ -44,11 +44,6 @@
         image-rendering: crisp-edges;
     }
 
-    #debugger {
-        width: 100%;
-        height: 100%;
-    }
-
     #debugger-buttons {
         display: flex;
         flex-direction: row;
@@ -113,11 +108,28 @@
         content: '⬤';
         color: crimson;
     }
+
+    #help {
+        flex: 1;
+        padding: 0 1em;
+        overflow: auto;
+        font-family: monospace;
+        color: #cccccc;
+    }
+
+    #debug-memory {
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        display: none;
+    }
 </style>
 
 <body>
-<!-- Monaco editor JS files need to be included in the <body> tag. Who knows why... -->
 <script src="ulang.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<!-- Monaco editor JS files need to be included in the <body> tag. Who knows why... -->
 <script>var require = {paths: {'vs': 'https://unpkg.com/monaco-editor@latest/min/vs'}};</script>
 <script src="https://unpkg.com/monaco-editor@latest/min/vs/loader.js"></script>
 <script src="https://unpkg.com/monaco-editor@latest/min/vs/editor/editor.main.nls.js"></script>
@@ -136,12 +148,14 @@
     </div>
     <div class="col">
         <canvas id="canvas" width="320" height="240"></canvas>
-        <div id="debugger">
-        </div>
+        <div id="help"></div>
+        <div id="debug-memory"></div>
     </div>
 </div>
 
 <script>
+    fetch("./help.md").then(response => response.text()).then(data => document.getElementById("help").innerHTML = marked.parse(data));
+
     ulang().then((ulang) => {
         let compile = function (source) {
             let result = {
@@ -804,7 +818,6 @@ main_loop:
    push buffer
    syscall 0x1
 
-   push 1
    jmp main_loop
 `;
 
