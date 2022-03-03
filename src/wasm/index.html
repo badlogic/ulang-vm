@@ -80,6 +80,7 @@
         display: flex;
         flex-direction: row;
         user-select: none;
+        margin-left: -1em;
     }
 
     .debugger-button {
@@ -152,13 +153,6 @@
 <div class="row">
     <div class="col">
         <div class="collapse-bar">
-            <div id="debugger-buttons">
-                <div id="debug-run" class="debugger-button run-icon"></div>
-                <div id="debug-continue" class="debugger-button continue-icon" style="display: none"></div>
-                <div id="debug-pause" class="debugger-button pause-icon" style="display: none"></div>
-                <div id="debug-step" class="debugger-button step-icon" style="display: none"></div>
-                <div id="debug-stop" class="debugger-button stop-icon" style="display: none"></div>
-            </div>
         </div>
         <div id="editor"></div>
 
@@ -167,12 +161,21 @@
     </div>
 
     <div class="col">
-        <div id="collapse-output" class="collapse-bar">Output</div>
+        <div id="collapse-output" class="collapse-bar">
+            <div id="debugger-buttons">
+                <div id="debug-run" class="debugger-button run-icon"></div>
+                <div id="debug-continue" class="debugger-button continue-icon" style="display: none"></div>
+                <div id="debug-pause" class="debugger-button pause-icon" style="display: none"></div>
+                <div id="debug-step" class="debugger-button step-icon" style="display: none"></div>
+                <div id="debug-stop" class="debugger-button stop-icon" style="display: none"></div>
+            </div>
+        </div>
         <div id="output-container">
             <canvas id="output" width="320" height="240"></canvas>
         </div>
 
-        <div id="collapse-debug" class="collapse-bar">Debug</div>
+        <div id="collapse-debug" class="collapse-bar">
+        </div>
         <table id="debug">
             <tr>
                 <th>registers</th>
@@ -637,19 +640,24 @@
                 }
             }
 
-            run.addEventListener("click", () => {
+            run.addEventListener("click", (e) => {
+                e.stopPropagation();
                 vmDebugger.run(editor.getContent());
             });
-            cont.addEventListener("click", () => {
+            cont.addEventListener("click", (e) => {
+                e.stopPropagation();
                 vmDebugger.continue();
             });
-            pause.addEventListener("click", () => {
+            pause.addEventListener("click", (e) => {
+                e.stopPropagation();
                 vmDebugger.pause();
             });
-            stop.addEventListener("click", () => {
+            stop.addEventListener("click", (e) => {
+                e.stopPropagation();
                 vmDebugger.stop();
             });
-            step.addEventListener("click", () => {
+            step.addEventListener("click", (e) => {
+                e.stopPropagation();
                 vmDebugger.step();
             });
 
