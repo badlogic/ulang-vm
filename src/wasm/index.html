@@ -73,6 +73,7 @@
         overflow: auto;
         font-size: 14px;
         height: calc(50% - 2em);
+        border-left: solid 1px black;
     }
 
     #debugger-buttons {
@@ -203,20 +204,22 @@
 
     // Everything is terrible
     let resizeOutput = () => {
-        let container = document.getElementById("output-container");
         let canvas = document.getElementById("output");
-        let width, height;
+        let container = canvas.parentElement;
+        // Force reflow
         canvas.style.width = 1 + "px";
         canvas.style.height = 1 + "px";
-        if (container.clientWidth > container.clientHeight) {
-            height = container.clientHeight;
-            width = height * (320 / 240);
+        if (container.clientWidth < container.clientHeight) {
+            canvas.style.width = container.clientWidth + "px";
+            canvas.style.height = container.clientWidth * (240 / 320) + "px";
         } else {
-            width = container.clientWidth;
-            height = width * (240 / 320);
+            canvas.style.width = container.clientWidth + "px";
+            canvas.style.height = "auto";
+            if (canvas.clientHeight > container.clientHeight) {
+                canvas.style.height = container.clientHeight + "px";
+                canvas.style.width = container.clientHeight * (320 / 240) + "px";
+            }
         }
-        canvas.style.width = width + "px";
-        canvas.style.height = height + "px";
     }
     window.addEventListener("resize", () => resizeOutput());
     resizeOutput();
