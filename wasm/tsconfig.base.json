@@ -1,0 +1,19 @@
+{
+	"compilerOptions": {
+		"module": "es2015",
+		"target": "ES6",
+		"noImplicitAny": false,
+		"preserveConstEnums": true,
+		"inlineSourceMap": true,
+		"esModuleInterop": true,
+		"lib": [
+			"DOM",
+			"ES2015"
+		],
+		"declaration": true,
+		"composite": true,
+		"moduleResolution": "node"
+		/*"strictNullChecks": true,
+		"strictPropertyInitialization": true*/
+	}
+}

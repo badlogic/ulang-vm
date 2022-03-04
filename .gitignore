@@ -3,3 +3,10 @@
 /.idea/
 src/wasm/ulang.js
 src/wasm/ulang.wasm
+wasm/node_modules
+wasm/ulang-site/dist
+wasm/ulang-vm/dist
+wasm/ulang-site/tsconfig.tsbuildinfo
+wasm/ulang-vm/tsconfig.tsbuildinfo
+wasm/ulang-vm/src/ulang.js
+wasm/ulang-vm/src/ulang.wasm
