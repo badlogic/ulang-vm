@@ -6,11 +6,10 @@
     "clean": "rm -rf ulang-vm/dist && rm ulang-vm/src/ulang.* && rm -rf ulang-site/assets/js rm -rf ulang-site/assets/js",
     "build": "npm run clean && npm run build:modules && npm run build:wasm npm && run build:ulang-vm && npm run build:ulang-site",
     "build:modules": "npx tsc -b -clean && npx tsc -b && cp ulang-vm/src/ulang.js ulang-vm/dist",
-    "build:wasm": "./ulang-vm/build-wasm.sh -g",
-    "build:ulang-vm": "npm run build:wasm && ./ulang-vm/esbuild.js",
+    "build:wasm": "./ulang-vm/build-wasm.sh",
+    "build:ulang-vm": "./ulang-vm/esbuild.js",
     "build:ulang-site": "./ulang-site/esbuild.js",
     "dev": "npm run build:wasm && concurrently \"npx live-server --no-browser\" \"npm run dev:wasm\" \"npm run dev:ulang-vm\" \"npm run dev:ulang-site\"",
-    "dev:modules": "npm run build:modules -- --watch",
     "dev:wasm": "watch \"npm run build:wasm\" ../src",
     "dev:ulang-vm": "npm run build:ulang-vm -- -watch",
     "dev:ulang-site": "npm run build:ulang-site -- -watch"
