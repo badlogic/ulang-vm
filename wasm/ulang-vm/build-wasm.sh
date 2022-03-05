@@ -21,9 +21,7 @@ emcc $OPT \
 	-s ENVIRONMENT=web \
 	-s EXPORTED_FUNCTIONS='["_malloc", "_free"]' \
 	-s EXPORTED_RUNTIME_METHODS='["cwrap", "allocateUTF8", "UTF8ArrayToString", "addFunction"]' \
-	-s MODULARIZE=1 -s EXPORT_ES6=1 -s USE_ES6_IMPORT_META=0 -s 'EXPORT_NAME="ulang"' \
-	--pre-js src/pre.js \
-	--extern-post-js src/post.js \
+	-s MODULARIZE=1 -s EXPORT_ES6=1 -s USE_ES6_IMPORT_META=0 -s EXPORT_NAME=loadWasm \
 	--no-entry \
 	-I../../src $SOURCES \
 	-o src/ulang.js

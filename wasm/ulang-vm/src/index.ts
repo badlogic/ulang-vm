@@ -1,6 +1,4 @@
-import { ulang as createUlang } from "./ulang";
-
-let ulang = null;
+import * as ulang from "./wrapper";
 
 function compile (source) {
 	let result = {
@@ -39,14 +37,14 @@ export class Vm {
 	}
 
 	private syscallHandler = (syscall, vmPtr) => {
-		let vm = ulang.nativeToJsVm(vmPtr);
+		let vm = ulang.ptrToUlangVm(vmPtr);
 		switch (syscall) {
 			case 0:
 				return -1;
 			case 1:
 				let buffer = vm.popUint();
 				ulang.argbToRgba(vm.memoryPtr() + buffer, 320 * 240);
-				let frame = new Uint8ClampedArray(ulang.HEAPU8.buffer, vm.memoryPtr() + buffer, 320 * 240 * 4);
+				let frame = new Uint8ClampedArray(ulang.HEAPU8().buffer, vm.memoryPtr() + buffer, 320 * 240 * 4);
 				let imageData = new ImageData(frame, 320, 240);
 				this.canvas.getContext("2d").putImageData(imageData, 0, 0);
 				this.vsyncHit = true;
@@ -55,7 +53,7 @@ export class Vm {
 				let numArgs = vm.popUint();
 				let str = "";
 				for (let i = 0; i < numArgs; i++) {
-					let argType = vm.popUint(vm);
+					let argType = vm.popUint();
 					switch (argType) {
 						case 0:
 							str += vm.popInt();
@@ -68,7 +66,7 @@ export class Vm {
 							break;
 						case 3:
 							let strAddr = vm.popUint();
-							str += ulang.UTF8ArrayToString(ulang.HEAPU8, vm.memoryPtr() + strAddr);
+							str += ulang.UTF8ArrayToString(ulang.HEAPU8(), vm.memoryPtr() + strAddr);
 							break;
 						default:
 							break;
@@ -261,7 +259,11 @@ export class Vm {
 	}
 }
 
+let loaded = false;
 export async function createVm (canvas: HTMLCanvasElement) {
-	ulang = await createUlang();
+	if (!loaded) {
+		loaded = true;
+		await ulang.loadUlang();
+	}
 	return new Vm(canvas);
 }
