@@ -1,10 +1,11 @@
 {
   "name": "@marioslab/ulang",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Virtual machine & assembler for recreational programming like it's 1992.",
   "scripts": {
-    "clean": "rm -rf ulang-vm/dist && rm ulang-vm/src/ulang.* && rm -rf ulang-site/assets/js rm -rf ulang-site/assets/js",
-    "build": "npm run clean && npm run build:modules && npm run build:wasm npm && run build:ulang-vm && npm run build:ulang-site",
+    "minify": "esbuild --minify ulang-vm/dist/iife/ulang.js --outfile=ulang-vm/dist/iife/ulang.min.js && esbuild --minify ulang-site/assets/js/index.js --outfile=ulang-site/assets/js/index.min.js",
+    "clean": "rm -rf ulang-vm/dist && rm -f ulang-vm/src/ulang.* && rm -rf ulang-site/assets/js",
+    "build": "npm run clean && npm run build:wasm && npm run build:modules && npm run build:ulang-vm && npm run build:ulang-site && npm run minify",
     "build:modules": "npx tsc -b -clean && npx tsc -b && cp ulang-vm/src/ulang.js ulang-vm/dist",
     "build:wasm": "./ulang-vm/build-wasm.sh",
     "build:ulang-vm": "./ulang-vm/esbuild.js",
@@ -31,8 +32,7 @@
   },
   "homepage": "https://github.com/badlogic/ulang-vm#readme",
   "workspaces": [
-    "ulang-vm",
-    "ulang-site"
+    "ulang-vm"
   ],
   "devDependencies": {
     "concurrently": "^7.0.0",

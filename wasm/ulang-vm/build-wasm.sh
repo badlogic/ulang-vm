@@ -4,6 +4,12 @@ pushd "$SCRIPT_DIR"
 SOURCES=../../src/ulang.c
 OPT=-O3
 
+if [[ -z "${EMSDK}" ]]; then
+	echo "Please set the environment variable EMSDK to point to your local emscripten directory, i.e. export EMSDK=/path/to/emsdk"
+	exit -1;
+fi
+source "${EMSDK}/emsdk_env.sh"
+
 while getopts ":g" option; do
    case $option in
       g)

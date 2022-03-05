@@ -1,12 +1,10 @@
 {
 	"name": "@marioslab/ulang-site",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"description": "Virtual machine & assembler for recreational programming like it's 1992.",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
-	"files": [
-		"dist/**/*"
-	],
+	"files": [],
 	"scripts": {},
 	"repository": {
 		"type": "git",
@@ -24,7 +22,7 @@
 		"url": "https://github.com/badlogic/ulang-vm/issues"
 	},
 	"dependencies": {
-		"@marioslab/ulang-vm": "^1.0.0"
+		"@marioslab/ulang-vm": "^1.0.1"
 	},
 	"homepage": "https://github.com/badlogic/ulang-vm#readme"
 }
