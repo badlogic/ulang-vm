@@ -119,6 +119,7 @@ export class VirtualMachine {
 		this.compilerResult = ulang.compile(source);
 		if (this.compilerResult.error.isSet()) {
 			alert("Can't run program with errors.");
+			this.compilerResult.error.print();
 			this.compilerResult.free();
 			if (this.stateChangeListener) this.stateChangeListener(this, this.state);
 			return;
