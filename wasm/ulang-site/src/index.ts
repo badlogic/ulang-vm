@@ -1,12 +1,13 @@
-import { createVm, Vm, VmState } from "@marioslab/ulang-vm"
+import { createVirtualMachine, LogLevel, VirtualMachineState } from "@marioslab/ulang-vm"
 
 (async function () {
-	let vm = await createVm(document.getElementById("output") as HTMLCanvasElement);
+	let vm = await createVirtualMachine(document.getElementById("output") as HTMLCanvasElement);
 	vm.setStateChangeListener((vm, state) => {
-		if (state == VmState.Stopped) {
-			console.log("Finished");
+		if (state == VirtualMachineState.Stopped) {
+			console.log("Finished vm1");
 		}
 	});
+	vm.setLogLevel(LogLevel.None);
 	vm.run(`
 		buffer: reserve int x 320 * 240
 		mov (160 + 120 * 320) * 4, r1		
@@ -18,12 +19,13 @@ import { createVm, Vm, VmState } from "@marioslab/ulang-vm"
 		halt
 	`);
 
-	let vm2 = await createVm(document.getElementById("output2") as HTMLCanvasElement);
+	let vm2 = await createVirtualMachine(document.getElementById("output2") as HTMLCanvasElement);
 	vm2.setStateChangeListener((vm, state) => {
-		if (state == VmState.Stopped) {
-			console.log("Finished");
+		if (state == VirtualMachineState.Stopped) {
+			console.log("Finished vm2");
 		}
 	});
+	vm2.setLogLevel(LogLevel.None);
 	vm2.run(`
 		buffer: reserve int x 320 * 240
 		mov (160 + 120 * 320) * 4, r1		

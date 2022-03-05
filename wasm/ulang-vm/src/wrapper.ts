@@ -1,6 +1,6 @@
 import loadWasm from "./ulang"
 
-var module = {
+let module = {
 	onRuntimeInitialized: createWrappers
 } as any;
 
@@ -8,38 +8,38 @@ export async function loadUlang () {
 	return await loadWasm(module);
 }
 
-var ulang_calloc: (numBytes: number) => number;
-var ulang_free: (ptr: number) => void;
-var ulang_print_memory: () => void;
-var ulang_file_from_memory: (namePtr: number, dataPtr: number, filePtr: number) => number;
-var ulang_file_free: (filePtr: number) => void;
-var ulang_error_print: (errorPtr: number) => void;
-var ulang_error_free: (errorPtr: number) => void;
-var ulang_compile: (filePtr: number, programPtr: number, errorPtr: number) => number;
-var ulang_program_free: (programPtr: number) => void;
-var ulang_vm_init: (vmPtr: number, programPtr: number) => void;
-var ulang_vm_step: (vmPtr: number) => number;
-var ulang_vm_step_n: (vmPtr: number, n: number) => number;
-var ulang_vm_step_n_bp: (vmPtr: number, n: number, bpPtr: number, numBp: number) => number;
-var ulang_vm_print: (vmPtr: number) => void;
-var ulang_vm_pop_int: (vmPtr: number) => number;
-var ulang_vm_pop_uint: (vmPtr: number) => number;
-var ulang_vm_pop_float: (vmPtr: number) => number;
-var ulang_vm_free: (vmPtr: number) => void;
-var ulang_sizeof: (type: number) => number;
-var ulang_print_offsets: () => void;
-var ulang_argb_to_rgba: (argbPtr: number, numPixels: number) => void;
+let ulang_calloc: (numBytes: number) => number;
+let ulang_free: (ptr: number) => void;
+let ulang_print_memory: () => void;
+let ulang_file_from_memory: (namePtr: number, dataPtr: number, filePtr: number) => number;
+let ulang_file_free: (filePtr: number) => void;
+let ulang_error_print: (errorPtr: number) => void;
+let ulang_error_free: (errorPtr: number) => void;
+let ulang_compile: (filePtr: number, programPtr: number, errorPtr: number) => number;
+let ulang_program_free: (programPtr: number) => void;
+let ulang_vm_init: (vmPtr: number, programPtr: number) => void;
+let ulang_vm_step: (vmPtr: number) => number;
+let ulang_vm_step_n: (vmPtr: number, n: number) => number;
+let ulang_vm_step_n_bp: (vmPtr: number, n: number, bpPtr: number, numBp: number) => number;
+let ulang_vm_print: (vmPtr: number) => void;
+let ulang_vm_pop_int: (vmPtr: number) => number;
+let ulang_vm_pop_uint: (vmPtr: number) => number;
+let ulang_vm_pop_float: (vmPtr: number) => number;
+let ulang_vm_free: (vmPtr: number) => void;
+let ulang_sizeof: (type: number) => number;
+let ulang_print_offsets: () => void;
+let ulang_argb_to_rgba: (argbPtr: number, numPixels: number) => void;
 
-export var getInt8 = (ptr: number) => new DataView(module.HEAPU8.buffer).getInt8(ptr);
-export var getInt16 = (ptr: number) => new DataView(module.HEAPU8.buffer).getInt16(ptr, true);
-export var getUint32 = (ptr: number) => new DataView(module.HEAPU8.buffer).getUint32(ptr, true);
-export var setUint32 = (ptr, val) => new DataView(module.HEAPU8.buffer).setUint32(ptr, val, true);
-export var getInt32 = (ptr: number) => new DataView(module.HEAPU8.buffer).getInt32(ptr, true);
-export var getFloat32 = (ptr: number) => new DataView(module.HEAPU8.buffer).getFloat32(ptr, true);
-export var argbToRgba: (argb: number, numPixels: number) => void;
-export var addFunction: (func: any, descriptor: string) => number;
-export var UTF8ArrayToString: (heap: Uint8Array, ptr: number) => string;;
-export var HEAPU8: () => Uint8Array;
+export let getInt8 = (ptr: number) => new DataView(module.HEAPU8.buffer).getInt8(ptr);
+export let getInt16 = (ptr: number) => new DataView(module.HEAPU8.buffer).getInt16(ptr, true);
+export let getUint32 = (ptr: number) => new DataView(module.HEAPU8.buffer).getUint32(ptr, true);
+export let setUint32 = (ptr, val) => new DataView(module.HEAPU8.buffer).setUint32(ptr, val, true);
+export let getInt32 = (ptr: number) => new DataView(module.HEAPU8.buffer).getInt32(ptr, true);
+export let getFloat32 = (ptr: number) => new DataView(module.HEAPU8.buffer).getFloat32(ptr, true);
+export let argbToRgba: (argb: number, numPixels: number) => void;
+export let addFunction: (func: any, descriptor: string) => number;
+export let UTF8ArrayToString: (heap: Uint8Array, ptr: number) => string;;
+export let HEAPU8: () => Uint8Array;
 
 export function createWrappers () {
 	ulang_calloc = module.cwrap("ulang_calloc", "ptr", ["number"]);
@@ -340,9 +340,27 @@ export function newError () { return ptrToUlangError(allocType(UlangType.UL_TYPE
 
 export function newProgram () { return ptrToUlangProgram(allocType(UlangType.UL_TYPE_PROGRAM)); }
 
-export function compile (file, program, error) {
-	return ulang_compile(file.ptr, program.ptr, error.ptr) != 0;
+export interface UlangCompilationResult {
+	error: UlangError;
+	file: UlangFile;
+	program: UlangProgram;
+	free (): void;
 }
+
+export function compile (source): UlangCompilationResult {
+	let result = {
+		error: newError(),
+		file: newFile("source", source),
+		program: newProgram(),
+		free: () => {
+			this.program.free();
+			this.file.free();
+			this.error.free();
+		},
+	}
+	ulang_compile(result.file.ptr, result.program.ptr, result.error.ptr);
+	return result;
+};
 
 export function newVm (program: UlangProgram) {
 	let vm = ptrToUlangVm(allocType(UlangType.UL_TYPE_VM));

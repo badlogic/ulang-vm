@@ -11,3 +11,4 @@ wasm/ulang-vm/tsconfig.tsbuildinfo
 wasm/ulang-vm/src/ulang.js
 wasm/ulang-vm/src/ulang.wasm
 wasm/ulang-site/assets/js/ulang.wasm
+wasm/ulang-site/assets/js

@@ -1,91 +1,90 @@
 import * as ulang from "./wrapper";
 
-function compile (source) {
-	let result = {
-		error: ulang.newError(),
-		file: ulang.newFile("source", source),
-		program: ulang.newProgram(),
-		free: function () {
-			this.program.free();
-			this.file.free();
-			this.error.free();
-		}
-	}
-	ulang.compile(result.file, result.program, result.error);
-	return result;
-};
-
-export enum VmState {
+export enum VirtualMachineState {
 	Stopped, Running, Paused
 }
 
-export class Vm {
-	private vm: any;
-	private state = VmState.Stopped;
-	private compilerResult = null
+export enum LogLevel {
+	None,
+	Info
+}
+
+export class VirtualMachine {
+	private vm: ulang.UlangVm;
+	private state = VirtualMachineState.Stopped;
+	private compilerResult: ulang.UlangCompilationResult = null
 	private vmStart = 0;
 	private executedInstructions = 0;
 	private vsyncHit = false;
-	private breakpoints: string[] = [];
+	private breakpoints: number[] = [];
 	private bpPtr = 0;
 	private numBps = 0;
 	private syscallHandlerPtr = 0;
 	private lastStepHitBreakpoint = false;
+	private stateChangeListener: (vm: VirtualMachine, state: VirtualMachineState) => void = null;
+	private logLevel = LogLevel.Info;
 
 	constructor (public canvas: HTMLCanvasElement) {
-		this.syscallHandlerPtr = ulang.addFunction(this.syscallHandler, "iii");
-	}
-
-	private syscallHandler = (syscall, vmPtr) => {
-		let vm = ulang.ptrToUlangVm(vmPtr);
-		switch (syscall) {
-			case 0:
-				return -1;
-			case 1:
-				let buffer = vm.popUint();
-				ulang.argbToRgba(vm.memoryPtr() + buffer, 320 * 240);
-				let frame = new Uint8ClampedArray(ulang.HEAPU8().buffer, vm.memoryPtr() + buffer, 320 * 240 * 4);
-				let imageData = new ImageData(frame, 320, 240);
-				this.canvas.getContext("2d").putImageData(imageData, 0, 0);
-				this.vsyncHit = true;
-				return 0;
-			case 2: {
-				let numArgs = vm.popUint();
-				let str = "";
-				for (let i = 0; i < numArgs; i++) {
-					let argType = vm.popUint();
-					switch (argType) {
-						case 0:
-							str += vm.popInt();
-							break;
-						case 1:
-							str += "0x" + vm.popInt().toString(16);
-							break;
-						case 2:
-							str += vm.popFloat();
-							break;
-						case 3:
-							let strAddr = vm.popUint();
-							str += ulang.UTF8ArrayToString(ulang.HEAPU8(), vm.memoryPtr() + strAddr);
-							break;
-						default:
-							break;
+		let syscallHandler = (syscall, vmPtr) => {
+			let vm = ulang.ptrToUlangVm(vmPtr);
+			switch (syscall) {
+				case 0:
+					return -1;
+				case 1:
+					let buffer = vm.popUint();
+					ulang.argbToRgba(vm.memoryPtr() + buffer, 320 * 240);
+					let frame = new Uint8ClampedArray(ulang.HEAPU8().buffer, vm.memoryPtr() + buffer, 320 * 240 * 4);
+					let imageData = new ImageData(frame, 320, 240);
+					this.canvas.getContext("2d").putImageData(imageData, 0, 0);
+					this.vsyncHit = true;
+					return 0;
+				case 2: {
+					let numArgs = vm.popUint();
+					let str = "";
+					for (let i = 0; i < numArgs; i++) {
+						let argType = vm.popUint();
+						switch (argType) {
+							case 0:
+								str += vm.popInt();
+								break;
+							case 1:
+								str += "0x" + vm.popInt().toString(16);
+								break;
+							case 2:
+								str += vm.popFloat();
+								break;
+							case 3:
+								let strAddr = vm.popUint();
+								str += ulang.UTF8ArrayToString(ulang.HEAPU8(), vm.memoryPtr() + strAddr);
+								break;
+							default:
+								break;
+						}
 					}
+					console.log(str);
+					return -1;
 				}
-				console.log(str);
-				return -1;
 			}
 		}
+		this.syscallHandlerPtr = ulang.addFunction(syscallHandler, "iii");
 	}
 
-	setBreakpoints = (breakpoints: string[]) => {
+	setLogLevel (logLevel: LogLevel) {
+		this.logLevel = logLevel;
+	}
+
+	setStateChangeListener (listener: (vm: VirtualMachine, state: VirtualMachineState) => void) {
+		this.stateChangeListener = listener;
+	}
+
+	setBreakpoints (breakpoints: number[]) {
 		this.breakpoints = breakpoints;
 		if (this.bpPtr != 0) {
 			ulang.free(this.bpPtr);
 			this.bpPtr = 0;
 			this.numBps = 0;
 		}
-		if (this.state != VmState.Stopped) this.calculateBreakpoints();
+		if (this.state != VirtualMachineState.Stopped) this.calculateBreakpoints();
 	}
 
 	private calculateBreakpoints () {
@@ -93,9 +92,9 @@ export class Vm {
 		// Needs to come before the next line, as WASM memory can grow and pointers may get relocated
 		let addressToLine = this.vm.program().addressToLine();
 		let p = this.bpPtr = ulang.alloc(4 * this.breakpoints.length);
-		for (var i = 0; i < this.breakpoints.length; i++) {
+		for (let i = 0; i < this.breakpoints.length; i++) {
 			let bpLine = this.breakpoints[i];
-			for (var j = 0; j < addressToLine.length; j++) {
+			for (let j = 0; j < addressToLine.length; j++) {
 				if (addressToLine[j] == bpLine) {
 					ulang.setUint32(p, j * 4);
 					p += 4;
@@ -117,7 +116,7 @@ export class Vm {
 			this.vm = null;
 		}
 
-		this.compilerResult = compile(source);
+		this.compilerResult = ulang.compile(source);
 		if (this.compilerResult.error.isSet()) {
 			alert("Can't run program with errors.");
 			this.compilerResult.free();
@@ -131,52 +130,51 @@ export class Vm {
 		this.vmStart = performance.now();
 		this.executedInstructions = 0;
 		this.lastStepHitBreakpoint = false;
-		this.state = VmState.Running;
+		this.state = VirtualMachineState.Running;
 		if (this.stateChangeListener) this.stateChangeListener(this, this.state);
-		console.log("Starting vm.");
 		requestAnimationFrame(() => this.frame());
 	}
 
 	stop () {
-		if (this.state != VmState.Running && this.state != VmState.Paused) return;
-		this.state = VmState.Stopped;
+		if (this.state != VirtualMachineState.Running && this.state != VirtualMachineState.Paused) return;
+		this.state = VirtualMachineState.Stopped;
 		if (this.stateChangeListener) this.stateChangeListener(this, this.state);
 		this.printVmTime();
-		this.vm.print();
+		this.printVmState();
 	}
 
 	pause () {
-		if (this.state != VmState.Running) return;
-		this.state = VmState.Paused;
+		if (this.state != VirtualMachineState.Running) return;
+		this.state = VirtualMachineState.Paused;
 		if (this.stateChangeListener) this.stateChangeListener(this, this.state);
-		this.vm.print();
+		this.printVmState();
 	}
 
 	continue () {
-		if (this.state != VmState.Paused) return;
-		this.state = VmState.Running;
+		if (this.state != VirtualMachineState.Paused) return;
+		this.state = VirtualMachineState.Running;
 		if (this.stateChangeListener) this.stateChangeListener(this, this.state);
-		this.vm.print();
+		this.printVmState();
 		requestAnimationFrame(() => this.frame());
 	}
 
 	step () {
-		if (this.state != VmState.Paused) return;
+		if (this.state != VirtualMachineState.Paused) return;
 		if (!this.vm.step()) {
 			if (this.vsyncHit) {
 				this.vsyncHit = false;
 			} else {
-				this.state = VmState.Stopped;
+				this.state = VirtualMachineState.Stopped;
 				if (this.stateChangeListener) this.stateChangeListener(this, this.state);
 				return;
 			}
 		}
 		if (this.stateChangeListener) this.stateChangeListener(this, this.state);
-		this.vm.print();
+		this.printVmState();
 	}
 
-	getCurrLine () {
-		if (this.state != VmState.Paused) return -1;
+	getCurrentLine () {
+		if (this.state != VirtualMachineState.Paused) return -1;
 		let pc = this.vm.registers()[14].ui() >> 2;
 		let addressToLine: number[] = this.vm.program().addressToLine();
 		if (pc >= addressToLine.length) return -1;
@@ -184,14 +182,19 @@ export class Vm {
 	}
 
 	printVmTime () {
+		if (this.logLevel == LogLevel.None) return;
 		let vmTime = (performance.now() - this.vmStart) / 1000;
 		console.log("VM took " + vmTime + " secs");
 		console.log("Executed " + this.executedInstructions + " instructions, " + ((this.executedInstructions / vmTime) | 0) + " ins/s");
 	}
 
+	printVmState () {
+		if (this.logLevel == LogLevel.None) return;
+		this.vm.print();
+	}
 
 	private frame () {
-		if (this.state == VmState.Running) {
+		if (this.state == VirtualMachineState.Running) {
 			let frameStart = performance.now();
 			const instsPerStep = 20000;
 
@@ -206,26 +209,26 @@ export class Vm {
 						requestAnimationFrame(() => this.frame());
 						return;
 					}
-					this.state = VmState.Stopped;
+					this.state = VirtualMachineState.Stopped;
 					if (this.stateChangeListener) this.stateChangeListener(this, this.state);
 					this.printVmTime();
-					this.vm.print();
+					this.printVmState();
 					return;
 				}
 			}
 
 			while (true) {
 				this.executedInstructions += instsPerStep;
-				var result = 0;
+				let result: boolean | number = 0;
 				if (this.breakpoints.length > 0) this.calculateBreakpoints();
 				if (this.numBps > 0) {
 					result = this.vm.stepNBP(instsPerStep, this.bpPtr, this.numBps);
 					// hit a breakpoint, pause execution
 					if (result >= 1) {
 						this.lastStepHitBreakpoint = true;
-						this.state = VmState.Paused;
+						this.state = VirtualMachineState.Paused;
 						if (this.stateChangeListener) this.stateChangeListener(this, this.state);
-						this.vm.print();
+						this.printVmState();
 						return;
 					}
 				} else {
@@ -238,10 +241,10 @@ export class Vm {
 						requestAnimationFrame(() => this.frame());
 						return;
 					}
-					this.state = VmState.Stopped;
+					this.state = VirtualMachineState.Stopped;
 					if (this.stateChangeListener) this.stateChangeListener(this, this.state);
 					this.printVmTime();
-					this.vm.print();
+					this.printVmState();
 					return;
 				}
 				let frameTime = performance.now() - frameStart;
@@ -252,18 +255,13 @@ export class Vm {
 			}
 		}
 	}
-
-	private stateChangeListener: (vm: Vm, state: VmState) => void = null;
-	setStateChangeListener = (listener: (vm: Vm, state: VmState) => void) => {
-		this.stateChangeListener = listener;
-	}
 }
 
 let loaded = false;
-export async function createVm (canvas: HTMLCanvasElement) {
+export async function createVirtualMachine (canvas: HTMLCanvasElement) {
 	if (!loaded) {
 		loaded = true;
 		await ulang.loadUlang();
 	}
-	return new Vm(canvas);
+	return new VirtualMachine(canvas);
 }

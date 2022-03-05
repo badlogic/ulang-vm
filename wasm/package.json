@@ -5,7 +5,7 @@
   "scripts": {
     "clean": "rm -rf ulang-vm/dist && rm ulang-vm/src/ulang.* && rm -rf ulang-site/assets/js rm -rf ulang-site/assets/js",
     "build": "npm run clean && npm run build:modules && npm run build:wasm npm && run build:ulang-vm && npm run build:ulang-site",
-    "build:modules": "npx tsc -b -clean && npx tsc -b",
+    "build:modules": "npx tsc -b -clean && npx tsc -b && cp ulang-vm/src/ulang.js ulang-vm/dist",
     "build:wasm": "./ulang-vm/build-wasm.sh -g",
     "build:ulang-vm": "npm run build:wasm && ./ulang-vm/esbuild.js",
     "build:ulang-site": "./ulang-site/esbuild.js",
