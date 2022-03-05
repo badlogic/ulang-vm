@@ -5,9 +5,6 @@ import * as ulang from "@marioslab/ulang-vm"
 
 (globalThis as any).self.MonacoEnvironment = {
 	getWorkerUrl: function (moduleId, label) {
-		if (label === "typescript" || label === "javascript") {
-			return "./js/ts.worker.js";
-		}
 		return "./js/editor.worker.js";
 	},
 };

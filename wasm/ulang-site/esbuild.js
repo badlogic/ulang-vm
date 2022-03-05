@@ -6,7 +6,6 @@ require('esbuild').build({
 	entryPoints: {
 		index: "ulang-site/src/index.ts",
 		"editor.worker": "monaco-editor/esm/vs/editor/editor.worker.js",
-		"ts.worker": "monaco-editor/esm/vs/language/typescript/ts.worker",
 	},
 	bundle: true,
 	tsconfig: "ulang-site/tsconfig.json",
