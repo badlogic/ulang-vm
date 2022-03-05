@@ -1,0 +1,962 @@
+<html>
+<head>
+    <meta http-equiv="X-UA-Compatible" content="IE=edge"/>
+    <meta http-equiv="Content-Type" content="text/html;charset=utf-8">
+    <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://unpkg.com/monaco-editor@latest/min/vs/editor/editor.main.css">
+</head>
+
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        height: 100vh;
+        font-family: monospace;
+        font-size: 16px;
+        color: #cccccc;
+        background: #111111;
+    }
+
+    .col {
+        flex: 1;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .row {
+        height: 100%;
+        display: flex;
+        flex-direction: row;
+    }
+
+    .collapse-bar {
+        width: 100%;
+        height: 2em;
+        line-height: 2em;
+        padding-left: 1em;
+        background: #272727;
+        cursor: grab;
+        border-left: solid 1px #111111;
+    }
+
+    #editor {
+        flex: 1;
+        max-width: 50vw;
+        height: calc(50% - 2em);
+    }
+
+    #help {
+        flex: 1;
+        padding: 0 1em;
+        overflow: auto;
+        font-size: 14px;
+        height: 50%;
+    }
+
+    #output-container {
+        flex: 1;
+        height: calc(50% - 2em);
+    }
+
+    #output {
+        background: black;
+        image-rendering: pixelated;
+        display: block;
+        margin: auto;
+    }
+
+    #debug {
+        flex: 1;
+        overflow: auto;
+        font-size: 14px;
+        height: calc(50% - 2em);
+        border-left: solid 1px black;
+    }
+
+    #debugger-buttons {
+        display: flex;
+        flex-direction: row;
+        user-select: none;
+        margin-left: -1em;
+    }
+
+    .debugger-button {
+        width: 32px;
+        height: 32px;
+        background-size: 16px;
+        background-position: 50%;
+        background-repeat: no-repeat;
+        display: inline-block;
+        cursor: pointer;
+        opacity: 1;
+    }
+
+    .debugger-button:hover {
+        border: 1px solid #828282;
+    }
+
+    .debugger-button[disabled] {
+        color: rgba(1, 1, 1, 0.2);
+        cursor: default;
+        opacity: 0.4;
+    }
+
+    .debugger-button:active {
+        background-position: 60% 60%;
+    }
+
+    .run-icon {
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cdefs%3E%3Cstyle%3E.icon-canvas-transparent,.icon-vs-out{fill:%23252526}.icon-canvas-transparent{opacity:0}.icon-vs-action-green{fill:%2389d185}%3C/style%3E%3C/defs%3E%3Ctitle%3Econtinue%3C/title%3E%3Cpath class='icon-canvas-transparent' d='M16 0v16H0V0z' id='canvas'/%3E%3Cpath class='icon-vs-action-green' d='M4 1.5v13L12.667 8 4 1.5z' id='iconBg'/%3E%3C/svg%3E");
+        fill: green;
+    }
+
+    .continue-icon {
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cdefs%3E%3Cstyle%3E.icon-canvas-transparent,.icon-vs-out{fill:%23252526}.icon-canvas-transparent{opacity:0}.icon-vs-action-blue{fill:%2375beff}%3C/style%3E%3C/defs%3E%3Ctitle%3Econtinue%3C/title%3E%3Cpath class='icon-canvas-transparent' d='M16 0v16H0V0z' id='canvas'/%3E%3Cpath class='icon-vs-action-blue' d='M3 3h2v10H3zm4.5 0v10L14 8z' id='iconBg'/%3E%3C/svg%3E");
+    }
+
+    .pause-icon {
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cdefs%3E%3Cstyle%3E.icon-canvas-transparent,.icon-vs-out{fill:%23252526}.icon-canvas-transparent{opacity:0}.icon-vs-action-blue{fill:%2375beff}%3C/style%3E%3C/defs%3E%3Ctitle%3Epause%3C/title%3E%3Cpath class='icon-canvas-transparent' d='M16 0v16H0V0z' id='canvas'/%3E%3Cpath class='icon-vs-action-blue' d='M4 3h2.5v10H4zm5.5 0v10H12V3z' id='iconBg'/%3E%3C/svg%3E");
+    }
+
+    .step-icon {
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cdefs%3E%3Cstyle%3E.icon-canvas-transparent,.icon-vs-out{fill:%23252526}.icon-canvas-transparent{opacity:0}.icon-vs-bg{fill:%23c5c5c5}.icon-vs-action-blue{fill:%2375beff}%3C/style%3E%3C/defs%3E%3Ctitle%3Estep-over%3C/title%3E%3Cpath class='icon-canvas-transparent' d='M16 0v16H0V0z' id='canvas'/%3E%3Cpath class='icon-vs-bg' d='M10 13a2 2 0 1 1-2-2 2 2 0 0 1 2 2z' id='iconBg'/%3E%3Cpath class='icon-vs-action-blue' d='M15 2v6H9V6h2.237a4.481 4.481 0 0 0-8.186 2H1.025A6.482 6.482 0 0 1 13 5.069V2z' id='colorAction'/%3E%3C/svg%3E");
+    }
+
+    .stop-icon {
+        background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cdefs%3E%3Cstyle%3E.icon-canvas-transparent,.icon-vs-out{fill:%23252526}.icon-canvas-transparent{opacity:0}.icon-vs-action-red{fill:%23f48771}%3C/style%3E%3C/defs%3E%3Ctitle%3Estop%3C/title%3E%3Cpath class='icon-canvas-transparent' d='M16 0v16H0V0z' id='canvas'/%3E%3Cpath class='icon-vs-action-red' d='M13 3v10H3V3z' id='iconBg'/%3E%3C/svg%3E");
+    }
+
+    .debug-curr-line {
+        background: rgba(255, 240, 0, 0.1);
+    }
+
+    .debug-breakpoint::before {
+        content: '⬤';
+        color: crimson;
+    }
+</style>
+
+<body>
+<script src="ulang.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+<!-- Monaco editor JS files need to be included in the <body> tag. Who knows why... -->
+<script>var require = {paths: {'vs': 'https://unpkg.com/monaco-editor@latest/min/vs'}};</script>
+<script src="https://unpkg.com/monaco-editor@latest/min/vs/loader.js"></script>
+<script src="https://unpkg.com/monaco-editor@latest/min/vs/editor/editor.main.nls.js"></script>
+<script src="https://unpkg.com/monaco-editor@latest/min/vs/editor/editor.main.js"></script>
+
+
+<div class="row">
+    <div class="col">
+        <div class="collapse-bar">
+        </div>
+        <div id="editor"></div>
+
+        <div id="collapse-help" class="collapse-bar">Help</div>
+        <div id="help"></div>
+    </div>
+
+    <div class="col">
+        <div id="collapse-output" class="collapse-bar">
+            <div id="debugger-buttons">
+                <div id="debug-run" class="debugger-button run-icon"></div>
+                <div id="debug-continue" class="debugger-button continue-icon" style="display: none"></div>
+                <div id="debug-pause" class="debugger-button pause-icon" style="display: none"></div>
+                <div id="debug-step" class="debugger-button step-icon" style="display: none"></div>
+                <div id="debug-stop" class="debugger-button stop-icon" style="display: none"></div>
+            </div>
+        </div>
+        <div id="output-container">
+            <canvas id="output" width="320" height="240"></canvas>
+        </div>
+
+        <div id="collapse-debug" class="collapse-bar">
+        </div>
+        <table id="debug">
+            <tr>
+                <th>registers</th>
+                <th>stack</th>
+                <th>memory</th>
+            </tr>
+            <tr>
+                <td id="debug-registers"></td>
+                <td id="debug-stack"></td>
+                <td id="debug-memory"></td>
+            </tr>
+        </table>
+    </div>
+</div>
+<script>
+    fetch("./help.md").then(response => response.text()).then(data => {
+        document.getElementById("help").innerHTML = marked.parse(data);
+    });
+
+    let setupCollapseBar = (id, target, cb) => {
+        let el = document.getElementById(id);
+        el.addEventListener("click", () => {
+            let t = document.getElementById(target);
+            let style = t.style;
+            style.display = style.display == "none" ? "" : "none";
+            if (cb) cb();
+        });
+    }
+
+    // Everything is terrible
+    let resizeOutput = () => {
+        let canvas = document.getElementById("output");
+        let container = canvas.parentElement;
+        // Force reflow
+        canvas.style.width = 1 + "px";
+        canvas.style.height = 1 + "px";
+        if (container.clientWidth < container.clientHeight) {
+            canvas.style.width = container.clientWidth + "px";
+            canvas.style.height = container.clientWidth * (240 / 320) + "px";
+        } else {
+            canvas.style.width = container.clientWidth + "px";
+            canvas.style.height = "auto";
+            if (canvas.clientHeight > container.clientHeight) {
+                canvas.style.height = container.clientHeight + "px";
+                canvas.style.width = container.clientHeight * (320 / 240) + "px";
+            }
+        }
+    }
+    window.addEventListener("resize", () => resizeOutput());
+    resizeOutput();
+
+    setupCollapseBar("collapse-help", "help", () => editorInternal.layout());
+    setupCollapseBar("collapse-output", "output-container");
+    setupCollapseBar("collapse-debug", "debug", () => resizeOutput());
+
+    ulang().then((ulang) => {
+        let compile = function (source) {
+            let result = {
+                error: ulang.newError(),
+                file: ulang.newFile("source", source),
+                program: ulang.newProgram(),
+                free: function () {
+                    this.program.free();
+                    this.file.free();
+                    this.error.free();
+                }
+            }
+            ulang.compile(result.file, result.program, result.error);
+            return result;
+        };
+
+        let vmDebugger = ((canvas) => {
+            this.STATE_RUNNING = 0;
+            this.STATE_PAUSED = 1;
+            this.STATE_STOPPED = 2;
+
+            this.vm = null;
+            this.state = STATE_STOPPED;
+
+            let compilerResult = null
+            let vmStart = 0;
+            let executedInstructions = 0;
+            let vsyncHit = false;
+            let breakpoints = [];
+            let bpPtr = 0;
+            let numBps = 0;
+
+            this.setBreakpoints = (bps) => {
+                breakpoints = bps;
+                if (bpPtr != 0) {
+                    ulang.free(bpPtr);
+                    bpPtr = 0;
+                    numBps = 0;
+                }
+                if (state != STATE_STOPPED) calculateBreakpoints();
+            }
+
+            let calculateBreakpoints = () => {
+                if (bpPtr != 0) return bpPtr;
+                // Needs to come before the next line, as WASM memory can grow and pointers may get relocated
+                let addressToLine = vm.program().addressToLine();
+                let p = bpPtr = ulang.alloc(4 * breakpoints.length);
+                for (var i = 0; i < breakpoints.length; i++) {
+                    let bpLine = breakpoints[i];
+                    for (var j = 0; j < addressToLine.length; j++) {
+                        if (addressToLine[j] == bpLine) {
+                            ulang.setUint32(p, j * 4);
+                            p += 4;
+                            numBps++;
+                            break;
+                        }
+                    }
+                }
+                return bpPtr;
+            }
+
+            let syscallHandler = (syscall, vmPtr) => {
+                let vm = ulang.nativeToJsVm(vmPtr);
+                switch (syscall) {
+                    case 0:
+                        return -1;
+                    case 1:
+                        let buffer = vm.popUint();
+                        ulang.argbToRgba(vm.memoryPtr() + buffer, 320 * 240);
+                        let frame = new Uint8ClampedArray(ulang.HEAPU8.buffer, vm.memoryPtr() + buffer, 320 * 240 * 4);
+                        let imageData = new ImageData(frame, 320, 240);
+                        canvas.getContext("2d").putImageData(imageData, 0, 0);
+                        vsyncHit = true;
+                        return 0;
+                    case 2: {
+                        let numArgs = vm.popUint();
+                        let str = "";
+                        for (let i = 0; i < numArgs; i++) {
+                            let argType = vm.popUint(vm);
+                            switch (argType) {
+                                case 0:
+                                    str += vm.popInt();
+                                    break;
+                                case 1:
+                                    str += "0x" + vm.popInt().toString(16);
+                                    break;
+                                case 2:
+                                    str += vm.popFloat();
+                                    break;
+                                case 3:
+                                    let strAddr = vm.popUint();
+                                    str += ulang.UTF8ArrayToString(ulang.HEAPU8, vm.memoryPtr() + strAddr);
+                                    break;
+                                default:
+                                    break;
+                            }
+                        }
+                        console.log(str);
+                        return -1;
+                    }
+                }
+            }
+            let syscallHandlerPtr = ulang.addFunction(syscallHandler, "iii");
+
+            this.run = (source) => {
+                if (compilerResult) {
+                    compilerResult.free();
+                    compilerResult = null;
+                }
+                if (vm) {
+                    vm.free();
+                    vm = null;
+                }
+
+                compilerResult = compile(source);
+                if (compilerResult.error.isSet()) {
+                    alert("Can't run program with errors.");
+                    compilerResult.free();
+                    if (stateChangeListener) stateChangeListener(this, state);
+                    return;
+                }
+                vm = ulang.newVm(compilerResult.program);
+                vm.setSyscall(0, syscallHandlerPtr);
+                vm.setSyscall(1, syscallHandlerPtr);
+                vm.setSyscall(2, syscallHandlerPtr);
+                vmStart = performance.now();
+                executedInstructions = 0;
+                lastStepHitBreakpoint = false;
+                state = STATE_RUNNING;
+                if (stateChangeListener) stateChangeListener(this, state);
+                console.log("Starting vm.");
+                requestAnimationFrame(frame);
+            }
+
+            this.stop = () => {
+                if (state != STATE_RUNNING && state != STATE_PAUSED) return;
+                state = STATE_STOPPED;
+                if (stateChangeListener) stateChangeListener(this, state);
+                printVmTime();
+                vm.print();
+            }
+
+            this.pause = () => {
+                if (state != STATE_RUNNING) return;
+                state = STATE_PAUSED;
+                if (stateChangeListener) stateChangeListener(this, state);
+                vm.print();
+            }
+
+            this.continue = () => {
+                if (state != STATE_PAUSED) return;
+                state = STATE_RUNNING;
+                if (stateChangeListener) stateChangeListener(this, state);
+                vm.print();
+                requestAnimationFrame(frame);
+            }
+
+            this.step = () => {
+                if (state != STATE_PAUSED) return;
+                if (!vm.step()) {
+                    if (vsyncHit) {
+                        vsyncHit = false;
+                    } else {
+                        state = STATE_STOPPED;
+                        if (stateChangeListener) stateChangeListener(this, state);
+                        return;
+                    }
+                }
+                if (stateChangeListener) stateChangeListener(this, state);
+                vm.print();
+            }
+
+            this.getCurrLine = () => {
+                if (state != STATE_PAUSED) return;
+                let pc = vm.registers()[14].ui() >> 2;
+                let addressToLine = vm.program().addressToLine();
+                if (pc >= addressToLine.length) return -1;
+                return addressToLine[pc];
+            }
+
+            let printVmTime = () => {
+                let vmTime = (performance.now() - vmStart) / 1000;
+                console.log("VM took " + vmTime + " secs");
+                console.log("Executed " + executedInstructions + " instructions, " + ((executedInstructions / vmTime) | 0) + " ins/s");
+            }
+
+            let lastStepHitBreakpoint = false;
+            let frame = () => {
+                if (state == STATE_RUNNING) {
+                    let frameStart = performance.now();
+                    const instsPerStep = 20000;
+
+                    // if we had a breakpoint in the last frame, we need
+                    // to step over the current instruction, so we don't
+                    // get stuck there.
+                    if (lastStepHitBreakpoint) {
+                        lastStepHitBreakpoint = false;
+                        if (!vm.step()) {
+                            if (vsyncHit) {
+                                vsyncHit = false;
+                                requestAnimationFrame(frame);
+                                return;
+                            }
+                            state = STATE_STOPPED;
+                            if (stateChangeListener) stateChangeListener(this, state);
+                            printVmTime();
+                            vm.print();
+                            return;
+                        }
+                    }
+
+                    while (true) {
+                        executedInstructions += instsPerStep;
+                        var result = false;
+                        if (breakpoints.length > 0) calculateBreakpoints();
+                        if (numBps > 0) {
+                            result = vm.stepNBP(instsPerStep, bpPtr, numBps);
+                            // hit a breakpoint, pause execution
+                            if (result >= 1) {
+                                lastStepHitBreakpoint = true;
+                                state = STATE_PAUSED;
+                                if (stateChangeListener) stateChangeListener(this, state);
+                                vm.print();
+                                return;
+                            }
+                        } else {
+                            result = vm.stepN(instsPerStep);
+                        }
+
+                        if (!result) {
+                            if (vsyncHit) {
+                                vsyncHit = false;
+                                requestAnimationFrame(frame);
+                                return;
+                            }
+                            state = STATE_STOPPED;
+                            if (stateChangeListener) stateChangeListener(this, state);
+                            printVmTime();
+                            vm.print();
+                            return;
+                        }
+                        let frameTime = performance.now() - frameStart;
+                        if (frameTime > 16) {
+                            requestAnimationFrame(frame);
+                            return;
+                        }
+                    }
+                }
+            }
+
+            let stateChangeListener = null;
+            this.setStateChangeListener = (listener) => {
+                stateChangeListener = listener;
+            }
+
+            return this;
+        })(document.getElementById("output"));
+
+        let editor = (() => {
+            defineUlangLanguage();
+
+            this.editorInternal = monaco.editor.create(document.getElementById("editor"), {
+                automaticLayout: true,
+                theme: "vs-dark",
+                language: "ulang",
+                glyphMargin: true,
+                tabSize: 3
+            });
+
+            editorInternal.onDidChangeModelContent(() => {
+                let result = compile(editorInternal.getValue());
+                if (result.error.isSet()) {
+                    result.error.print();
+                    let base = result.file.data().data();
+                    let startLineNumber = result.error.span().startLine();
+                    let startLine = result.file.lines()[startLineNumber].data().data() - base;
+                    let endLineNumber = result.error.span().endLine();
+                    let endLine = result.file.lines()[endLineNumber].data().data() - base;
+
+                    let spanStart = result.error.span().data().data() - base;
+                    let spanEnd = spanStart + result.error.span().data().length();
+
+                    let startCol = spanStart - startLine + 1;
+                    let endCol = spanEnd - endLine + 1;
+
+                    let markers = [
+                        {
+                            severity: monaco.MarkerSeverity.Error,
+                            startLineNumber: startLineNumber,
+                            startColumn: startCol,
+                            endLineNumber: endLineNumber,
+                            endColumn: endCol,
+                            message: result.error.message().toString()
+                        }
+                    ];
+                    monaco.editor.setModelMarkers(editorInternal.getModel(), "ulang", markers);
+                } else {
+                    monaco.editor.setModelMarkers(editorInternal.getModel(), "ulang", []);
+                }
+                result.free();
+                ulang.printMemory();
+            });
+
+            let decorations = [];
+            let breakpoints = {};
+            let currLine = null;
+
+            editorInternal.onMouseDown((e) => {
+                if (e.target.type !== 2) return;
+                toggleBreakpoint(e.target.range.startLineNumber);
+            });
+
+            let updateDecorations = () => {
+                let newDecorations = [];
+                for (var bpLine in breakpoints) {
+                    var bpDecoration = breakpoints[bpLine];
+                    if (bpDecoration) newDecorations.push(bpDecoration);
+                }
+                if (currLine) newDecorations.push(currLine);
+                decorations = editorInternal.deltaDecorations(decorations, newDecorations);
+            }
+
+            let toggleBreakpoint = (lineNumber) => {
+                let previousDecoration = breakpoints[lineNumber];
+                if (previousDecoration) {
+                    delete breakpoints[lineNumber];
+                } else {
+                    breakpoints[lineNumber] = {
+                        range: new monaco.Range(lineNumber, 1, lineNumber, 1),
+                        options: {
+                            isWholeLine: true,
+                            glyphMarginClassName: 'debug-breakpoint'
+                        }
+                    };
+                }
+                if (breakpointListener) breakpointListener(this.getBreakpoints());
+                updateDecorations();
+            }
+
+            this.getBreakpoints = () => {
+                var bpLines = [];
+                for (var bp in breakpoints) {
+                    bpLines.push(bp);
+                }
+                return bpLines;
+            }
+
+            this.setCurrLine = (lineNum) => {
+                if (lineNum == -1) {
+                    currLine = null;
+                    updateDecorations();
+                    return;
+                }
+                currLine = {
+                    range: new monaco.Range(lineNum, 1, lineNum, 1000),
+                    options: {
+                        isWholeLine: true,
+                        className: "debug-curr-line",
+                    }
+                }
+                updateDecorations();
+                editorInternal.revealPositionInCenter({lineNumber: lineNum, column: 1});
+            };
+
+            this.getContent = () => editorInternal.getValue(0);
+
+            let breakpointListener;
+            this.setBreakpointListener = (listener) => {
+                breakpointListener = listener;
+            }
+
+            editorInternal.setValue(exampleFire);
+
+            return this;
+        })();
+
+        let debuggerUI = ((editor, vmDebugger) => {
+            let run = document.getElementById("debug-run");
+            let cont = document.getElementById("debug-continue");
+            let pause = document.getElementById("debug-pause");
+            let stop = document.getElementById("debug-stop");
+            let step = document.getElementById("debug-step");
+
+            let setButtonStates = (state) => {
+                switch (state) {
+                    case vmDebugger.STATE_RUNNING:
+                        run.style.display = "none";
+                        cont.style.display = "none";
+                        pause.style.display = "";
+                        stop.style.display = "";
+                        step.style.display = "none";
+                        break;
+                    case vmDebugger.STATE_PAUSED:
+                        run.style.display = "none";
+                        cont.style.display = "";
+                        pause.style.display = "none";
+                        stop.style.display = "";
+                        step.style.display = "";
+                        break;
+                    case vmDebugger.STATE_STOPPED:
+                        run.style.display = "";
+                        cont.style.display = "none";
+                        pause.style.display = "none";
+                        stop.style.display = "none";
+                        step.style.display = "none";
+                        break;
+                }
+            }
+
+            run.addEventListener("click", (e) => {
+                e.stopPropagation();
+                vmDebugger.run(editor.getContent());
+            });
+            cont.addEventListener("click", (e) => {
+                e.stopPropagation();
+                vmDebugger.continue();
+            });
+            pause.addEventListener("click", (e) => {
+                e.stopPropagation();
+                vmDebugger.pause();
+            });
+            stop.addEventListener("click", (e) => {
+                e.stopPropagation();
+                vmDebugger.stop();
+            });
+            step.addEventListener("click", (e) => {
+                e.stopPropagation();
+                vmDebugger.step();
+            });
+
+            let updateDebugMemory = () => {
+
+            }
+
+            vmDebugger.setStateChangeListener((vmDebugger, state) => {
+                setButtonStates(state);
+
+                switch (state) {
+                    case vmDebugger.STATE_PAUSED:
+                        let lineNum = vmDebugger.getCurrLine();
+                        editor.setCurrLine(lineNum);
+                        updateMemory();
+                        break;
+                    case vmDebugger.STATE_STOPPED:
+                    case vmDebugger.STATE_RUNNING:
+                        editor.setCurrLine(-1);
+
+                        break;
+                }
+            });
+
+            editor.setBreakpointListener((breakpoints) => {
+                vmDebugger.setBreakpoints(breakpoints);
+            });
+
+            monaco.languages.registerHoverProvider('ulang', {
+                provideHover: (model, position) => {
+                    if (vmDebugger.state == STATE_PAUSED) {
+                        let lineNum = position.lineNumber;
+                        let startCol = position.column - 1;
+                        let endCol = position.column - 1;
+
+                        let line = editor.getContent().split("\n")[lineNum - 1];
+                        for (let i = startCol; i >= 0; i--) {
+                            let c = line.charAt(i);
+                            if (c == ' ' || c == '\n' || c == '\t' || c == "," || c == ":") break;
+                            startCol--;
+                        }
+                        startCol++;
+                        for (let i = endCol; i < line.length; i++) {
+                            let c = line.charAt(i);
+                            if (c == ' ' || c == '\n' || c == '\t' || c == "," || c == ":") break;
+                            endCol++;
+                        }
+                        if (startCol > endCol) return {};
+
+                        let token = line.substring(startCol, endCol);
+                        let regs = ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "pc", "sp"];
+                        let regIdx = -1;
+                        for (let i = 0; i < regs.length; i++) {
+                            if (token == regs[i]) {
+                                regIdx = i;
+                                break;
+                            }
+                        }
+
+                        let result = {};
+                        if (regIdx != -1) {
+                            let i = vmDebugger.vm.registers()[regIdx].i();
+                            let u = vmDebugger.vm.registers()[regIdx].ui();
+                            let h = "0x" + u.toString(16);
+                            let f = vmDebugger.vm.registers()[regIdx].f();
+                            result = {
+                                range: new monaco.Range(lineNum, startCol, lineNum, endCol),
+                                contents: [
+                                    {value: "**" + token + "**"},
+                                    {value: "```html\nint: " + i + "\nuint: " + u + "\nhex: " + h + "\nfloat: " + f + "\n"}
+                                ]
+                            };
+                        }
+
+                        let labels = vmDebugger.vm.program().labels();
+                        for (let i = 0; i < labels.length; i++) {
+                            let label = labels[i];
+                            if (label.label().data().toString() == token) {
+                                result = {
+                                    range: new monaco.Range(lineNum, startCol, lineNum, endCol),
+                                    contents: [
+                                        {value: "**" + token + "**"},
+                                        {value: "```html\naddress: 0x" + label.address().toString(16) + ", " + label.address().toString() + "\n"}
+                                    ]
+                                };
+                            }
+                        }
+                        return result;
+                    } else {
+                        return {};
+                    }
+                }
+            });
+
+            setButtonStates(vmDebugger.STATE_STOPPED);
+            return this;
+        })(editor, vmDebugger);
+    });
+
+    let defineUlangLanguage = () => {
+        monaco.languages.register({id: 'ulang'});
+        monaco.languages.setMonarchTokensProvider('ulang', {
+            defaultToken: 'invalid',
+            keywords: [
+                "halt", "brk", "add", "sub", "mul", "div", "divu", "rem", "remu", "addf", "subf", "mulf", "divf", "cosf", "sinf", "atan2", "sqrtf", "powf", "rand", "i2f", "f2i",
+                "not", "and", "or", "xor", "shl", "shr", "shru",
+                "cmp", "cmpu", "cmpf",
+                "jmp", "je", "jne", "jl", "jg", "jle", "jge",
+                "mov",
+                "ld", "sto", "ldb", "stob", "lds", "stos",
+                "push", "stackalloc", "pop",
+                "call", "ret", "retn",
+                "syscall",
+                "reserve", "byte", "short", "int", "float"
+            ],
+            operators: ["~", "+", "-", "|", "&", "^", "/", "*", "%"],
+            registers: ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "pc", "sp"],
+            escapes: /\\(?:[abfnrtv\\"']|x[0-9A-Fa-f]{1,4}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})/,
+            tokenizer: {
+                root: [
+                    // identifiers and keywords
+                    [/[a-z_$][\w$]*/, {
+                        cases: {
+                            '@keywords': 'keyword',
+                            "@registers": "attribute.name",
+                            '@default': 'annotation'
+                        }
+                    }],
+                    {include: '@whitespace'},
+                    [/[=><!~?:&|+\-*\/\^%]+/, {
+                        cases: {
+                            '@operators': 'operator',
+                            '@default': ''
+                        }
+                    }],
+                    [/\d*\.\d+([eE][\-+]?\d+)?/, 'number.float'],
+                    [/0[xX][0-9a-fA-F]+/, 'number.hex'],
+                    [/\d+/, 'number'],
+                    [/[;,.]/, 'delimiter'],
+                    [/"([^"\\]|\\.)*$/, 'string.invalid'],  // non-teminated string
+                    [/"/, {token: 'string.quote', bracket: '@open', next: '@string'}],
+                ],
+                string: [
+                    [/[^\\"]+/, 'string'],
+                    [/@escapes/, 'string.escape'],
+                    [/\\./, 'string.escape.invalid'],
+                    [/"/, {token: 'string.quote', bracket: '@close', next: '@pop'}]
+                ],
+                whitespace: [
+                    [/[ \t\r\n]+/, 'white'],
+                    [/#.*$/, 'comment'],
+                ],
+            },
+        });
+    }
+
+    let exampleFire = `buffer: reserve int x 320 * 240 * 4
+fire: reserve byte x 320 * 240
+palette: int 0xff070707, 0xff1F0707, 0xff2F0F07, 0xff470F07, 0xff571707, 0xff671F07, 0xff771F07, 0xff8F2707, 0xff9F2F07, 0xffAF3F07, 0xffBF4707, 0xffC74707, 0xffDF4F07, 0xffDF5707, 0xffDF5707, 0xffD75F07, 0xffD75F07, 0xffD7670F, 0xffCF6F0F, 0xffCF770F, 0xffCF7F0F, 0xffCF8717, 0xffC78717, 0xffC78F17, 0xffC7971F, 0xffBF9F1F,0xffBF9F1F, 0xffBFA727, 0xffBFA727, 0xffBFAF2F, 0xffB7AF2F, 0xffB7B72F, 0xffB7B737, 0xffCFCF6F, 0xffDFDF9F, 0xffEFEFC7, 0xffFFFFFF
+
+   # clear buffer
+   mov buffer, r1
+   mov 0, r2
+   mov 0xff000000, r3
+clear_buffer_loop:
+   sto r3, r1, r2
+   add r2, 4, r2
+   cmp r2, 320 * 240 * 4, r4
+   jl r4, clear_buffer_loop
+
+   # clear fire
+   mov fire, r1
+   mov 0, r2
+   mov 0, r3
+clear_fire_loop:
+   sto r3, r1, r2
+   add r2, 1, r2
+   cmp r2, 320 * 240, r4
+   jl r4, clear_fire_loop
+
+   # set bottom fire row
+   mov 320 * 239, r2
+   mov 36, r3
+set_bottom_fire_loop:
+   sto r3, r1, r2
+   add r2, 1, r2
+   cmp r2, 320 * 240, r4
+   jl r4, set_bottom_fire_loop
+
+main_loop:
+
+   # update fire
+   mov fire, r1
+   add r1, 320 * 240, r2
+   add r1, 320, r1
+
+   update_fire_loop:
+      rand r6
+      mulf r6, 3, r6
+      f2i r6, r6
+      mov r6, r7
+      and r6, 1, r6
+
+      ldb r1, 0, r4
+      sub r4, r6, r4
+      cmp r4, 0, r5
+      jge r5, set_fire
+      mov 0, r4
+   set_fire:
+      mov r1, r3
+      sub r3, 320, r3 # to
+      sub r3, r7, r3
+      add r3, 1, r3
+      stob r4, r3, 0
+
+      add r1, 1, r1
+      cmp r1, r2, r5
+      jl r5, update_fire_loop
+
+   # draw fire
+   mov fire, r1
+   add r1, 320 * 240, r2
+   mov buffer, r3
+   mov palette, r4
+
+   draw_fire_loop:
+      # load fire color
+      ldb r1, 0, r5
+      mul r5, 4, r5
+      add r5, palette, r5
+      ld r5, 0, r5
+
+      # store in buffer
+      sto r5, r3, 0
+
+      # advance to next pixel
+      add r1, 1, r1
+      add r3, 4, r3
+      cmp r1, r2, r5
+      jl r5, draw_fire_loop
+
+
+   # update buffer
+   push buffer
+   syscall 0x1
+
+   jmp main_loop
+`;
+
+    let exampleFib = `   push 30
+   call fib
+   halt
+
+fib:
+   # n == 0? return 0
+   ld sp, 4, r1
+   cmp r1, 0, r2
+   jne r2, not_zero
+   mov 0, r14
+   retn 1
+
+not_zero:
+   # n == 1 || n == 2? return 1
+   cmp r1, 2, r2
+   jg r2, not_one_two
+   mov 1, r14
+   retn 1
+
+not_one_two:
+   # fib(n-1) + fib(n-2)
+   sub r1, 1, r1
+   push r1
+   call fib
+   push r14
+
+   ld sp, 8, r1
+   sub r1, 2, r1
+   push r1
+   call fib
+   pop r13
+   add r14, r13, r14
+   retn 1
+`;
+
+    let examplePrint = `msg: byte "Hello world! "
+
+push 123
+push 0
+push 0xff00ff
+push 1
+push 123.456
+push 2
+push msg
+push 3
+push 4
+syscall 0x2
+halt
+`;
+</script>
+</body>
+
+</html>

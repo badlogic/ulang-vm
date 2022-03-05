@@ -1,5 +1,7 @@
 import * as ulang from "./wrapper";
 
+export { compile, printMemory } from "./wrapper";
+
 export enum VirtualMachineState {
 	Stopped, Running, Paused
 }
@@ -259,10 +261,9 @@ export class VirtualMachine {
 }
 
 let loaded = false;
-export async function createVirtualMachine (canvas: HTMLCanvasElement) {
+export async function loadUlang () {
 	if (!loaded) {
 		loaded = true;
 		await ulang.loadUlang();
 	}
-	return new VirtualMachine(canvas);
 }

@@ -348,14 +348,17 @@ export interface UlangCompilationResult {
 }
 
 export function compile (source): UlangCompilationResult {
+	let error = newError();
+	let file = newFile("source", source);
+	let program = newProgram();
 	let result = {
-		error: newError(),
-		file: newFile("source", source),
-		program: newProgram(),
+		error: error,
+		file: file,
+		program: program,
 		free: () => {
-			this.program.free();
-			this.file.free();
-			this.error.free();
+			program.free();
+			file.free();
+			error.free();
 		},
 	}
 	ulang_compile(result.file.ptr, result.program.ptr, result.error.ptr);

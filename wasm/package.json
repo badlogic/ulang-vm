@@ -3,7 +3,7 @@
   "version": "1.0.1",
   "description": "Virtual machine & assembler for recreational programming like it's 1992.",
   "scripts": {
-    "minify": "esbuild --minify ulang-vm/dist/iife/ulang.js --outfile=ulang-vm/dist/iife/ulang.min.js && esbuild --minify ulang-site/assets/js/index.js --outfile=ulang-site/assets/js/index.min.js",
+    "minify": "esbuild --minify ulang-vm/dist/iife/ulang.js --outfile=ulang-vm/dist/iife/ulang.min.js && esbuild --allow-overwrite --minify ulang-site/assets/js/index.js --outfile=ulang-site/assets/js/index.js && esbuild --allow-overwrite --minify ulang-site/assets/js/ts.worker.js --outfile=ulang-site/assets/js/ts.worker.js && esbuild --allow-overwrite --minify ulang-site/assets/js/editor.worker.js --outfile=ulang-site/assets/js/editor.worker.js",
     "clean": "rm -rf ulang-vm/dist && rm -f ulang-vm/src/ulang.* && rm -rf ulang-site/assets/js",
     "build": "npm run clean && npm run build:wasm && npm run build:modules && npm run build:ulang-vm && npm run build:ulang-site && npm run minify",
     "build:modules": "npx tsc -b -clean && npx tsc -b && cp ulang-vm/src/ulang.js ulang-vm/dist",
@@ -38,6 +38,7 @@
     "concurrently": "^7.0.0",
     "esbuild": "^0.14.24",
     "live-server": "^1.2.1",
+    "monaco-editor": "^0.32.1",
     "npx": "^10.2.2",
     "typescript": "^4.6.2",
     "watch": "^1.0.2"
