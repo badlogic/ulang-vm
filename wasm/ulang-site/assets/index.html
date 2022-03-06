@@ -9,23 +9,23 @@
 	<link rel="stylesheet" data-name="vs/editor/editor.main" href="./js/index.css">
 </head>
 
-<style>
-	* {
-		box-sizing: border-box;
-	}
-
-	body {
-		margin: 0;
-		height: 100vh;
-		font-family: monospace;
-		font-size: 16px;
-		color: #cccccc;
-		background: #111111;
-	}
-</style>
-
 <body>
-	<div id="container" style="width: 100%; height: 100%; background: red;"></div>
+
+	<div class="split-row">
+		<div class="split-col" id="left-col">
+			<div id="editor-container">
+			</div>
+			<div id="help-container"></div>
+		</div>
+		<div class="split-col" id="right-col">
+			<div id="debugger-container">
+				<canvas id="debugger-output" width="320" height="240"></canvas>
+			</div>
+			<div id="debug-view-container"></div>
+		</div>
+	</div>
+
+
 	<script src='./js/index.js'></script>
 </body>
 
