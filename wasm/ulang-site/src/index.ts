@@ -1,5 +1,5 @@
 import "./ui.css"
-import fireExample from "./fire.ul";
+import fireExample from "../../../tests/fire.ul";
 import { Editor } from "./editor"
 import { loadUlang, VirtualMachine } from "@marioslab/ulang-vm"
 import { Debugger } from "./debugger";
