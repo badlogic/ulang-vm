@@ -13,6 +13,7 @@ require('esbuild').build({
 	outdir: 'ulang-site/assets/js',
 	loader: {
 		".ttf": "file",
+		".ul": "text"
 	},
 	watch: watch,
 	logLevel: 'info'

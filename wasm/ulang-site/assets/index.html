@@ -10,18 +10,28 @@
 </head>
 
 <body>
-
-	<div class="split-row">
-		<div class="split-col" id="left-col">
-			<div id="editor-container">
-			</div>
-			<div id="help-container"></div>
+	<div class="main">
+		<div class="toolbar">
+			<a class="logo" href="https://github.com/badlogic/ulang-vm">µlang</a>
+			<div class="toolbar-button icon-save" id="toolbar-save"></div>
+			<div class="toolbar-button icon-run" id="toolbar-run"></div>
+			<div class="toolbar-button icon-continue" id="toolbar-continue"></div>
+			<div class="toolbar-button icon-pause" id="toolbar-pause"></div>
+			<div class="toolbar-button icon-step" id="toolbar-step"></div>
+			<div class="toolbar-button icon-stop" id="toolbar-stop"></div>
 		</div>
-		<div class="split-col" id="right-col">
-			<div id="debugger-container">
-				<canvas id="debugger-output" width="320" height="240"></canvas>
+		<div class="split-row">
+			<div class="split-col" id="left-col">
+				<div id="editor-container">
+				</div>
+				<div id="help-container"></div>
 			</div>
-			<div id="debug-view-container"></div>
+			<div class="split-col" id="right-col">
+				<div id="debugger-container">
+					<canvas id="debugger-output" width="320" height="240"></canvas>
+				</div>
+				<div id="debug-view-container"></div>
+			</div>
 		</div>
 	</div>
 

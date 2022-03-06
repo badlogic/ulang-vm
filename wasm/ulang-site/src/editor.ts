@@ -16,9 +16,12 @@ export class Editor {
 	private breakpointListener: (bps: string[]) => void = null;
 	private currLine: monaco.editor.IModelDeltaDecoration = null;
 
-	constructor (elementId: string) {
+	constructor (containerElement: HTMLElement | string) {
+		let container;
+		if (typeof (containerElement) === "string") container = document.getElementById(containerElement);
+		else container = containerElement;
 		defineUlangLanguage();
-		this.editor = monaco.editor.create(document.getElementById(elementId), {
+		this.editor = monaco.editor.create(container, {
 			automaticLayout: true,
 			theme: "vs-dark",
 			language: "ulang",
@@ -122,6 +125,10 @@ export class Editor {
 
 	getContent () {
 		return this.editor.getValue();
+	}
+
+	setContent (source: string) {
+		return this.editor.setValue(source);
 	}
 
 	setBreakpointListener (listener) {

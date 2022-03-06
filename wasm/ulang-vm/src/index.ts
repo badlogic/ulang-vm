@@ -12,6 +12,7 @@ export enum LogLevel {
 }
 
 export class VirtualMachine {
+	private canvas: HTMLCanvasElement;
 	private vm: ulang.UlangVm;
 	private state = VirtualMachineState.Stopped;
 	private compilerResult: ulang.UlangCompilationResult = null
@@ -26,7 +27,9 @@ export class VirtualMachine {
 	private stateChangeListener: (vm: VirtualMachine, state: VirtualMachineState) => void = null;
 	private logLevel = LogLevel.Info;
 
-	constructor (public canvas: HTMLCanvasElement) {
+	constructor (canvasElement: HTMLCanvasElement | string) {
+		if (typeof (canvasElement) === "string") this.canvas = document.getElementById(canvasElement) as HTMLCanvasElement;
+		else this.canvas = canvasElement;
 		let syscallHandler = (syscall, vmPtr) => {
 			let vm = ulang.ptrToUlangVm(vmPtr);
 			switch (syscall) {
@@ -182,6 +185,18 @@ export class VirtualMachine {
 		let addressToLine: number[] = this.vm.program().addressToLine();
 		if (pc >= addressToLine.length) return -1;
 		return addressToLine[pc];
+	}
+
+	getState () {
+		return this.state;
+	}
+
+	getRegisters () {
+		return this.vm.registers();
+	}
+
+	getProgram () {
+		return this.vm.program();
 	}
 
 	printVmTime () {
