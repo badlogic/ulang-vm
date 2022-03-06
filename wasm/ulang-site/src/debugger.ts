@@ -60,6 +60,7 @@ export class Debugger {
 			vm.setBreakpoints(breakpoints);
 		});
 
+		this.setupEditorTokenHoven();
 		this.setButtonStates(VirtualMachineState.Stopped);
 	}
 
@@ -79,7 +80,7 @@ export class Debugger {
 			case VirtualMachineState.Running:
 				this.run.style.display = "none";
 				this.cont.style.display = "";
-				this.cont.classList.remove("toolbar-button-disabled");
+				this.cont.classList.add("toolbar-button-disabled");
 				this.pause.classList.remove("toolbar-button-disabled");
 				this.step.classList.add("toolbar-button-disabled");
 				this.stop.classList.remove("toolbar-button-disabled");
