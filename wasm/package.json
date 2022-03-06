@@ -3,8 +3,8 @@
   "version": "1.0.1",
   "description": "Virtual machine & assembler for recreational programming like it's 1992.",
   "scripts": {
-    "minify": "esbuild --minify ulang-vm/dist/iife/ulang.js --outfile=ulang-vm/dist/iife/ulang.min.js && esbuild --allow-overwrite --minify ulang-site/assets/js/index.js --outfile=ulang-site/assets/js/index.js && esbuild --allow-overwrite --minify ulang-site/assets/js/ts.worker.js --outfile=ulang-site/assets/js/ts.worker.js && esbuild --allow-overwrite --minify ulang-site/assets/js/editor.worker.js --outfile=ulang-site/assets/js/editor.worker.js",
-    "clean": "rm -rf ulang-vm/dist && rm -f ulang-vm/src/ulang.* && rm -rf ulang-site/assets/js",
+    "minify": "esbuild --minify ulang-vm/dist/iife/ulang.js --outfile=ulang-vm/dist/iife/ulang.min.js && esbuild --allow-overwrite --minify ulang-site/assets/bundle/index.js --outfile=ulang-site/assets/bundle/index.js && esbuild --allow-overwrite --minify ulang-site/assets/bundle/ts.worker.js --outfile=ulang-site/assets/bundle/ts.worker.js && esbuild --allow-overwrite --minify ulang-site/assets/bundle/editor.worker.js --outfile=ulang-site/assets/bundle/editor.worker.js",
+    "clean": "rm -rf ulang-vm/dist && rm -f ulang-vm/src/ulang.* && rm -rf ulang-site/assets/bundle",
     "build": "npm run clean && npm run build:wasm && npm run build:modules && npm run build:ulang-vm && npm run build:ulang-site && npm run minify",
     "build:modules": "npx tsc -b -clean && npx tsc -b && cp ulang-vm/src/ulang.js ulang-vm/dist",
     "build:wasm": "./ulang-vm/build-wasm.sh",

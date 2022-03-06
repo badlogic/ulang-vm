@@ -5,7 +5,7 @@ import * as ulang from "@marioslab/ulang-vm"
 
 (globalThis as any).self.MonacoEnvironment = {
 	getWorkerUrl: function (moduleId, label) {
-		return "./js/editor.worker.js";
+		return "./bundle/editor.worker.js";
 	},
 };
 

@@ -10,7 +10,7 @@ require('esbuild').build({
 	bundle: true,
 	tsconfig: "ulang-site/tsconfig.json",
 	sourcemap: true,
-	outdir: 'ulang-site/assets/js',
+	outdir: 'ulang-site/assets/bundle',
 	loader: {
 		".ttf": "file",
 		".ul": "text"

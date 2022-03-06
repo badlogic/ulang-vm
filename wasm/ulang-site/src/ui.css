@@ -112,6 +112,6 @@ body {
 #debugger-output {
 	image-rendering: pixelated;
 	image-rendering: crisp-edges;
-	background-color: red;
+	background-color: black;
 	margin: auto 0;
 }
