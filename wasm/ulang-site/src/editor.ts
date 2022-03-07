@@ -12,9 +12,9 @@ import * as ulang from "@marioslab/ulang-vm"
 export class Editor {
 	private editor: monaco.editor.IStandaloneCodeEditor;
 	private decorations: string[] = [];
-	private breakpoints: monaco.editor.IModelDeltaDecoration[] = [];
-	private breakpointListener: (bps: string[]) => void = null;
+	private breakpoints: monaco.editor.IModelDeltaDecoration[] = null;
 	private currLine: monaco.editor.IModelDeltaDecoration = null;
+	private breakpointListener: (bps: number[]) => void = null;
 
 	constructor (containerElement: HTMLElement | string) {
 		let container;
@@ -30,6 +30,7 @@ export class Editor {
 		});
 
 		this.editor.onDidChangeModelContent(() => this.onDidChangeModelContent());
+		this.editor.onDidChangeModelDecorations((e) => this.onDidChangeModelDecorations());
 
 		this.editor.onMouseDown((e) => {
 			if (e.target.type !== 2) return;
@@ -71,39 +72,55 @@ export class Editor {
 		ulang.printMemory();
 	}
 
+	private onDidChangeModelDecorations () {
+		this.breakpoints = this.getBreakpointDecorations();
+		let breakpointLinenumbers = this.breakpoints.map(bp => bp.range.startLineNumber);
+		if (this.breakpointListener) this.breakpointListener(breakpointLinenumbers)
+	}
+
 	private updateDecorations () {
 		let newDecorations: monaco.editor.IModelDeltaDecoration[] = [];
-		for (var bpLine in this.breakpoints) {
-			var bpDecoration = this.breakpoints[bpLine];
-			if (bpDecoration) newDecorations.push(bpDecoration);
-		}
+		for (let i = 0; i < this.breakpoints.length; i++) newDecorations.push(this.breakpoints[i]);
 		if (this.currLine) newDecorations.push(this.currLine);
 		this.decorations = this.editor.deltaDecorations(this.decorations, newDecorations);
 	}
 
+	private getBreakpointDecorations () {
+		let breakpoints: monaco.editor.IModelDeltaDecoration[] = [];
+		let decorations = this.editor.getModel().getAllDecorations();
+		for (let i = 0; i < decorations.length; i++) {
+			let decoration = decorations[i];
+			if (decoration.options.glyphMarginClassName == 'ulang-debug-breakpoint') {
+				breakpoints.push({
+					range: decoration.range,
+					options: decoration.options
+				})
+			}
+		}
+		return breakpoints;
+	}
+
 	private toggleBreakpoint (lineNumber: number) {
-		let previousDecoration = this.breakpoints[lineNumber];
-		if (previousDecoration) {
-			delete this.breakpoints[lineNumber];
-		} else {
-			this.breakpoints[lineNumber] = {
+		this.breakpoints = this.getBreakpointDecorations();
+		let foundBreakpoint = false;
+		this.breakpoints = this.breakpoints.filter(e => {
+			if (e.range.startLineNumber == lineNumber) {
+				foundBreakpoint = true;
+				return false;
+			} else {
+				return true;
+			}
+		})
+		if (!foundBreakpoint) {
+			this.breakpoints.push({
 				range: new monaco.Range(lineNumber, 1, lineNumber, 1),
 				options: {
 					isWholeLine: true,
 					glyphMarginClassName: 'ulang-debug-breakpoint'
 				}
-			};
+			});
 		}
-		if (this.breakpointListener) this.breakpointListener(this.getBreakpoints());
 		this.updateDecorations();
-	}
-
-	private getBreakpoints () {
-		var bpLines: string[] = [];
-		for (var bp in this.breakpoints) {
-			bpLines.push(bp);
-		}
-		return bpLines;
 	}
 
 	setCurrLine = (lineNum: number) => {
