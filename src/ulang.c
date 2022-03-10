@@ -2233,6 +2233,21 @@ EMSCRIPTEN_KEEPALIVE float ulang_vm_pop_float(ulang_vm *vm) {
 	return val;
 }
 
+EMSCRIPTEN_KEEPALIVE void ulang_vm_push_int(ulang_vm *vm, int32_t val) {
+	vm->registers[15].ui -= 4;
+	memcpy(vm->memory + vm->registers[15].ui, &val, 4);
+}
+
+EMSCRIPTEN_KEEPALIVE void ulang_vm_push_uint(ulang_vm *vm, uint32_t val) {
+	vm->registers[15].ui -= 4;
+	memcpy(vm->memory + vm->registers[15].ui, &val, 4);
+}
+
+EMSCRIPTEN_KEEPALIVE void ulang_vm_push_float(ulang_vm *vm, float val) {
+	vm->registers[15].ui -= 4;
+	memcpy(vm->memory + vm->registers[15].ui, &val, 4);
+}
+
 EMSCRIPTEN_KEEPALIVE void ulang_vm_free(ulang_vm *vm) {
 	ulang_free(vm->memory);
 	if (vm->error.is_set) ulang_error_free(&vm->error);
@@ -2311,17 +2326,17 @@ EMSCRIPTEN_KEEPALIVE void ulang_print_offsets() {
 	printf("   program: %lu\n", offsetof(ulang_vm, program));
 }
 
-EMSCRIPTEN_KEEPALIVE uint8_t *ulang_argb_to_rgba(uint8_t *argb, size_t numPixels) {
+EMSCRIPTEN_KEEPALIVE uint8_t *ulang_argb_to_rgba(uint8_t *argb, uint8_t *rgba, size_t numPixels) {
 	numPixels <<= 2;
 	for (int i = 0; i < numPixels; i += 4) {
 		uint8_t b = argb[i];
 		uint8_t g = argb[i + 1];
 		uint8_t r = argb[i + 2];
 		uint8_t a = argb[i + 3];
-		argb[i] = r;
-		argb[i + 1] = g;
-		argb[i + 2] = b;
-		argb[i + 3] = a;
+		rgba[i] = r;
+		rgba[i + 1] = g;
+		rgba[i + 2] = b;
+		rgba[i + 3] = a;
 	}
-	return argb;
+	return rgba;
 }

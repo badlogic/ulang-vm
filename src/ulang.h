@@ -141,6 +141,12 @@ uint32_t ulang_vm_pop_uint(ulang_vm *vm);
 
 float ulang_vm_pop_float(ulang_vm *vm);
 
+void ulang_vm_push_int(ulang_vm *vm, int32_t val);
+
+void ulang_vm_push_uint(ulang_vm *vm, uint32_t val);
+
+void ulang_vm_push_float(ulang_vm *vm, float val);
+
 void ulang_vm_print(ulang_vm *vm);
 
 void ulang_vm_free(ulang_vm *vm);
