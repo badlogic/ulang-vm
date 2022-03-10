@@ -1,6 +1,7 @@
 import * as monaco from "monaco-editor";
 import { Editor } from "./editor"
 import { VirtualMachine, VirtualMachineState } from "@marioslab/ulang-vm"
+import { UlangLabelTarget } from "@marioslab/ulang-vm/src/wrapper";
 
 export class Debugger {
 	private run: HTMLElement;
@@ -147,13 +148,18 @@ export class Debugger {
 					for (let i = 0; i < labels.length; i++) {
 						let label = labels[i];
 						if (label.label().data().toString() == token) {
+							let labelAddress = label.address();
+							if (label.target() == UlangLabelTarget.UL_LT_DATA) labelAddress += this.vm.getProgram().code().byteLength;
+							if (label.target() == UlangLabelTarget.UL_LT_RESERVED_DATA) labelAddress += this.vm.getProgram().code().byteLength + this.vm.getProgram().data().byteLength;
+
 							result = {
 								range: new monaco.Range(lineNum, startCol, lineNum, endCol),
 								contents: [
 									{ value: "**" + token + "**" },
-									{ value: "```html\naddress: 0x" + label.address().toString(16) + ", " + label.address().toString() + "\n" }
+									{ value: "```html\naddress: 0x" + labelAddress.toString(16) + ", " + labelAddress.toString() + "\n" }
 								]
 							};
+							break;
 						}
 					}
 					return result as monaco.languages.ProviderResult<monaco.languages.Hover>;

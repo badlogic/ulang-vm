@@ -12,7 +12,7 @@ require('esbuild').build({
 	sourcemap: true,
 	outdir: 'ulang-site/assets/bundle',
 	loader: {
-		".ttf": "file",
+		".ttf": "dataurl",
 		".ul": "text"
 	},
 	watch: watch,

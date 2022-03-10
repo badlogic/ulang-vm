@@ -15,6 +15,7 @@ export class Editor {
 	private breakpoints: monaco.editor.IModelDeltaDecoration[] = null;
 	private currLine: monaco.editor.IModelDeltaDecoration = null;
 	private breakpointListener: (bps: number[]) => void = null;
+	private contentListener: (content: string) => void = null;
 
 	constructor (containerElement: HTMLElement | string) {
 		let container;
@@ -70,6 +71,7 @@ export class Editor {
 		}
 		result.free();
 		ulang.printMemory();
+		if (this.contentListener) this.contentListener(this.editor.getValue());
 	}
 
 	private onDidChangeModelDecorations () {
@@ -148,8 +150,12 @@ export class Editor {
 		return this.editor.setValue(source);
 	}
 
-	setBreakpointListener (listener) {
+	setBreakpointListener (listener: (bps: number[]) => void) {
 		this.breakpointListener = listener;
+	}
+
+	setContentListener (listener: (content) => void) {
+		this.contentListener = listener;
 	}
 }
 

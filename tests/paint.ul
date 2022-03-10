@@ -1,0 +1,23 @@
+buffer: reserve int x 320 * 240
+
+main_loop:
+   syscall 3
+   pop r5
+   pop r4
+   pop r3
+
+   cmp r5, 0, r5
+   je r5, button_not_pressed
+
+   mul r4, 320, r4
+   add r4, r3, r4
+   mul r4, 4, r4
+   add r4, buffer, r4
+
+   mov 0xff00ff00, r2
+   sto r2, r4, 0
+
+button_not_pressed:
+   push buffer
+   syscall 1
+   jmp main_loop

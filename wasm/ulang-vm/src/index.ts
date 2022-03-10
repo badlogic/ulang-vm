@@ -11,6 +11,11 @@ export enum LogLevel {
 	Info
 }
 
+interface EventListener {
+	type: keyof HTMLElementEventMap,
+	listener: (this: HTMLCanvasElement, ev: HTMLElementEventMap[keyof HTMLElementEventMap]) => any;
+}
+
 export class VirtualMachine {
 	private canvas: HTMLCanvasElement;
 	private vm: ulang.UlangVm;
@@ -26,10 +31,42 @@ export class VirtualMachine {
 	private lastStepHitBreakpoint = false;
 	private stateChangeListener: (vm: VirtualMachine, state: VirtualMachineState) => void = null;
 	private logLevel = LogLevel.Info;
+	private mouseX = 0;
+	private mouseY = 0;
+	private mouseButtonDown = false;
+	private listeners: EventListener[] = [];
+	private rgbaFramePtr: number;
 
 	constructor (canvasElement: HTMLCanvasElement | string) {
 		if (typeof (canvasElement) === "string") this.canvas = document.getElementById(canvasElement) as HTMLCanvasElement;
 		else this.canvas = canvasElement;
+
+		this.rgbaFramePtr = ulang.alloc(320 * 240 * 4);
+
+		this.addEventListener("mousemove", (e) => {
+			var rect = this.canvas.getBoundingClientRect();
+			this.mouseX = ((e.clientX - rect.left) / this.canvas.clientWidth * 320) | 0;
+			this.mouseY = ((e.clientY - rect.top) / this.canvas.clientHeight * 240) | 0;
+		});
+		this.addEventListener("mousedown", (e) => {
+			var rect = this.canvas.getBoundingClientRect();
+			this.mouseX = ((e.clientX - rect.left) / this.canvas.clientWidth * 320) | 0;
+			this.mouseY = ((e.clientY - rect.top) / this.canvas.clientHeight * 240) | 0;
+			this.mouseButtonDown = true;
+		});
+		this.addEventListener("mouseup", (e) => {
+			var rect = this.canvas.getBoundingClientRect();
+			this.mouseX = ((e.clientX - rect.left) / this.canvas.clientWidth * 320) | 0;
+			this.mouseY = ((e.clientY - rect.top) / this.canvas.clientHeight * 240) | 0;
+			this.mouseButtonDown = false;
+		});
+		this.addEventListener("mouseleave", (e) => {
+			var rect = this.canvas.getBoundingClientRect();
+			this.mouseX = ((e.clientX - rect.left) / this.canvas.clientWidth * 320) | 0;
+			this.mouseY = ((e.clientY - rect.top) / this.canvas.clientHeight * 240) | 0;
+			this.mouseButtonDown = false;
+		})
+
 		let syscallHandler = (syscall, vmPtr) => {
 			let vm = ulang.ptrToUlangVm(vmPtr);
 			switch (syscall) {
@@ -37,8 +74,8 @@ export class VirtualMachine {
 					return -1;
 				case 1:
 					let buffer = vm.popUint();
-					ulang.argbToRgba(vm.memoryPtr() + buffer, 320 * 240);
-					let frame = new Uint8ClampedArray(ulang.HEAPU8().buffer, vm.memoryPtr() + buffer, 320 * 240 * 4);
+					ulang.argbToRgba(vm.memoryPtr() + buffer, this.rgbaFramePtr, 320 * 240);
+					let frame = new Uint8ClampedArray(ulang.HEAPU8().buffer, this.rgbaFramePtr, 320 * 240 * 4);
 					let imageData = new ImageData(frame, 320, 240);
 					this.canvas.getContext("2d").putImageData(imageData, 0, 0);
 					this.vsyncHit = true;
@@ -69,9 +106,28 @@ export class VirtualMachine {
 					console.log(str);
 					return -1;
 				}
+				case 3: {
+					vm.pushInt(this.mouseX);
+					vm.pushInt(this.mouseY);
+					vm.pushInt(this.mouseButtonDown ? -1 : 0);
+					return -1;
+				}
 			}
 		}
 		this.syscallHandlerPtr = ulang.addFunction(syscallHandler, "iii");
+	}
+
+	private addEventListener<K extends keyof HTMLElementEventMap> (type: K, listener: (this: HTMLCanvasElement, ev: HTMLElementEventMap[K]) => any) {
+		this.canvas.addEventListener(type, listener);
+		this.listeners.push({ type: type, listener: listener });
+	}
+
+	dipose () {
+		this.stop();
+		for (let i = 0; i < this.listeners.length; i++) {
+			let listener = this.listeners[i];
+			this.canvas.removeEventListener(listener.type, listener.listener);
+		}
 	}
 
 	setLogLevel (logLevel: LogLevel) {
@@ -133,6 +189,7 @@ export class VirtualMachine {
 		this.vm.setSyscall(0, this.syscallHandlerPtr);
 		this.vm.setSyscall(1, this.syscallHandlerPtr);
 		this.vm.setSyscall(2, this.syscallHandlerPtr);
+		this.vm.setSyscall(3, this.syscallHandlerPtr);
 		this.vmStart = performance.now();
 		this.executedInstructions = 0;
 		this.lastStepHitBreakpoint = false;

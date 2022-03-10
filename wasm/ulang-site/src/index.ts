@@ -80,7 +80,12 @@ import Split from "split.js"
 	let virtualMachine = new VirtualMachine("debugger-output");
 	let debuggerUI = new Debugger(editor, virtualMachine, "toolbar-run", "toolbar-continue", "toolbar-pause", "toolbar-step", "toolbar-stop");
 
-	editor.setContent(fireExample);
+	editor.setContentListener((content) => {
+		localStorage.setItem("source", content);
+	})
+	let lastSource = localStorage.getItem("source");
+	if (lastSource != null) { editor.setContent(lastSource); }
+	else editor.setContent(fireExample);
 
 	(document.getElementsByClassName("main")[0] as HTMLElement).style.display = "flex";
 })();

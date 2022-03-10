@@ -25,10 +25,13 @@ let ulang_vm_print: (vmPtr: number) => void;
 let ulang_vm_pop_int: (vmPtr: number) => number;
 let ulang_vm_pop_uint: (vmPtr: number) => number;
 let ulang_vm_pop_float: (vmPtr: number) => number;
+let ulang_vm_push_int: (vmPtr: number, val: number) => void;
+let ulang_vm_push_uint: (vmPtr: number, val: number) => void;
+let ulang_vm_push_float: (vmPtr: number, val: number) => void;
 let ulang_vm_free: (vmPtr: number) => void;
 let ulang_sizeof: (type: number) => number;
 let ulang_print_offsets: () => void;
-let ulang_argb_to_rgba: (argbPtr: number, numPixels: number) => void;
+let ulang_argb_to_rgba: (argbPtr: number, rgbaPtr, numPixels: number) => void;
 
 export let getInt8 = (ptr: number) => new DataView(module.HEAPU8.buffer).getInt8(ptr);
 export let getInt16 = (ptr: number) => new DataView(module.HEAPU8.buffer).getInt16(ptr, true);
@@ -36,7 +39,7 @@ export let getUint32 = (ptr: number) => new DataView(module.HEAPU8.buffer).getUi
 export let setUint32 = (ptr, val) => new DataView(module.HEAPU8.buffer).setUint32(ptr, val, true);
 export let getInt32 = (ptr: number) => new DataView(module.HEAPU8.buffer).getInt32(ptr, true);
 export let getFloat32 = (ptr: number) => new DataView(module.HEAPU8.buffer).getFloat32(ptr, true);
-export let argbToRgba: (argb: number, numPixels: number) => void;
+export let argbToRgba: (argb: number, rgba: number, numPixels: number) => void;
 export let addFunction: (func: any, descriptor: string) => number;
 export let UTF8ArrayToString: (heap: Uint8Array, ptr: number) => string;;
 export let HEAPU8: () => Uint8Array;
@@ -59,10 +62,13 @@ export function createWrappers () {
 	ulang_vm_pop_int = module.cwrap("ulang_vm_pop_int", "number", ["ptr"]);
 	ulang_vm_pop_uint = module.cwrap("ulang_vm_pop_uint", "number", ["ptr"]);
 	ulang_vm_pop_float = module.cwrap("ulang_vm_pop_float", "number", ["ptr"]);
+	ulang_vm_push_int = module.cwrap("ulang_vm_push_int", "void", ["ptr", "number"]);
+	ulang_vm_push_uint = module.cwrap("ulang_vm_push_uint", "void", ["ptr", "number"]);
+	ulang_vm_push_float = module.cwrap("ulang_vm_push_float", "void", ["ptr", "number"]);
 	ulang_vm_free = module.cwrap("ulang_vm_free", "void", ["ptr"]);
 	ulang_sizeof = module.cwrap("ulang_sizeof", "number", ["number"]);
 	ulang_print_offsets = module.cwrap("ulang_print_offsets", "void", []);
-	argbToRgba = ulang_argb_to_rgba = module.cwrap("ulang_argb_to_rgba", "ptr", ["ptr", "number"]);
+	argbToRgba = ulang_argb_to_rgba = module.cwrap("ulang_argb_to_rgba", "ptr", ["ptr", "ptr", "number"]);
 	addFunction = module.addFunction;
 	UTF8ArrayToString = module.UTF8ArrayToString;
 	HEAPU8 = () => module.HEAP8 as Uint8Array;
@@ -274,6 +280,9 @@ export interface UlangVm {
 	popInt (): number;
 	popUint (): number;
 	popFloat (): number;
+	pushInt (val: number);
+	pushUint (val: number);
+	pushFloat (val: number);
 	free (): void;
 }
 
@@ -304,6 +313,9 @@ export function ptrToUlangVm (vmPtr: number): UlangVm {
 		popInt: () => ulang_vm_pop_int(vmPtr),
 		popUint: () => ulang_vm_pop_uint(vmPtr),
 		popFloat: () => ulang_vm_pop_float(vmPtr),
+		pushInt: (val: number) => ulang_vm_push_int(vmPtr, val),
+		pushUint: (val: number) => ulang_vm_push_uint(vmPtr, val),
+		pushFloat: (val: number) => ulang_vm_push_float(vmPtr, val),
 		free: () => {
 			ulang_vm_free(vmPtr);
 			ulang_free(vmPtr);
