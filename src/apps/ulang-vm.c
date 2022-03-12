@@ -2,8 +2,11 @@
 #include <stdio.h>
 #include <ulang.h>
 #include <MiniFB.h>
+#define SOKOL_IMPL
+#include <apps/sokol_time.h>
 
 static struct mfb_window *window;
+static uint64_t tickStart;
 
 static ulang_bool syscallHandler(uint32_t intNum, ulang_vm *vm) {
 	switch (intNum) {
@@ -39,6 +42,27 @@ static ulang_bool syscallHandler(uint32_t intNum, ulang_vm *vm) {
 			}
 			printf("\n");
 		}
+    case 3: {
+        ulang_vm_push_int(vm, mfb_get_mouse_x(window) / 2);
+        ulang_vm_push_int(vm, mfb_get_mouse_y(window) / 2);
+        const uint8_t *buttons = mfb_get_mouse_button_buffer(window);
+        ulang_bool buttonDown = UL_FALSE;
+        for (int i = 0; i < 8; i++) {
+            if (buttons[i] != 0) {
+                buttonDown = UL_TRUE;
+                break;
+            }
+        }
+        ulang_vm_push_int(vm, buttonDown);
+    }
+    case 4: {
+
+    }
+    case 5: {
+        uint64_t tickSince = stm_since(tickStart);
+        float timeSince = (float)stm_sec(tickSince);
+        ulang_vm_push_float(vm, timeSince);
+    }
 	}
 	return UL_TRUE;
 }
@@ -64,6 +88,9 @@ int main(int argc, char **argv) {
 		return -1;
 	}
 
+  stm_setup();
+  tickStart = stm_now();
+
 	window = mfb_open("ulang-vm", 640, 480);
 	if (!window) {
 		printf("Couldn't create window.");
@@ -75,9 +102,7 @@ int main(int argc, char **argv) {
 
 	ulang_vm vm = {0};
 	ulang_vm_init(&vm, &program);
-	vm.syscalls[0] = syscallHandler;
-	vm.syscalls[1] = syscallHandler;
-	vm.syscalls[2] = syscallHandler;
+  for (int i = 0; i <= 255; i++) vm.syscalls[i] = syscallHandler;
 	while (ulang_vm_step(&vm));
 	if (vm.error.is_set) ulang_error_print(&vm.error);
 	ulang_vm_print(&vm);

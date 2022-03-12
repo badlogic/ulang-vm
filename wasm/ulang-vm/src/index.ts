@@ -24,6 +24,7 @@ export class VirtualMachine {
 	private vmStart = 0;
 	private executedInstructions = 0;
 	private vsyncHit = false;
+	private debugSyscallHit = false;
 	private breakpoints: number[] = [];
 	private bpPtr = 0;
 	private numBps = 0;
@@ -71,7 +72,9 @@ export class VirtualMachine {
 			let vm = ulang.ptrToUlangVm(vmPtr);
 			switch (syscall) {
 				case 0:
-					return -1;
+					this.pause();
+					this.debugSyscallHit = true;
+					return 0;
 				case 1:
 					let buffer = vm.popUint();
 					ulang.argbToRgba(vm.memoryPtr() + buffer, this.rgbaFramePtr, 320 * 240);
@@ -110,6 +113,13 @@ export class VirtualMachine {
 					vm.pushInt(this.mouseX);
 					vm.pushInt(this.mouseY);
 					vm.pushInt(this.mouseButtonDown ? -1 : 0);
+					return -1;
+				}
+				case 4: {
+
+				}
+				case 5: {
+					vm.pushFloat(performance.now() / 1000);
 					return -1;
 				}
 			}
@@ -186,10 +196,9 @@ export class VirtualMachine {
 			return;
 		}
 		this.vm = ulang.newVm(this.compilerResult.program);
-		this.vm.setSyscall(0, this.syscallHandlerPtr);
-		this.vm.setSyscall(1, this.syscallHandlerPtr);
-		this.vm.setSyscall(2, this.syscallHandlerPtr);
-		this.vm.setSyscall(3, this.syscallHandlerPtr);
+		for (let i = 0; i <= 255; i++) {
+			this.vm.setSyscall(i, this.syscallHandlerPtr);
+		}
 		this.vmStart = performance.now();
 		this.executedInstructions = 0;
 		this.lastStepHitBreakpoint = false;
@@ -224,8 +233,9 @@ export class VirtualMachine {
 	step () {
 		if (this.state != VirtualMachineState.Paused) return;
 		if (!this.vm.step()) {
-			if (this.vsyncHit) {
+			if (this.vsyncHit || this.debugSyscallHit) {
 				this.vsyncHit = false;
+				this.debugSyscallHit = false;
 			} else {
 				this.state = VirtualMachineState.Stopped;
 				if (this.stateChangeListener) this.stateChangeListener(this, this.state);
@@ -279,8 +289,9 @@ export class VirtualMachine {
 			if (this.lastStepHitBreakpoint) {
 				this.lastStepHitBreakpoint = false;
 				if (!this.vm.step()) {
-					if (this.vsyncHit) {
+					if (this.vsyncHit || this.debugSyscallHit) {
 						this.vsyncHit = false;
+						this.debugSyscallHit = false;
 						requestAnimationFrame(() => this.frame());
 						return;
 					}
@@ -311,8 +322,9 @@ export class VirtualMachine {
 				}
 
 				if (!result) {
-					if (this.vsyncHit) {
+					if (this.vsyncHit || this.debugSyscallHit) {
 						this.vsyncHit = false;
+						this.debugSyscallHit = false;
 						requestAnimationFrame(() => this.frame());
 						return;
 					}

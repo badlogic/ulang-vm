@@ -1,0 +1,10 @@
+buffer: reserve int x 320 * 240
+
+main_loop:
+    syscall 5
+    pop r1
+    syscall 0
+
+    push buffer
+    syscall 1
+    jmp main_loop
