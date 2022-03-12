@@ -1,4 +1,4 @@
-msg: byte "Hello world!\n"
+msg: byte "Hello world!\n", 0
 
 push 123
 push 0
@@ -11,4 +11,3 @@ push 3
 push 4
 syscall 0x2
 halt
-d

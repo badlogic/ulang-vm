@@ -1154,7 +1154,7 @@ static void emit_string(byte_array *code, token *value, int repeat) {
 	str.data++;
 	str.length -= 2;
 
-	char *cString = ulang_alloc(str.length + 1);
+	char *cString = ulang_alloc(str.length);
 	size_t i, j;
 	for (i = 0, j = 0; i < str.length; i++, j++) {
 		char c = str.data[i];
@@ -1180,12 +1180,11 @@ static void emit_string(byte_array *code, token *value, int repeat) {
 			cString[j] = c;
 		}
 	}
-	cString[j] = 0;
 
-	byte_array_ensure(code, (j + 1) * repeat);
+	byte_array_ensure(code, j * repeat);
 	for (i = 0; i < (size_t) repeat; i++) {
-		memcpy(&code->items[code->size], cString, j + 1);
-		code->size += j + 1;
+		memcpy(&code->items[code->size], cString, j);
+		code->size += j;
 	}
 	ulang_free(cString);
 }
