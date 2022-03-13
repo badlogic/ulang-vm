@@ -60,8 +60,8 @@ typedef struct ulang_label {
 } ulang_label;
 
 typedef enum value_type {
-    UL_FLOAT,
-    UL_INTEGER
+    UL_INTEGER,
+	UL_FLOAT
 } value_type;
 
 typedef struct ulang_constant {
@@ -81,6 +81,8 @@ typedef struct ulang_program {
 	size_t reservedBytes;
 	ulang_label *labels;
 	size_t labelsLength;
+	ulang_constant *constants;
+	size_t constantsLength;
 	ulang_file *file;
 	uint32_t *addressToLine;
 	uint32_t addressToLineLength;

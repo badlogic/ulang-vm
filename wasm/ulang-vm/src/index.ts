@@ -35,6 +35,7 @@ export class VirtualMachine {
 	private mouseX = 0;
 	private mouseY = 0;
 	private mouseButtonDown = false;
+	private keys: Map<String, number> = new Map();
 	private listeners: EventListener[] = [];
 	private rgbaFramePtr: number;
 

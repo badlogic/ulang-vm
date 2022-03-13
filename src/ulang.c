@@ -53,6 +53,8 @@ typedef struct expression_value {
 	int32_t i;
 	float f;
 	uint32_t startToken;
+	uint32_t endToken;
+	ulang_bool unresolved;
 } expression_value;
 
 typedef enum patch_type {
@@ -62,7 +64,7 @@ typedef enum patch_type {
 
 typedef struct patch {
 	patch_type type;
-	ulang_span label;
+	expression_value expr;
 	size_t patchAddress;
 } patch;
 
@@ -103,11 +105,13 @@ typedef struct compiler_context {
 	token_stream stream;
 	patch_array patches;
 	label_array labels;
+	constant_array constants;
 	byte_array code;
 	byte_array data;
 	int_array addressToLine;
 	size_t numReservedBytes;
 	ulang_error *error;
+	ulang_bool resolveLabelsInExpressions;
 } compiler_context;
 
 typedef enum ulang_opcode {
@@ -926,8 +930,9 @@ static ulang_bool parse_unary_operator(compiler_context *ctx, expression_value *
 	}
 	if (op->data) {
 		token *opToken = token_stream_consume(&ctx->stream);
-		expression_value exprValue;
+		expression_value exprValue = { 0 };
 		if (!parse_unary_operator(ctx, &exprValue) || ctx->error->is_set) return UL_FALSE;
+		value->unresolved = exprValue.unresolved;
 		switch (opToken->span.data.data[0]) {
 			case '~':
 				if (exprValue.type == UL_FLOAT) {
@@ -969,7 +974,7 @@ static ulang_bool parse_unary_operator(compiler_context *ctx, expression_value *
 			token *literal = token_stream_consume(&ctx->stream);
 			if (!literal) {
 				literal = &ctx->stream.tokens->items[ctx->stream.tokens->size - 1];
-				ulang_error_init(ctx->error, ctx->stream.file, &literal->span, "Expected an integer or a float value.");
+				ulang_error_init(ctx->error, ctx->stream.file, &literal->span, "Expected an integer, a float, a constant, or a label.");
 				return UL_FALSE;
 			}
 			switch (literal->type) {
@@ -982,8 +987,71 @@ static ulang_bool parse_unary_operator(compiler_context *ctx, expression_value *
 					value->type = UL_FLOAT;
 					value->f = token_to_float(literal);
 					return UL_TRUE;
+				case TOKEN_IDENTIFIER:
+					// Registers aren't allowed in expressions
+					if (token_matches_register(literal)) {
+						ulang_error_init(ctx->error, ctx->stream.file, &literal->span, "Registers are not allowed in expressions.");
+						return UL_FALSE;
+					}
+
+					// Check if we have a constant by that name
+					for (size_t i = 0; i < ctx->constants.size; i++) {
+						ulang_constant *cnst = &ctx->constants.items[i];
+						if (ulang_string_equals(&literal->span.data, &cnst->name.data)) {
+							value->type = cnst->type;
+							if (value->type == UL_INTEGER) {
+								value->i = cnst->i;
+								value->f = (float) cnst->i;
+							} else {
+								value->i = (int)cnst->f;
+								value->f = cnst->f;
+							}
+							return UL_TRUE;
+						}
+					}
+					// Otherwise, we assume it's a label. Depending on the resolution setting in the context,
+					// we either postpone resolution, or try to resolve on the spot. The latter happens
+					// in ulang_compile when patches and their expressions are resolved.
+					if (!ctx->resolveLabelsInExpressions) {
+						value->unresolved = UL_TRUE;
+						value->type = UL_INTEGER;
+						value->i = value->f = 0;
+						return UL_TRUE;
+					} else {
+						ulang_label *label = NULL;
+						for (size_t j = 0; j < ctx->labels.size; j++) {
+							if (ulang_string_equals(&ctx->labels.items[j].label.data, &literal->span.data)) {
+								label = &ctx->labels.items[j];
+								break;
+							}
+						}
+						if (!label) {
+							ulang_error_init(ctx->error, ctx->stream.file, &literal->span, "Unknown label.");
+							return UL_FALSE;
+						}
+
+						uint32_t labelAddress = (uint32_t) label->address;
+						switch (label->target) {
+							case UL_LT_UNINITIALIZED:
+								ulang_error_init(ctx->error, ctx->stream.file, &literal->span, "Internal error: Uninitialized label target.");
+								return UL_FALSE;
+							case UL_LT_CODE:
+								break;
+							case UL_LT_DATA:
+								labelAddress += ctx->code.size;
+								break;
+							case UL_LT_RESERVED_DATA:
+								labelAddress += ctx->code.size + ctx->data.size;
+								break;
+						}
+						value->unresolved = UL_FALSE;
+						value->type = UL_INTEGER;
+						value->i = (int)labelAddress; // BOZO we aren't going above 2^31 for label addresses.
+						value->f = (float)labelAddress;
+						return UL_TRUE;
+					}
 				default:
-					ulang_error_init(ctx->error, ctx->stream.file, &literal->span, "Expected an integer or a float value.");
+					ulang_error_init(ctx->error, ctx->stream.file, &literal->span, "Expected an integer, a float, a constant, or a label.");
 					return UL_FALSE;
 			}
 		}
@@ -992,12 +1060,14 @@ static ulang_bool parse_unary_operator(compiler_context *ctx, expression_value *
 
 static ulang_bool parse_binary_operator(compiler_context *ctx, expression_value *value, uint32_t level) {
 	uint32_t nextLevel = level + 1;
-	expression_value left;
+	expression_value left = { 0 };
 	if (nextLevel == 3) {
 		if (!parse_unary_operator(ctx, &left) || ctx->error->is_set) return UL_FALSE;
 	} else {
 		if (!parse_binary_operator(ctx, &left, nextLevel) || ctx->error->is_set) return UL_FALSE;
 	}
+
+	value->unresolved |= left.unresolved;
 
 	while (token_stream_has_more(&ctx->stream)) {
 		ulang_string *op = binaryOperators[level];
@@ -1008,12 +1078,14 @@ static ulang_bool parse_binary_operator(compiler_context *ctx, expression_value 
 		if (op->data == NULL) break;
 
 		token *opToken = token_stream_consume(&ctx->stream);
-		expression_value right;
+		expression_value right = { 0 };
 		if (nextLevel == 3) {
 			if (!parse_unary_operator(ctx, &right) || ctx->error->is_set) return UL_FALSE;
 		} else {
 			if (!parse_binary_operator(ctx, &right, nextLevel) || ctx->error->is_set) return UL_FALSE;
 		}
+
+		value->unresolved |= right.unresolved;
 
 		switch (opToken->span.data.data[0]) {
 			case '|':
@@ -1102,8 +1174,10 @@ static ulang_bool parse_binary_operator(compiler_context *ctx, expression_value 
 
 static ulang_bool parse_expression(compiler_context *ctx, expression_value *value, ulang_span *span) {
 	value->startToken = ctx->stream.index;
+	value->unresolved = UL_FALSE;
 	ulang_span *startSpan = &ctx->stream.tokens->items[ctx->stream.index].span;
 	ulang_bool result = parse_binary_operator(ctx, value, 0);
+	if (result) value->endToken = ctx->stream.index;
 	if (span) {
 		ulang_span *endSpan = &ctx->stream.tokens->items[ctx->stream.index - 1].span;
 		span->data = startSpan->data;
@@ -1233,7 +1307,17 @@ emit_op(ulang_file *file, opcode *op, token operands[3], expression_value operan
 			case UL_INT:
 			case UL_FLT:
 			case UL_LBL_INT:
-			case UL_LBL_INT_FLT:
+			case UL_LBL_INT_FLT: {
+				if (operandValue->unresolved) {
+					patch p;
+					p.type = PT_VALUE;
+					p.expr = *operandValue;
+					p.patchAddress = code->size + 4;
+					patch_array_add(patches, p);
+					word2 = 0xdeadbeef;
+					break;
+				}
+
 				switch (operandToken->type) {
 					case TOKEN_INTEGER: {
 						int value = operandValue->i;
@@ -1245,20 +1329,13 @@ emit_op(ulang_file *file, opcode *op, token operands[3], expression_value operan
 						memcpy(&word2, &value, 4);
 						break;
 					}
-					case TOKEN_IDENTIFIER: {
-						patch p;
-						p.label = operandToken->span;
-						p.patchAddress = code->size + 4;
-						patch_array_add(patches, p);
-						word2 = 0xdeadbeef;
-						break;
-					}
 					default:
 						ulang_error_init(error, file, &operandToken->span,
 										 "Internal error, unexpected token type for value operand.");
 						return UL_FALSE;
 				}
 				break;
+			}
 			default:
 				ulang_error_init(error, file, &operandToken->span,
 								 "Internal error, unknown operand type.");
@@ -1290,6 +1367,7 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 	init_opcodes_and_registers();
 
 	compiler_context ctx = { .error = error };
+	ctx.resolveLabelsInExpressions = UL_FALSE;
 
 	// tokenize
 	token_array_init_inplace(&ctx.tokens, MAX(16, file->length / 100));
@@ -1300,6 +1378,7 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 	ctx.stream = (token_stream){file, &ctx.tokens, 0};
 	patch_array_init_inplace(&ctx.patches, 16);
 	label_array_init_inplace(&ctx.labels, 16);
+	constant_array_init_inplace(&ctx.constants, 16);
 	byte_array_init_inplace(&ctx.code, 16);
 	byte_array_init_inplace(&ctx.data, 16);
 	int_array_init_inplace(&ctx.addressToLine, 16);
@@ -1330,6 +1409,10 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 							ulang_error_init(error, file, &span, "Expression must evaluate to an integer value.");
 							goto _compilation_error;
 						}
+						if (exprValue.unresolved) {
+							ulang_error_init(error, file, &span, "Expression either contains an undefined constant, or a label.");
+							goto _compilation_error;
+						}
 						int numRepeat = 1;
 						parse_repeat(&ctx, &numRepeat);
 						if (error->is_set) goto _compilation_error;
@@ -1348,6 +1431,10 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 					if (!parse_expression(&ctx, &exprValue, &span)) goto _compilation_error;
 					if (exprValue.type != UL_INTEGER) {
 						ulang_error_init(error, file, &span, "Expression must evaluate to an integer value.");
+						goto _compilation_error;
+					}
+					if (exprValue.unresolved) {
+						ulang_error_init(error, file, &span, "Expression either contains an undefined constant, or a label.");
 						goto _compilation_error;
 					}
 					int numRepeat = 1;
@@ -1369,6 +1456,10 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 						ulang_error_init(error, file, &span, "Expression must evaluate to an integer value.");
 						goto _compilation_error;
 					}
+					if (exprValue.unresolved) {
+						ulang_error_init(error, file, &span, "Expression either contains an undefined constant, or a label.");
+						goto _compilation_error;
+					}
 					int numRepeat = 1;
 					parse_repeat(&ctx, &numRepeat);
 					if (error->is_set) goto _compilation_error;
@@ -1386,6 +1477,10 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 					if (!parse_expression(&ctx, &exprValue, &span)) goto _compilation_error;
 					if (exprValue.type != UL_FLOAT) {
 						ulang_error_init(error, file, &span, "Expression must evaluate to a float value.");
+						goto _compilation_error;
+					}
+					if (exprValue.unresolved) {
+						ulang_error_init(error, file, &span, "Expression either contains an undefined constant, or a label.");
 						goto _compilation_error;
 					}
 					int numRepeat = 1;
@@ -1419,6 +1514,10 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 					ulang_error_init(error, file, &span, "Expression must evaluate to an integer value.");
 					goto _compilation_error;
 				}
+				if (exprValue.unresolved) {
+					ulang_error_init(error, file, &span, "Expression either contains an undefined constant, or a label.");
+					goto _compilation_error;
+				}
 
 				size_t numBytes = typeSize * exprValue.i;
 				if (numBytes <= 0) {
@@ -1430,6 +1529,24 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 				continue;
 			}
 
+			if (ulang_span_matches(&tok->span, STR("const"))) {
+				token *name = token_stream_expect(&ctx.stream, TOKEN_IDENTIFIER, ctx.error);
+				if (!name) goto _compilation_error;
+				expression_value exprValue;
+				ulang_span span = {0};
+				if (!parse_expression(&ctx, &exprValue, &span)) goto _compilation_error;
+				if (exprValue.unresolved) {
+					ulang_error_init(error, file, &span, "Expression either contains an undefined constant, or a label.");
+					goto _compilation_error;
+				}
+				ulang_constant constant = { exprValue.type };
+				constant.name = name->span;
+				if (exprValue.type == UL_INTEGER) constant.i = exprValue.i;
+				else constant.f = exprValue.f;
+				constant_array_add(&ctx.constants, constant);
+				continue;
+			}
+
 			// Otherwise, we must have a label
 			if (!token_stream_expect_string(&ctx.stream, STR(":"), error)) goto _compilation_error;
 			ulang_label label = {tok->span, UL_LT_UNINITIALIZED, 0};
@@ -1438,11 +1555,12 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 			token operands[3];
 			expression_value operandExpressions[3];
 			for (int i = 0; i < op->numOperands; i++) {
-				token *operand;
-				if ((operand = token_stream_match(&ctx.stream, TOKEN_IDENTIFIER, UL_TRUE))) {
+				token *operand = token_stream_match(&ctx.stream, TOKEN_IDENTIFIER, UL_TRUE);
+				if (operand && token_matches_register(operand)) {
 					operands[i] = *operand;
 					operandExpressions[i] = (expression_value) {0};
 				} else {
+					if (operand) ctx.stream.index--;
 					if (!parse_expression(&ctx, &operandExpressions[i], &operands[i].span)) goto _compilation_error;
 					operands[i].type = operandExpressions[i].type == UL_FLOAT ? TOKEN_FLOAT : TOKEN_INTEGER;
 				}
@@ -1519,35 +1637,20 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 		}
 	}
 
+	ctx.resolveLabelsInExpressions = UL_TRUE;
 	for (size_t i = 0; i < ctx.patches.size; i++) {
 		patch *p = &ctx.patches.items[i];
-		ulang_label *label = NULL;
-		for (size_t j = 0; j < ctx.labels.size; j++) {
-			if (ulang_string_equals(&ctx.labels.items[j].label.data, &p->label.data)) {
-				label = &ctx.labels.items[j];
-				break;
-			}
-		}
-		if (!label) {
-			ulang_error_init(error, file, &p->label, "Unknown label.");
-			goto _compilation_error;
-		}
+		ctx.stream.index = p->expr.startToken;
+		ulang_span span;
+		expression_value expr;
+		if (!parse_expression(&ctx, &expr, &span)) goto _compilation_error;
 
-		uint32_t labelAddress = (uint32_t) label->address;
-		switch (label->target) {
-			case UL_LT_UNINITIALIZED:
-				ulang_error_init(error, file, &p->label, "Internal error: Uninitialized label target.");
-				goto _compilation_error;
-			case UL_LT_CODE:
-				break;
-			case UL_LT_DATA:
-				labelAddress += ctx.code.size;
-				break;
-			case UL_LT_RESERVED_DATA:
-				labelAddress += ctx.code.size + ctx.data.size;
-				break;
+		if (p->type == PT_VALUE) {
+			if (p->expr.type == UL_INTEGER) memcpy(&ctx.code.items[p->patchAddress], &expr.i, 4);
+			else memcpy(&ctx.code.items[p->patchAddress], &expr.f, 4);
+		} else {
+			ulang_error_init(ctx.error, ctx.stream.file, &span, "Labels in offsets not supported.");
 		}
-		memcpy(&ctx.code.items[p->patchAddress], &labelAddress, 4);
 	}
 
 	patch_array_free_inplace(&ctx.patches);
@@ -1559,6 +1662,8 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 	program->reservedBytes = ctx.numReservedBytes;
 	program->labels = ctx.labels.items;
 	program->labelsLength = ctx.labels.size;
+	program->constants = ctx.constants.items;
+	program->constantsLength = ctx.constants.size;
 	program->addressToLine = ctx.addressToLine.items;
 	program->addressToLineLength = ctx.addressToLine.size;
 	program->file = file;
@@ -1567,6 +1672,7 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 	_compilation_error:
 	patch_array_free_inplace(&ctx.patches);
 	label_array_free_inplace(&ctx.labels);
+	constant_array_free_inplace(&ctx.constants);
 	byte_array_free_inplace(&ctx.code);
 	byte_array_free_inplace(&ctx.data);
 	int_array_free_inplace(&ctx.addressToLine);
@@ -1578,6 +1684,7 @@ EMSCRIPTEN_KEEPALIVE void ulang_program_free(ulang_program *program) {
 	ulang_free(program->code);
 	ulang_free(program->data);
 	ulang_free(program->labels);
+	ulang_free(program->constants);
 	ulang_free(program->addressToLine);
 }
 
@@ -2321,6 +2428,12 @@ EMSCRIPTEN_KEEPALIVE void ulang_print_offsets() {
 	printf("   target: %lu\n", offsetof(ulang_label, target));
 	printf("   target: %lu\n", offsetof(ulang_label, address));
 
+	printf("ulang_constant (size=%lu)\n", sizeof(ulang_constant));
+	printf("   type: %lu\n", offsetof(ulang_constant, type));
+	printf("   name: %lu\n", offsetof(ulang_constant, name));
+	printf("   i: %lu\n", offsetof(ulang_constant, i));
+	printf("   f: %lu\n", offsetof(ulang_constant, f));
+
 	printf("ulang_program (size=%lu)\n", sizeof(ulang_program));
 	printf("   code: %lu\n", offsetof(ulang_program, code));
 	printf("   codeLength: %lu\n", offsetof(ulang_program, codeLength));
@@ -2329,6 +2442,8 @@ EMSCRIPTEN_KEEPALIVE void ulang_print_offsets() {
 	printf("   reservedBytes: %lu\n", offsetof(ulang_program, reservedBytes));
 	printf("   labels: %lu\n", offsetof(ulang_program, labels));
 	printf("   labelsLength: %lu\n", offsetof(ulang_program, labelsLength));
+	printf("   constants: %lu\n", offsetof(ulang_program, constants));
+	printf("   constantsLength: %lu\n", offsetof(ulang_program, constantsLength));
 	printf("   file: %lu\n", offsetof(ulang_program, file));
 	printf("   addressToLine: %lu\n", offsetof(ulang_program, addressToLine));
 	printf("   addressToLineLength: %lu\n", offsetof(ulang_program, addressToLineLength));

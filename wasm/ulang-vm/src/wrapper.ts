@@ -198,12 +198,36 @@ export function ptrToUlangLabel (labelPtr: number): UlangLabel {
 	}
 }
 
+export enum UlangValueType {
+	UL_INTEGER = 0,
+	UL_FLOAT = 1
+}
+
+export interface UlangConstant {
+	ptr: number;
+	type (): UlangValueType;
+	name (): UlangSpan;
+	i (): number;
+	f (): number;
+}
+
+export function ptrToUlangConstant (labelPtr: number): UlangConstant {
+	return {
+		ptr: labelPtr,
+		type: () => getUint32(labelPtr) as UlangValueType,
+		name: () => ptrToUlangSpan(labelPtr + 4),
+		i: () => getUint32(labelPtr + 20),
+		f: () => getUint32(labelPtr + 20)
+	}
+}
+
 export interface UlangProgram {
 	ptr: number;
 	code (): DataView;
 	data (): DataView;
 	reservedBytes (): number;
 	labels (): UlangLabel[];
+	constants (): UlangConstant[];
 	file (): UlangFile;
 	addressToLine (): number[];
 	free (): void;
@@ -225,13 +249,23 @@ export function ptrToUlangProgram (progPtr: number): UlangProgram {
 			}
 			return labels;
 		},
+		constants: () => {
+			let constants = [];
+			let constantsPtr = getUint32(progPtr + 28);
+			let constantsLength = getUint32(progPtr + 32);
+			for (let i = 0; i < constantsLength; i++) {
+				constants.push(ptrToUlangLabel(constantsPtr));
+				constantsPtr += 24;
+			}
+			return constants;
+		},
 		file: () => {
-			return ptrToUlangFile(progPtr + 28);
+			return ptrToUlangFile(progPtr + 36);
 		},
 		addressToLine: () => {
 			let addressToLine = [];
-			let addressToLinePtr = getUint32(progPtr + 32);
-			let addressToLineLength = getUint32(progPtr + 36);
+			let addressToLinePtr = getUint32(progPtr + 40);
+			let addressToLineLength = getUint32(progPtr + 44);
 			for (let i = 0; i < addressToLineLength; i++) {
 				addressToLine.push(getUint32(addressToLinePtr));
 				addressToLinePtr += 4;

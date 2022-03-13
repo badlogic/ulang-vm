@@ -160,6 +160,8 @@ ulang_bool test(size_t testNum, test_case *test) {
 int main(int argc, char **argv) {
 	// @formatter:off
 	test_case tests[] = {
+			{"mov a, r1\nld r1, 2, r2\nhalt\na: byte 0 x 2 int 0xdeadbeef",                              {{REG_INT, .reg = R2, .val_int = 0xdeadbeef}}},
+
 			{"halt",                                                                                     {{REG_INT, .reg = PC, .val_uint = 4}}},
 
 			// Test mov first, as we need it for the other tests
@@ -317,6 +319,12 @@ int main(int argc, char **argv) {
 			{"call f\nmov 123, r2\nhalt\nf: ret",                                           {{REG_INT, .reg = PC, .val_uint = 5 * 4}, {REG_INT, .reg = R2, .val_uint = 123}}},
 			{"push 1\ncall f\nmov 123, r2\nhalt\nf: retn 1",                                      {{REG_INT, .reg = PC, .val_uint = 7 * 4}, {REG_INT, .reg = SP, .val_uint = UL_VM_MEMORY_SIZE}, {REG_INT, .reg = R2, .val_uint = 123}}},
 			// {"syscall 0\nhalt"},
+
+			// const
+			{ "const PI 3.14\nmov PI, r1\nhalt", {{REG_FLOAT, .reg = R1, .val_float = 3.14f}}},
+
+			// expression with label and constants
+			{"const OFF 2\ndata: reserve int x 4\nmov 123, r1\nsto r1, data + OFF, 0", {{MEM_INT, .address = 4 * 4 + 2, .val_int = 123}}},
 
 			// fib
 			{"tests/fib.ul", {{REG_INT, .reg = R14, .val_uint = 832040}}}
