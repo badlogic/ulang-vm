@@ -78,7 +78,7 @@ import Split from "split.js"
 
 	let editor = new Editor("editor-container");
 	let virtualMachine = new VirtualMachine("debugger-output");
-	let debuggerUI = new Debugger(editor, virtualMachine, "toolbar-run", "toolbar-continue", "toolbar-pause", "toolbar-step", "toolbar-stop");
+	let debuggerUI = new Debugger(editor, virtualMachine, "toolbar-run", "toolbar-continue", "toolbar-pause", "toolbar-step", "toolbar-stop", "debug-view-registers", "debug-view-stack", "debug-view-memory");
 
 	editor.setContentListener((content) => {
 		localStorage.setItem("source", content);

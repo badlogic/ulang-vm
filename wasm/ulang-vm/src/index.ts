@@ -274,6 +274,14 @@ export class VirtualMachine {
 		return this.vm.program();
 	}
 
+	getInt (addr: any) {
+		return ulang.getInt32(this.vm.memoryPtr() + addr);
+	}
+
+	getFloat (addr: any) {
+		return ulang.getFloat32(this.vm.memoryPtr() + addr);
+	}
+
 	printVmTime () {
 		if (this.logLevel == LogLevel.None) return;
 		let vmTime = (performance.now() - this.vmStart) / 1000;

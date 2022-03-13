@@ -416,3 +416,5 @@ export function newVm (program: UlangProgram) {
 	ulang_vm_init(vm.ptr, program.ptr);
 	return vm;
 }
+
+export const UL_VM_MEMORY_SIZE = (1024 * 1024 * 32);
