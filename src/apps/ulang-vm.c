@@ -94,8 +94,8 @@ int main(int argc, char **argv) {
 		return -1;
 	}
 
-  stm_setup();
-  tickStart = stm_now();
+  	stm_setup();
+  	tickStart = stm_now();
 
 	window = mfb_open("ulang-vm", 640, 480);
 	if (!window) {
@@ -108,7 +108,7 @@ int main(int argc, char **argv) {
 
 	ulang_vm vm = {0};
 	ulang_vm_init(&vm, &program);
-  for (int i = 0; i <= 255; i++) vm.syscalls[i] = syscallHandler;
+  	for (int i = 0; i <= 255; i++) vm.syscalls[i] = syscallHandler;
 	while (ulang_vm_step(&vm));
 	if (vm.error.is_set) ulang_error_print(&vm.error);
 	ulang_vm_print(&vm);

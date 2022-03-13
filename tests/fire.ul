@@ -32,6 +32,9 @@ set_bottom_fire_loop:
    jl r4, set_bottom_fire_loop
 
 main_loop:
+   # timestamp
+   syscall 5
+   pop r10
 
    # update fire
    mov fire, r1
@@ -83,10 +86,17 @@ main_loop:
       cmp r1, r2, r5
       jl r5, draw_fire_loop
 
-
    # update buffer
    push buffer
    syscall 0x1
 
-   push 1
+   # print frame time
+   syscall 5
+   pop r11
+   subf r11, r10, r11
+   push 6
+   push r11
+   push 2
+   syscall 2
+
    jmp main_loop
