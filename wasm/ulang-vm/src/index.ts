@@ -145,6 +145,7 @@ export class VirtualMachine {
 			let listener = this.listeners[i];
 			this.canvas.removeEventListener(listener.type, listener.listener);
 		}
+		ulang.free(this.rgbaFramePtr);
 	}
 
 	setLogLevel (logLevel: LogLevel) {

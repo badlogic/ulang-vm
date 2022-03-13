@@ -536,6 +536,16 @@ EMSCRIPTEN_KEEPALIVE void ulang_error_print(ulang_error *error) {
 	}
 }
 
+static char *string_concat(char *a, size_t lena, char *b, size_t lenb, size_t *newLen) {
+	char *str = (char *)ulang_alloc(lena + lenb + 1);
+	memcpy(str, a, lena);
+	memcpy(str + lena, b, lenb);
+	str[lena + lenb] = 0;
+	if (a != NULL) ulang_free(a);
+	*newLen = lena + lenb;
+	return str;
+}
+
 ulang_bool ulang_string_equals(ulang_string *a, ulang_string *b) {
 	if (a->length != b->length) return UL_FALSE;
 	char *aData = a->data;
@@ -891,7 +901,7 @@ token_stream_expect(token_stream *stream, token_type type, ulang_error *error) {
 }
 
 static token *
-token_stream_expect_string(token_stream *stream, char *str, size_t len, ulang_error *error) {
+token_stream_expect_string(token_stream *stream, char *str, size_t len, const char *message, ulang_error *error) {
 	if (!token_stream_match_string(stream, str, len, UL_TRUE)) {
 		token *lastToken = stream->index < stream->tokens->size ? &stream->tokens->items[stream->index] : NULL;
 
@@ -899,11 +909,11 @@ token_stream_expect_string(token_stream *stream, char *str, size_t len, ulang_er
 			ulang_file_get_lines(stream->file);
 			ulang_line *lastLine = &stream->file->lines[stream->file->numLines];
 			ulang_span span = (ulang_span) {lastLine->data, lastLine->lineNumber, lastLine->lineNumber};
-			ulang_error_init(error, stream->file, &span, "Expected '%.*s', but reached the end of the source.",
-							 len, str);
+			ulang_error_init(error, stream->file, &span, "Expected '%.*s' %s, but reached the end of the source.",
+							 len, str, message);
 			return NULL;
 		} else {
-			ulang_error_init(error, stream->file, &lastToken->span, "Expected '%.*s', but got '%.*s'", len, str,
+			ulang_error_init(error, stream->file, &lastToken->span, "Expected '%.*s' %s, but got '%.*s'", len, str, message,
 							 lastToken->span.data.length, lastToken->span.data.data);
 		}
 		return NULL;
@@ -968,7 +978,7 @@ static ulang_bool parse_unary_operator(compiler_context *ctx, expression_value *
 	} else {
 		if (token_stream_match_string(&ctx->stream, STR("("), UL_TRUE)) {
 			if (!parse_expression(ctx, value, NULL) || ctx->error->is_set) return UL_FALSE;
-			if (!token_stream_expect_string(&ctx->stream, STR(")"), ctx->error)) return UL_FALSE;
+			if (!token_stream_expect_string(&ctx->stream, STR(")"), "to close parenthesized expression", ctx->error)) return UL_FALSE;
 			return UL_TRUE;
 		} else {
 			token *literal = token_stream_consume(&ctx->stream);
@@ -1506,7 +1516,7 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 					goto _compilation_error;
 				}
 
-				if (!token_stream_expect_string(&ctx.stream, STR("x"), error)) goto _compilation_error;
+				if (!token_stream_expect_string(&ctx.stream, STR("x"), "after 'reserve <type>'", error)) goto _compilation_error;
 				expression_value exprValue;
 				ulang_span span = {0};
 				if (!parse_expression(&ctx, &exprValue, &span)) goto _compilation_error;
@@ -1548,7 +1558,7 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 			}
 
 			// Otherwise, we must have a label
-			if (!token_stream_expect_string(&ctx.stream, STR(":"), error)) goto _compilation_error;
+			if (!token_stream_expect_string(&ctx.stream, STR(":"), "after label", error)) goto _compilation_error;
 			ulang_label label = {tok->span, UL_LT_UNINITIALIZED, 0};
 			label_array_add(&ctx.labels, label);
 		} else {
@@ -1566,10 +1576,11 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 				}
 
 				if (i < op->numOperands - 1) {
-					if (!token_stream_expect_string(&ctx.stream, STR(","), error)) goto _compilation_error;
+					if (!token_stream_expect_string(&ctx.stream, STR(","), "before the next argument", error)) goto _compilation_error;
 				}
 			}
 
+			opcode *firstOp = op;
 			opcode *fittingOp = NULL;
 			while (-1) {
 				fittingOp = op;
@@ -1627,7 +1638,53 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 				if (!ulang_string_equals(&op->name, &opcodes[op->index + 1].name)) break;
 				op = &opcodes[op->index + 1];
 			}
-			if (!fittingOp) goto _compilation_error;
+			if (!fittingOp && firstOp != op) {
+				token *lastToken = &ctx.tokens.items[ctx.stream.index - 1];
+				ulang_span span = {0};
+				span.startLine = tok->span.startLine;
+				span.endLine = lastToken->span.endLine;
+				span.data.data = tok->span.data.data;
+				span.data.length = lastToken->span.data.data - tok->span.data.data + 1;
+				if (error->is_set) ulang_error_free(error);
+				char *alternatives = NULL;
+				size_t len = 0;
+				op = firstOp;
+				while (-1) {
+					alternatives = string_concat(alternatives, len, op->name.data, op->name.length, &len);
+					alternatives = string_concat(alternatives, len, STR(" "), &len);
+					for (int i = 0; i < op->numOperands; i++) {
+						switch(op->operands[i]) {
+							case UL_NIL:
+								break;
+							case UL_REG:
+								alternatives = string_concat(alternatives, len, STR("<register>"), &len);
+								break;
+							case UL_LBL_INT:
+								alternatives = string_concat(alternatives, len, STR("<label|int>"), &len);
+								break;
+							case UL_LBL_INT_FLT:
+								alternatives = string_concat(alternatives, len, STR("<label|int|float>"), &len);
+								break;
+							case UL_INT:
+								alternatives = string_concat(alternatives, len, STR("<int>"), &len);
+								break;
+							case UL_FLT:
+								alternatives = string_concat(alternatives, len, STR("<float>"), &len);
+								break;
+							case UL_OFF:
+								alternatives = string_concat(alternatives, len, STR("<offset>"), &len);
+								break;
+						}
+						if (i < op->numOperands - 1) alternatives = string_concat(alternatives, len, STR(", "), &len);
+					}
+					alternatives = string_concat(alternatives, len, STR("\n"), &len);
+					if (!ulang_string_equals(&op->name, &opcodes[op->index + 1].name)) break;
+					op = &opcodes[op->index + 1];
+				}
+				ulang_error_init(ctx.error, ctx.stream.file, &span, "No matching instructions for the given argument types. Possible alternatives:\n%s", alternatives);
+				ulang_free(alternatives);
+				goto _compilation_error;
+			}
 			if (error->is_set) ulang_error_free(error);
 
 			set_label_targets(&ctx.labels, UL_LT_CODE, ctx.code.size);

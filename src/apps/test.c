@@ -160,8 +160,6 @@ ulang_bool test(size_t testNum, test_case *test) {
 int main(int argc, char **argv) {
 	// @formatter:off
 	test_case tests[] = {
-			{"mov a, r1\nld r1, 2, r2\nhalt\na: byte 0 x 2 int 0xdeadbeef",                              {{REG_INT, .reg = R2, .val_int = 0xdeadbeef}}},
-
 			{"halt",                                                                                     {{REG_INT, .reg = PC, .val_uint = 4}}},
 
 			// Test mov first, as we need it for the other tests
