@@ -48,18 +48,67 @@
         self->items[self->size++] = value; \
     }
 
+typedef struct expression_value {
+	value_type type;
+	int32_t i;
+	float f;
+	uint32_t startToken;
+} expression_value;
+
+typedef enum patch_type {
+	PT_VALUE,
+	PT_OFFSET
+} patch_type;
+
 typedef struct patch {
+	patch_type type;
 	ulang_span label;
 	size_t patchAddress;
 } patch;
 
+typedef enum token_type {
+	TOKEN_INTEGER,
+	TOKEN_FLOAT,
+	TOKEN_STRING,
+	TOKEN_IDENTIFIER,
+	TOKEN_SPECIAL_CHAR,
+	TOKEN_EOF
+} token_type;
+
+typedef struct token {
+	ulang_span span;
+	token_type type;
+} token;
+
+ARRAY_IMPLEMENT(token_array, token)
+
 ARRAY_IMPLEMENT(patch_array, patch)
+
+ARRAY_IMPLEMENT(constant_array, ulang_constant)
 
 ARRAY_IMPLEMENT(label_array, ulang_label)
 
 ARRAY_IMPLEMENT(byte_array, uint8_t)
 
 ARRAY_IMPLEMENT(int_array, uint32_t)
+
+typedef struct token_stream {
+	ulang_file *file;
+	token_array *tokens;
+	size_t index;
+} token_stream;
+
+typedef struct compiler_context {
+	token_array tokens;
+	token_stream stream;
+	patch_array patches;
+	label_array labels;
+	byte_array code;
+	byte_array data;
+	int_array addressToLine;
+	size_t numReservedBytes;
+	ulang_error *error;
+} compiler_context;
 
 typedef enum ulang_opcode {
 	HALT,
@@ -643,22 +692,6 @@ static ulang_span *char_stream_end_span_inplace(char_stream *stream, ulang_span 
 	return span;
 }
 
-typedef enum token_type {
-	TOKEN_INTEGER,
-	TOKEN_FLOAT,
-	TOKEN_STRING,
-	TOKEN_IDENTIFIER,
-	TOKEN_SPECIAL_CHAR,
-	TOKEN_EOF
-} token_type;
-
-typedef struct token {
-	ulang_span span;
-	token_type type;
-} token;
-
-ARRAY_IMPLEMENT(token_array, token)
-
 static const char *token_type_to_string(token_type type) {
 	switch (type) {
 		case TOKEN_INTEGER:
@@ -797,12 +830,6 @@ static ulang_bool tokenize(ulang_file *file, token_array *tokens, ulang_error *e
 	return UL_TRUE;
 }
 
-typedef struct token_stream {
-	ulang_file *file;
-	token_array *tokens;
-	size_t index;
-} token_stream;
-
 static ulang_bool token_stream_has_more(token_stream *stream) {
 	return stream->index < stream->tokens->size;
 }
@@ -881,17 +908,6 @@ token_stream_expect_string(token_stream *stream, char *str, size_t len, ulang_er
 	}
 }
 
-typedef enum expression_type {
-	ET_FLOAT,
-	ET_INT
-} expression_type;
-
-typedef struct expression_value {
-	expression_type type;
-	int32_t i;
-	float f;
-} expression_value;
-
 static ulang_string unaryOperators[] = {STR_OBJ("~"), STR_OBJ("+"), STR_OBJ("-"), {0}};
 
 static ulang_string binaryOperators[][4] = {
@@ -900,176 +916,176 @@ static ulang_string binaryOperators[][4] = {
 		{STR_OBJ("/"), STR_OBJ("*"), STR_OBJ("%"), {0}}
 };
 
-static ulang_bool parse_expression(token_stream *stream, expression_value *value, ulang_span *span, ulang_error *error);
+static ulang_bool parse_expression(compiler_context *ctx, expression_value *value, ulang_span *span);
 
-static ulang_bool parse_unary_operator(token_stream *stream, expression_value *value, ulang_error *error) {
+static ulang_bool parse_unary_operator(compiler_context *ctx, expression_value *value) {
 	ulang_string *op = unaryOperators;
 	while (op->data) {
-		if (token_stream_match_string(stream, op->data, op->length, UL_FALSE)) break;
+		if (token_stream_match_string(&ctx->stream, op->data, op->length, UL_FALSE)) break;
 		op++;
 	}
 	if (op->data) {
-		token *opToken = token_stream_consume(stream);
+		token *opToken = token_stream_consume(&ctx->stream);
 		expression_value exprValue;
-		if (!parse_unary_operator(stream, &exprValue, error) || error->is_set) return UL_FALSE;
+		if (!parse_unary_operator(ctx, &exprValue) || ctx->error->is_set) return UL_FALSE;
 		switch (opToken->span.data.data[0]) {
 			case '~':
-				if (exprValue.type == ET_FLOAT) {
-					ulang_error_init(error, stream->file, &opToken->span, "Operator ~ can not be used with float values.");
+				if (exprValue.type == UL_FLOAT) {
+					ulang_error_init(ctx->error, ctx->stream.file, &opToken->span, "Operator ~ can not be used with float values.");
 					return UL_FALSE;
 				}
-				value->type = ET_INT;
+				value->type = UL_INTEGER;
 				value->i = ~exprValue.i;
 				value->f = (float) value->i;
 				break;
 			case '+':
-				if (exprValue.type == ET_INT) {
-					value->type = ET_INT;
+				if (exprValue.type == UL_INTEGER) {
+					value->type = UL_INTEGER;
 					value->i = exprValue.i;
 					value->f = (float) value->i;
 				} else {
-					value->type = ET_FLOAT;
+					value->type = UL_FLOAT;
 					value->f = exprValue.f;
 				}
 				break;
 			case '-':
-				if (exprValue.type == ET_INT) {
-					value->type = ET_INT;
+				if (exprValue.type == UL_INTEGER) {
+					value->type = UL_INTEGER;
 					value->i = -exprValue.i;
 					value->f = (float) value->i;
 				} else {
-					value->type = ET_FLOAT;
+					value->type = UL_FLOAT;
 					value->f = -exprValue.f;
 				}
 				break;
 		}
 		return UL_TRUE;
 	} else {
-		if (token_stream_match_string(stream, STR("("), UL_TRUE)) {
-			if (!parse_expression(stream, value, NULL, error) || error->is_set) return UL_FALSE;
-			if (!token_stream_expect_string(stream, STR(")"), error)) return UL_FALSE;
+		if (token_stream_match_string(&ctx->stream, STR("("), UL_TRUE)) {
+			if (!parse_expression(ctx, value, NULL) || ctx->error->is_set) return UL_FALSE;
+			if (!token_stream_expect_string(&ctx->stream, STR(")"), ctx->error)) return UL_FALSE;
 			return UL_TRUE;
 		} else {
-			token *literal = token_stream_consume(stream);
+			token *literal = token_stream_consume(&ctx->stream);
 			if (!literal) {
-				literal = &stream->tokens->items[stream->tokens->size - 1];
-				ulang_error_init(error, stream->file, &literal->span, "Expected an integer or a float value.");
+				literal = &ctx->stream.tokens->items[ctx->stream.tokens->size - 1];
+				ulang_error_init(ctx->error, ctx->stream.file, &literal->span, "Expected an integer or a float value.");
 				return UL_FALSE;
 			}
 			switch (literal->type) {
 				case TOKEN_INTEGER:
-					value->type = ET_INT;
+					value->type = UL_INTEGER;
 					value->i = token_to_int(literal);
 					value->f = (float) value->i;
 					return UL_TRUE;
 				case TOKEN_FLOAT:
-					value->type = ET_FLOAT;
+					value->type = UL_FLOAT;
 					value->f = token_to_float(literal);
 					return UL_TRUE;
 				default:
-					ulang_error_init(error, stream->file, &literal->span, "Expected an integer or a float value.");
+					ulang_error_init(ctx->error, ctx->stream.file, &literal->span, "Expected an integer or a float value.");
 					return UL_FALSE;
 			}
 		}
 	}
 }
 
-static ulang_bool parse_binary_operator(token_stream *stream, expression_value *value, ulang_error *error, uint32_t level) {
+static ulang_bool parse_binary_operator(compiler_context *ctx, expression_value *value, uint32_t level) {
 	uint32_t nextLevel = level + 1;
 	expression_value left;
 	if (nextLevel == 3) {
-		if (!parse_unary_operator(stream, &left, error) || error->is_set) return UL_FALSE;
+		if (!parse_unary_operator(ctx, &left) || ctx->error->is_set) return UL_FALSE;
 	} else {
-		if (!parse_binary_operator(stream, &left, error, nextLevel) || error->is_set) return UL_FALSE;
+		if (!parse_binary_operator(ctx, &left, nextLevel) || ctx->error->is_set) return UL_FALSE;
 	}
 
-	while (token_stream_has_more(stream)) {
+	while (token_stream_has_more(&ctx->stream)) {
 		ulang_string *op = binaryOperators[level];
 		while (op->data) {
-			if (token_stream_match_string(stream, op->data, op->length, UL_FALSE)) break;
+			if (token_stream_match_string(&ctx->stream, op->data, op->length, UL_FALSE)) break;
 			op++;
 		}
 		if (op->data == NULL) break;
 
-		token *opToken = token_stream_consume(stream);
+		token *opToken = token_stream_consume(&ctx->stream);
 		expression_value right;
 		if (nextLevel == 3) {
-			if (!parse_unary_operator(stream, &right, error) || error->is_set) return UL_FALSE;
+			if (!parse_unary_operator(ctx, &right) || ctx->error->is_set) return UL_FALSE;
 		} else {
-			if (!parse_binary_operator(stream, &right, error, nextLevel) || error->is_set) return UL_FALSE;
+			if (!parse_binary_operator(ctx, &right, nextLevel) || ctx->error->is_set) return UL_FALSE;
 		}
 
 		switch (opToken->span.data.data[0]) {
 			case '|':
-				if (left.type == ET_FLOAT || right.type == ET_FLOAT) {
-					ulang_error_init(error, stream->file, &opToken->span, "Operator | can not be used with float values.");
+				if (left.type == UL_FLOAT || right.type == UL_FLOAT) {
+					ulang_error_init(ctx->error, ctx->stream.file, &opToken->span, "Operator | can not be used with float values.");
 					return UL_FALSE;
 				}
-				value->type = ET_INT;
+				value->type = UL_INTEGER;
 				value->i = left.i | right.i;
 				break;
 			case '&':
-				if (left.type == ET_FLOAT || right.type == ET_FLOAT) {
-					ulang_error_init(error, stream->file, &opToken->span, "Operator & can not be used with float values.");
+				if (left.type == UL_FLOAT || right.type == UL_FLOAT) {
+					ulang_error_init(ctx->error, ctx->stream.file, &opToken->span, "Operator & can not be used with float values.");
 					return UL_FALSE;
 				}
-				value->type = ET_INT;
+				value->type = UL_INTEGER;
 				value->i = left.i & right.i;
 				break;
 			case '^':
-				if (left.type == ET_FLOAT || right.type == ET_FLOAT) {
-					ulang_error_init(error, stream->file, &opToken->span, "Operator ^ can not be used with float values.");
+				if (left.type == UL_FLOAT || right.type == UL_FLOAT) {
+					ulang_error_init(ctx->error, ctx->stream.file, &opToken->span, "Operator ^ can not be used with float values.");
 					return UL_FALSE;
 				}
-				value->type = ET_INT;
+				value->type = UL_INTEGER;
 				value->i = left.i ^ right.i;
 				break;
 			case '+':
-				if (left.type == ET_FLOAT || right.type == ET_FLOAT) {
-					value->type = ET_FLOAT;
+				if (left.type == UL_FLOAT || right.type == UL_FLOAT) {
+					value->type = UL_FLOAT;
 					value->f = left.f + right.f;
 				} else {
-					value->type = ET_INT;
+					value->type = UL_INTEGER;
 					value->i = left.i + right.i;
 					value->f = (float) value->i;
 				}
 				break;
 			case '-':
-				if (left.type == ET_FLOAT || right.type == ET_FLOAT) {
-					value->type = ET_FLOAT;
+				if (left.type == UL_FLOAT || right.type == UL_FLOAT) {
+					value->type = UL_FLOAT;
 					value->f = left.f - right.f;
 				} else {
-					value->type = ET_INT;
+					value->type = UL_INTEGER;
 					value->i = left.i - right.i;
 					value->f = (float) value->i;
 				}
 				break;
 			case '*':
-				if (left.type == ET_FLOAT || right.type == ET_FLOAT) {
-					value->type = ET_FLOAT;
+				if (left.type == UL_FLOAT || right.type == UL_FLOAT) {
+					value->type = UL_FLOAT;
 					value->f = left.f * right.f;
 				} else {
-					value->type = ET_INT;
+					value->type = UL_INTEGER;
 					value->i = left.i * right.i;
 					value->f = (float) value->i;
 				}
 				break;
 			case '/':
-				if (left.type == ET_FLOAT || right.type == ET_FLOAT) {
-					value->type = ET_FLOAT;
+				if (left.type == UL_FLOAT || right.type == UL_FLOAT) {
+					value->type = UL_FLOAT;
 					value->f = left.f / right.f;
 				} else {
-					value->type = ET_INT;
+					value->type = UL_INTEGER;
 					value->i = left.i / right.i;
 					value->f = (float) value->i;
 				}
 				break;
 			case '%':
-				if (left.type == ET_FLOAT || right.type == ET_FLOAT) {
-					ulang_error_init(error, stream->file, &opToken->span, "Operator % can not be used with float values.");
+				if (left.type == UL_FLOAT || right.type == UL_FLOAT) {
+					ulang_error_init(ctx->error, ctx->stream.file, &opToken->span, "Operator % can not be used with float values.");
 					return UL_FALSE;
 				} else {
-					value->type = ET_INT;
+					value->type = UL_INTEGER;
 					value->i = left.i % right.i;
 					value->f = (float) value->i;
 				}
@@ -1084,11 +1100,12 @@ static ulang_bool parse_binary_operator(token_stream *stream, expression_value *
 	return UL_TRUE;
 }
 
-static ulang_bool parse_expression(token_stream *stream, expression_value *value, ulang_span *span, ulang_error *error) {
-	ulang_span *startSpan = &stream->tokens->items[stream->index].span;
-	ulang_bool result = parse_binary_operator(stream, value, error, 0);
+static ulang_bool parse_expression(compiler_context *ctx, expression_value *value, ulang_span *span) {
+	value->startToken = ctx->stream.index;
+	ulang_span *startSpan = &ctx->stream.tokens->items[ctx->stream.index].span;
+	ulang_bool result = parse_binary_operator(ctx, value, 0);
 	if (span) {
-		ulang_span *endSpan = &stream->tokens->items[stream->index - 1].span;
+		ulang_span *endSpan = &ctx->stream.tokens->items[ctx->stream.index - 1].span;
 		span->data = startSpan->data;
 		span->data.length = endSpan->data.data == startSpan->data.data ? startSpan->data.length : endSpan->data.data - startSpan->data.data;
 		span->startLine = startSpan->startLine;
@@ -1097,18 +1114,18 @@ static ulang_bool parse_expression(token_stream *stream, expression_value *value
 	return result;
 }
 
-static void parse_repeat(token_stream *stream, int *numRepeat, ulang_error *error) {
-	if (!token_stream_match_string(stream, STR("x"), UL_TRUE)) return;
+static void parse_repeat(compiler_context *ctx, int *numRepeat) {
+	if (!token_stream_match_string(&ctx->stream, STR("x"), UL_TRUE)) return;
 	ulang_span span;
 	expression_value value;
-	if (!parse_expression(stream, &value, &span, error)) return;
-	if (value.type != ET_INT) {
-		ulang_error_init(error, stream->file, &span, "Expected an integer value after 'x'.");
+	if (!parse_expression(ctx, &value, &span)) return;
+	if (value.type != UL_INTEGER) {
+		ulang_error_init(ctx->error, ctx->stream.file, &span, "Expected an integer value after 'x'.");
 		return;
 	}
 	*numRepeat = value.i;
 	if (*numRepeat < 0) {
-		ulang_error_init(error, stream->file, &span, "Number of repetitions can not be negative.");
+		ulang_error_init(ctx->error, ctx->stream.file, &span, "Number of repetitions can not be negative.");
 		return;
 	}
 }
@@ -1272,29 +1289,23 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 	error->is_set = UL_FALSE;
 	init_opcodes_and_registers();
 
+	compiler_context ctx = { .error = error };
+
 	// tokenize
-	token_array tokens;
-	token_array_init_inplace(&tokens, MAX(16, file->length / 100));
-	if (!tokenize(file, &tokens, error)) {
-		token_array_free_inplace(&tokens);
+	token_array_init_inplace(&ctx.tokens, MAX(16, file->length / 100));
+	if (!tokenize(file, &ctx.tokens, error)) {
+		token_array_free_inplace(&ctx.tokens);
 		return UL_FALSE;
 	}
-	token_stream stream = {file, &tokens, 0};
+	ctx.stream = (token_stream){file, &ctx.tokens, 0};
+	patch_array_init_inplace(&ctx.patches, 16);
+	label_array_init_inplace(&ctx.labels, 16);
+	byte_array_init_inplace(&ctx.code, 16);
+	byte_array_init_inplace(&ctx.data, 16);
+	int_array_init_inplace(&ctx.addressToLine, 16);
 
-	patch_array patches;
-	patch_array_init_inplace(&patches, 16);
-	label_array labels;
-	label_array_init_inplace(&labels, 16);
-	byte_array code;
-	byte_array_init_inplace(&code, 16);
-	byte_array data;
-	byte_array_init_inplace(&data, 16);
-	int_array addressToLine;
-	int_array_init_inplace(&addressToLine, 16);
-	size_t numReservedBytes = 0;
-
-	while (token_stream_has_more(&stream)) {
-		token *tok = token_stream_consume(&stream);
+	while (token_stream_has_more(&ctx.stream)) {
+		token *tok = token_stream_consume(&ctx.stream);
 		opcode *op = token_matches_opcode(tok);
 		if (!op) {
 			if (tok->type != TOKEN_IDENTIFIER) {
@@ -1305,27 +1316,27 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 			if (ulang_span_matches(&tok->span, STR("byte"))) {
 				while (-1) {
 					token *value;
-					if ((value = token_stream_match(&stream, TOKEN_STRING, UL_TRUE))) {
+					if ((value = token_stream_match(&ctx.stream, TOKEN_STRING, UL_TRUE))) {
 						int numRepeat = 1;
-						parse_repeat(&stream, &numRepeat, error);
+						parse_repeat(&ctx, &numRepeat);
 						if (error->is_set) goto _compilation_error;
-						set_label_targets(&labels, UL_LT_DATA, data.size);
-						emit_string(&data, value, numRepeat);
+						set_label_targets(&ctx.labels, UL_LT_DATA, ctx.data.size);
+						emit_string(&ctx.data, value, numRepeat);
 					} else {
 						expression_value exprValue;
 						ulang_span span = {0};
-						if (!parse_expression(&stream, &exprValue, &span, error)) goto _compilation_error;
-						if (exprValue.type != ET_INT) {
+						if (!parse_expression(&ctx, &exprValue, &span)) goto _compilation_error;
+						if (exprValue.type != UL_INTEGER) {
 							ulang_error_init(error, file, &span, "Expression must evaluate to an integer value.");
 							goto _compilation_error;
 						}
 						int numRepeat = 1;
-						parse_repeat(&stream, &numRepeat, error);
+						parse_repeat(&ctx, &numRepeat);
 						if (error->is_set) goto _compilation_error;
-						set_label_targets(&labels, UL_LT_DATA, data.size);
-						emit_byte(&data, &exprValue, numRepeat);
+						set_label_targets(&ctx.labels, UL_LT_DATA, ctx.data.size);
+						emit_byte(&ctx.data, &exprValue, numRepeat);
 					}
-					if (!token_stream_match_string(&stream, STR(","), UL_TRUE)) break;
+					if (!token_stream_match_string(&ctx.stream, STR(","), UL_TRUE)) break;
 				}
 				continue;
 			}
@@ -1334,17 +1345,17 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 				while (-1) {
 					expression_value exprValue;
 					ulang_span span = {0};
-					if (!parse_expression(&stream, &exprValue, &span, error)) goto _compilation_error;
-					if (exprValue.type != ET_INT) {
+					if (!parse_expression(&ctx, &exprValue, &span)) goto _compilation_error;
+					if (exprValue.type != UL_INTEGER) {
 						ulang_error_init(error, file, &span, "Expression must evaluate to an integer value.");
 						goto _compilation_error;
 					}
 					int numRepeat = 1;
-					parse_repeat(&stream, &numRepeat, error);
+					parse_repeat(&ctx, &numRepeat);
 					if (error->is_set) goto _compilation_error;
-					set_label_targets(&labels, UL_LT_DATA, data.size);
-					emit_short(&data, &exprValue, numRepeat);
-					if (!token_stream_match_string(&stream, STR(","), UL_TRUE)) break;
+					set_label_targets(&ctx.labels, UL_LT_DATA, ctx.data.size);
+					emit_short(&ctx.data, &exprValue, numRepeat);
+					if (!token_stream_match_string(&ctx.stream, STR(","), UL_TRUE)) break;
 				}
 				continue;
 			}
@@ -1353,17 +1364,17 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 				while (-1) {
 					expression_value exprValue;
 					ulang_span span = {0};
-					if (!parse_expression(&stream, &exprValue, &span, error)) goto _compilation_error;
-					if (exprValue.type != ET_INT) {
+					if (!parse_expression(&ctx, &exprValue, &span)) goto _compilation_error;
+					if (exprValue.type != UL_INTEGER) {
 						ulang_error_init(error, file, &span, "Expression must evaluate to an integer value.");
 						goto _compilation_error;
 					}
 					int numRepeat = 1;
-					parse_repeat(&stream, &numRepeat, error);
+					parse_repeat(&ctx, &numRepeat);
 					if (error->is_set) goto _compilation_error;
-					set_label_targets(&labels, UL_LT_DATA, data.size);
-					emit_int(&data, &exprValue, numRepeat);
-					if (!token_stream_match_string(&stream, STR(","), UL_TRUE)) break;
+					set_label_targets(&ctx.labels, UL_LT_DATA, ctx.data.size);
+					emit_int(&ctx.data, &exprValue, numRepeat);
+					if (!token_stream_match_string(&ctx.stream, STR(","), UL_TRUE)) break;
 				}
 				continue;
 			}
@@ -1372,39 +1383,39 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 				while (-1) {
 					expression_value exprValue;
 					ulang_span span = {0};
-					if (!parse_expression(&stream, &exprValue, &span, error)) goto _compilation_error;
-					if (exprValue.type != ET_FLOAT) {
+					if (!parse_expression(&ctx, &exprValue, &span)) goto _compilation_error;
+					if (exprValue.type != UL_FLOAT) {
 						ulang_error_init(error, file, &span, "Expression must evaluate to a float value.");
 						goto _compilation_error;
 					}
 					int numRepeat = 1;
-					parse_repeat(&stream, &numRepeat, error);
+					parse_repeat(&ctx, &numRepeat);
 					if (error->is_set) goto _compilation_error;
-					set_label_targets(&labels, UL_LT_DATA, data.size);
-					emit_float(&data, &exprValue, numRepeat);
-					if (!token_stream_match_string(&stream, STR(","), UL_TRUE)) break;
+					set_label_targets(&ctx.labels, UL_LT_DATA, ctx.data.size);
+					emit_float(&ctx.data, &exprValue, numRepeat);
+					if (!token_stream_match_string(&ctx.stream, STR(","), UL_TRUE)) break;
 				}
 				continue;
 			}
 
 			if (ulang_span_matches(&tok->span, STR("reserve"))) {
 				size_t typeSize = 0;
-				if (token_stream_match_string(&stream, STR("byte"), UL_TRUE)) typeSize = 1;
-				else if (token_stream_match_string(&stream, STR("short"), UL_TRUE)) typeSize = 2;
-				else if (token_stream_match_string(&stream, STR("int"), UL_TRUE)) typeSize = 4;
-				else if (token_stream_match_string(&stream, STR("float"), UL_TRUE)) typeSize = 4;
+				if (token_stream_match_string(&ctx.stream, STR("byte"), UL_TRUE)) typeSize = 1;
+				else if (token_stream_match_string(&ctx.stream, STR("short"), UL_TRUE)) typeSize = 2;
+				else if (token_stream_match_string(&ctx.stream, STR("int"), UL_TRUE)) typeSize = 4;
+				else if (token_stream_match_string(&ctx.stream, STR("float"), UL_TRUE)) typeSize = 4;
 				else {
-					token *token = token_stream_consume(&stream);
-					if (!token) token = &stream.tokens->items[stream.index - 1];
+					token *token = token_stream_consume(&ctx.stream);
+					if (!token) token = &ctx.stream.tokens->items[ctx.stream.index - 1];
 					ulang_error_init(error, file, &token->span, "Expected byte, short, int, or float.");
 					goto _compilation_error;
 				}
 
-				if (!token_stream_expect_string(&stream, STR("x"), error)) goto _compilation_error;
+				if (!token_stream_expect_string(&ctx.stream, STR("x"), error)) goto _compilation_error;
 				expression_value exprValue;
 				ulang_span span = {0};
-				if (!parse_expression(&stream, &exprValue, &span, error)) goto _compilation_error;
-				if (exprValue.type != ET_INT) {
+				if (!parse_expression(&ctx, &exprValue, &span)) goto _compilation_error;
+				if (exprValue.type != UL_INTEGER) {
 					ulang_error_init(error, file, &span, "Expression must evaluate to an integer value.");
 					goto _compilation_error;
 				}
@@ -1414,30 +1425,31 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 					ulang_error_init(error, file, &span, "Number of reserved bytes must be > 0.");
 					goto _compilation_error;
 				}
-				set_label_targets(&labels, UL_LT_RESERVED_DATA, numReservedBytes);
-				numReservedBytes += numBytes;
+				set_label_targets(&ctx.labels, UL_LT_RESERVED_DATA, ctx.numReservedBytes);
+				ctx.numReservedBytes += numBytes;
 				continue;
 			}
 
 			// Otherwise, we must have a label
-			if (!token_stream_expect_string(&stream, STR(":"), error)) goto _compilation_error;
+			if (!token_stream_expect_string(&ctx.stream, STR(":"), error)) goto _compilation_error;
 			ulang_label label = {tok->span, UL_LT_UNINITIALIZED, 0};
-			label_array_add(&labels, label);
+			label_array_add(&ctx.labels, label);
 		} else {
 			token operands[3];
 			expression_value operandExpressions[3];
 			for (int i = 0; i < op->numOperands; i++) {
 				token *operand;
-				if ((operand = token_stream_match(&stream, TOKEN_IDENTIFIER, UL_TRUE))) {
+				if ((operand = token_stream_match(&ctx.stream, TOKEN_IDENTIFIER, UL_TRUE))) {
 					operands[i] = *operand;
 					operandExpressions[i] = (expression_value) {0};
 				} else {
-					if (!parse_expression(&stream, &operandExpressions[i], &operands[i].span, error)) goto _compilation_error;
-					operands[i].type = operandExpressions[i].type == ET_FLOAT ? TOKEN_FLOAT : TOKEN_INTEGER;
+					if (!parse_expression(&ctx, &operandExpressions[i], &operands[i].span)) goto _compilation_error;
+					operands[i].type = operandExpressions[i].type == UL_FLOAT ? TOKEN_FLOAT : TOKEN_INTEGER;
 				}
 
-				if (i < op->numOperands - 1)
-					if (!token_stream_expect_string(&stream, STR(","), error)) goto _compilation_error;
+				if (i < op->numOperands - 1) {
+					if (!token_stream_expect_string(&ctx.stream, STR(","), error)) goto _compilation_error;
+				}
 			}
 
 			opcode *fittingOp = NULL;
@@ -1500,19 +1512,19 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 			if (!fittingOp) goto _compilation_error;
 			if (error->is_set) ulang_error_free(error);
 
-			set_label_targets(&labels, UL_LT_CODE, code.size);
-			int_array_add(&addressToLine, tok->span.startLine);
-			if (fittingOp->hasValueOperand) int_array_add(&addressToLine, tok->span.startLine);
-			if (!emit_op(file, fittingOp, operands, operandExpressions, &patches, &code, error)) goto _compilation_error;
+			set_label_targets(&ctx.labels, UL_LT_CODE, ctx.code.size);
+			int_array_add(&ctx.addressToLine, tok->span.startLine);
+			if (fittingOp->hasValueOperand) int_array_add(&ctx.addressToLine, tok->span.startLine);
+			if (!emit_op(file, fittingOp, operands, operandExpressions, &ctx.patches, &ctx.code, error)) goto _compilation_error;
 		}
 	}
 
-	for (size_t i = 0; i < patches.size; i++) {
-		patch *p = &patches.items[i];
+	for (size_t i = 0; i < ctx.patches.size; i++) {
+		patch *p = &ctx.patches.items[i];
 		ulang_label *label = NULL;
-		for (size_t j = 0; j < labels.size; j++) {
-			if (ulang_string_equals(&labels.items[j].label.data, &p->label.data)) {
-				label = &labels.items[j];
+		for (size_t j = 0; j < ctx.labels.size; j++) {
+			if (ulang_string_equals(&ctx.labels.items[j].label.data, &p->label.data)) {
+				label = &ctx.labels.items[j];
 				break;
 			}
 		}
@@ -1529,36 +1541,36 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 			case UL_LT_CODE:
 				break;
 			case UL_LT_DATA:
-				labelAddress += code.size;
+				labelAddress += ctx.code.size;
 				break;
 			case UL_LT_RESERVED_DATA:
-				labelAddress += code.size + data.size;
+				labelAddress += ctx.code.size + ctx.data.size;
 				break;
 		}
-		memcpy(&code.items[p->patchAddress], &labelAddress, 4);
+		memcpy(&ctx.code.items[p->patchAddress], &labelAddress, 4);
 	}
 
-	patch_array_free_inplace(&patches);
-	token_array_free_inplace(&tokens);
-	program->code = code.items;
-	program->codeLength = code.size;
-	program->data = data.items;
-	program->dataLength = data.size;
-	program->reservedBytes = numReservedBytes;
-	program->labels = labels.items;
-	program->labelsLength = labels.size;
-	program->addressToLine = addressToLine.items;
-	program->addressToLineLength = addressToLine.size;
+	patch_array_free_inplace(&ctx.patches);
+	token_array_free_inplace(&ctx.tokens);
+	program->code = ctx.code.items;
+	program->codeLength = ctx.code.size;
+	program->data = ctx.data.items;
+	program->dataLength = ctx.data.size;
+	program->reservedBytes = ctx.numReservedBytes;
+	program->labels = ctx.labels.items;
+	program->labelsLength = ctx.labels.size;
+	program->addressToLine = ctx.addressToLine.items;
+	program->addressToLineLength = ctx.addressToLine.size;
 	program->file = file;
 	return UL_TRUE;
 
 	_compilation_error:
-	patch_array_free_inplace(&patches);
-	label_array_free_inplace(&labels);
-	byte_array_free_inplace(&code);
-	byte_array_free_inplace(&data);
-	int_array_free_inplace(&addressToLine);
-	token_array_free_inplace(&tokens);
+	patch_array_free_inplace(&ctx.patches);
+	label_array_free_inplace(&ctx.labels);
+	byte_array_free_inplace(&ctx.code);
+	byte_array_free_inplace(&ctx.data);
+	int_array_free_inplace(&ctx.addressToLine);
+	token_array_free_inplace(&ctx.tokens);
 	return UL_FALSE;
 }
 
@@ -1596,6 +1608,11 @@ ulang_bool ulang_vm_debug(ulang_vm *vm) {
 
 		token_stream stream = {&input, &tokens, 0};
 		token *cmd = token_stream_consume(&stream);
+		compiler_context ctx = {
+				.stream = { stream.file, stream.tokens, stream.index },
+				.error = &error,
+				.tokens = { tokens.size, tokens.capacity, tokens.items },
+		};
 
 		if (ulang_span_matches(&cmd->span, STR("h"))) {
 			printf("   s                         step one instruction\n");
@@ -1631,25 +1648,25 @@ ulang_bool ulang_vm_debug(ulang_vm *vm) {
 		if (ulang_span_matches(&cmd->span, STR("r"))) {
 			ulang_span span;
 			expression_value addr;
-			if (!parse_expression(&stream, &addr, &span, &error)) {
+			if (!parse_expression(&ctx, &addr, &span)) {
 				ulang_error_print(&error);
 				ulang_error_free(&error);
 				token_array_free_inplace(&tokens);
 				goto prompt;
 			}
-			if (addr.type != ET_INT) {
+			if (addr.type != UL_INTEGER) {
 				printf("Error: <addr> must be an integer value.\n");
 				token_array_free_inplace(&tokens);
 				goto prompt;
 			}
 			expression_value numWords;
-			if (!parse_expression(&stream, &numWords, &span, &error)) {
+			if (!parse_expression(&ctx, &numWords, &span)) {
 				ulang_error_print(&error);
 				ulang_error_free(&error);
 				token_array_free_inplace(&tokens);
 				goto prompt;
 			}
-			if (numWords.type != ET_INT) {
+			if (numWords.type != UL_INTEGER) {
 				printf("Error: <num> must be an integer value.\n");
 				token_array_free_inplace(&tokens);
 				goto prompt;
@@ -1688,21 +1705,21 @@ ulang_bool ulang_vm_debug(ulang_vm *vm) {
 		if (ulang_span_matches(&cmd->span, STR("w"))) {
 			ulang_span span;
 			expression_value num;
-			if (!parse_expression(&stream, &num, &span, &error)) {
+			if (!parse_expression(&ctx, &num, &span)) {
 				ulang_error_print(&error);
 				ulang_error_free(&error);
 				token_array_free_inplace(&tokens);
 				goto prompt;
 			}
-			if (num.type == ET_FLOAT) memcpy(&num.i, &num.f, 4);
+			if (num.type == UL_FLOAT) memcpy(&num.i, &num.f, 4);
 			expression_value addr;
-			if (!parse_expression(&stream, &addr, &span, &error)) {
+			if (!parse_expression(&ctx, &addr, &span)) {
 				ulang_error_print(&error);
 				ulang_error_free(&error);
 				token_array_free_inplace(&tokens);
 				goto prompt;
 			}
-			if (addr.type != ET_INT) {
+			if (addr.type != UL_INTEGER) {
 				printf("Error: <addr> must be an integer value.\n");
 				token_array_free_inplace(&tokens);
 				goto prompt;
@@ -2327,7 +2344,7 @@ EMSCRIPTEN_KEEPALIVE void ulang_print_offsets() {
 
 EMSCRIPTEN_KEEPALIVE uint8_t *ulang_argb_to_rgba(uint8_t *argb, uint8_t *rgba, size_t numPixels) {
 	numPixels <<= 2;
-	for (int i = 0; i < numPixels; i += 4) {
+	for (size_t i = 0; i < numPixels; i += 4) {
 		uint8_t b = argb[i];
 		uint8_t g = argb[i + 1];
 		uint8_t r = argb[i + 2];

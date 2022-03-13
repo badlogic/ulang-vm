@@ -59,6 +59,20 @@ typedef struct ulang_label {
 	size_t address;
 } ulang_label;
 
+typedef enum value_type {
+    UL_FLOAT,
+    UL_INTEGER
+} value_type;
+
+typedef struct ulang_constant {
+	value_type type;
+	ulang_span name;
+	union {
+		int32_t i;
+		float f;
+	};
+} ulang_constant;
+
 typedef struct ulang_program {
 	uint8_t *code;
 	size_t codeLength;
