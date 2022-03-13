@@ -86,10 +86,6 @@ main_loop:
       cmp r1, r2, r5
       jl r5, draw_fire_loop
 
-   # update buffer
-   push buffer
-   syscall 0x1
-
    # print frame time
    syscall 5
    pop r11
@@ -98,5 +94,9 @@ main_loop:
    push r11
    push 2
    syscall 2
+
+   # update buffer
+   push buffer
+   syscall 0x1
 
    jmp main_loop

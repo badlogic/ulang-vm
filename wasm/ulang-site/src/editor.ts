@@ -173,7 +173,8 @@ function defineUlangLanguage () {
 			"push", "stackalloc", "pop",
 			"call", "ret", "retn",
 			"syscall",
-			"reserve", "byte", "short", "int", "float"
+			"reserve", "byte", "short", "int", "float",
+			"const"
 		],
 		operators: ["~", "+", "-", "|", "&", "^", "/", "*", "%"],
 		registers: ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "pc", "sp"],
@@ -181,7 +182,7 @@ function defineUlangLanguage () {
 		tokenizer: {
 			root: [
 				// identifiers and keywords
-				[/[a-z_$][\w$]*/, {
+				[/[a-zA-Z_$][\w$_]*/, {
 					cases: {
 						'@keywords': 'keyword',
 						"@registers": "attribute.name",
