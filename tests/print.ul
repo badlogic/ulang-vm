@@ -1,13 +1,23 @@
-msg: byte "Hello world!\n", 0
+const P_INT 0
+const P_HEX 1
+const P_FLOAT 2
+const P_STRING 3
+const P_SPACE 4
+const P_NEWLINE 5
+const P_END 6
+msg: byte "Hello world!", 0
 
+push P_END
 push 123
-push 0
+push P_INT
+push P_NEWLINE
 push 0xff00ff
-push 1
+push P_HEX
+push P_NEWLINE
 push 123.456
-push 2
+push P_FLOAT
+push P_NEWLINE
 push msg
-push 3
-push 4
+push P_STRING
 syscall 0x2
 halt

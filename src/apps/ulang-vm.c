@@ -20,9 +20,9 @@ static ulang_bool syscallHandler(uint32_t intNum, ulang_vm *vm) {
 			return UL_TRUE;
 		}
 		case 2: {
-			int numArgs = ulang_vm_pop_uint(vm);
-			for (int i = 0; i < numArgs; i++) {
+			while (true) {
 				int argType = ulang_vm_pop_uint(vm);
+				if (argType == 6) break;
 				switch (argType) {
 					case 0:
 						printf("%i", ulang_vm_pop_int(vm));
@@ -35,6 +35,12 @@ static ulang_bool syscallHandler(uint32_t intNum, ulang_vm *vm) {
 						break;
 					case 3:
 						printf("%s", &vm->memory[ulang_vm_pop_uint(vm)]);
+						break;
+					case 4:
+						printf(" ");
+						break;
+					case 5:
+						printf("\n");
 						break;
 					default:
 						break;

@@ -12,7 +12,7 @@ import * as ulang from "@marioslab/ulang-vm"
 export class Editor {
 	private editor: monaco.editor.IStandaloneCodeEditor;
 	private decorations: string[] = [];
-	private breakpoints: monaco.editor.IModelDeltaDecoration[] = null;
+	private breakpoints: monaco.editor.IModelDeltaDecoration[] = [];
 	private currLine: monaco.editor.IModelDeltaDecoration = null;
 	private breakpointListener: (bps: number[]) => void = null;
 	private contentListener: (content: string) => void = null;

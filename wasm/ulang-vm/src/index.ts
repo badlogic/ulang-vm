@@ -85,10 +85,10 @@ export class VirtualMachine {
 					this.vsyncHit = true;
 					return 0;
 				case 2: {
-					let numArgs = vm.popUint();
 					let str = "";
-					for (let i = 0; i < numArgs; i++) {
+					while (true) {
 						let argType = vm.popUint();
+						if (argType == 6) break;
 						switch (argType) {
 							case 0:
 								str += vm.popInt();
@@ -102,6 +102,12 @@ export class VirtualMachine {
 							case 3:
 								let strAddr = vm.popUint();
 								str += ulang.UTF8ArrayToString(ulang.HEAPU8(), vm.memoryPtr() + strAddr);
+								break;
+							case 4:
+								str += " ";
+								break;
+							case 5:
+								str += "\n";
 								break;
 							default:
 								break;
