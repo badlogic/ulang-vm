@@ -39,7 +39,8 @@ import Split from "split.js"
 	let sizes = {
 		outer: [50, 50],
 		left: [50, 50],
-		right: [50, 50]
+		right: [50, 50],
+		debug: [34, 33, 33]
 	};
 	let sizesJSON = localStorage.getItem("split-sizes");
 	if (sizesJSON) sizes = JSON.parse(sizesJSON);
@@ -48,6 +49,7 @@ import Split from "split.js"
 		sizes.outer = splitOuter.getSizes();
 		sizes.left = splitLeft.getSizes();
 		sizes.right = splitRight.getSizes();
+		sizes.debug = splitDebug.getSizes();
 		localStorage.setItem("split-sizes", JSON.stringify(sizes));
 	}
 
@@ -73,6 +75,14 @@ import Split from "split.js"
 		gutterSize: 5,
 		sizes: sizes.right,
 		onDrag: resizeOutput,
+		onDragEnd: saveSplitSizes
+	})
+
+	let splitDebug = Split(["#debug-view-registers", "#debug-view-stack", "#debug-view-memory"], {
+		direction: "horizontal",
+		minSize: 0,
+		gutterSize: 5,
+		sizes: sizes.debug,
 		onDragEnd: saveSplitSizes
 	})
 
