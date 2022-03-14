@@ -4,6 +4,7 @@ import { Editor } from "./editor"
 import { loadUlang, VirtualMachine } from "@marioslab/ulang-vm"
 import { Debugger } from "./debugger";
 import Split from "split.js"
+import { saveAs } from "file-saver";
 
 (async function () {
 	await loadUlang();
@@ -98,4 +99,10 @@ import Split from "split.js"
 	else editor.setContent(fireExample);
 
 	(document.getElementsByClassName("main")[0] as HTMLElement).style.display = "flex";
+
+	let download = document.getElementById("toolbar-download");
+	download.addEventListener("click", () => {
+		var file = new File([editor.getContent()], "source.ul", { type: "text/plain;charset=utf-8" });
+		saveAs(file);
+	});
 })();
