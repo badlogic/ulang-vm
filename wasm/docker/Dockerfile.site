@@ -1,7 +1,6 @@
 FROM node:16
 
-WORKDIR /ulang
 RUN git clone https://github.com/badlogic/ulang-vm /ulang
 RUN git clone https://github.com/emscripten-core/emsdk.git /emsdk && cd /emsdk && git pull && ./emsdk install latest && ./emsdk activate latest
-WORKDIR /ulang
-CMD ./wasm/docker/main.sh
+WORKDIR /ulang/wasm
+CMD ./docker/main.sh

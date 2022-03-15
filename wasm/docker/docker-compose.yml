@@ -19,6 +19,7 @@ services:
         restart: always        
         environment:
             - ULANG_RESTART_PWD=${ULANG_RESTART_PWD}
+            - EMSDK=/emsdk
 networks:
     default:
         external:
