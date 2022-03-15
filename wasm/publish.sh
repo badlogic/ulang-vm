@@ -12,8 +12,7 @@ else
 fi
 
 sed -i '' "s/$lastVersion/$newVersion/" package.json
-sed -i '' "s/$lastVersion/$newVersion/" ulang-vm/package.json
-sed -i '' "s/$lastVersion/$newVersion/" ulang-site/package.json
+sed -i '' "s/$lastVersion/$newVersion/" vm/package.json
 
 npm run build
 npm publish --access public --workspaces

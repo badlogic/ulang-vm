@@ -3,11 +3,11 @@
 let watch = process.argv.length >= 3 && process.argv[2] == "-watch";
 
 require('esbuild').build({
-	entryPoints: ["ulang-vm/src/index.ts"],
+	entryPoints: ["vm/src/index.ts"],
 	bundle: true,
-	tsconfig: "ulang-vm/tsconfig.json",
+	tsconfig: "vm/tsconfig.json",
 	sourcemap: true,
-	outfile: 'ulang-vm/dist/iife/ulang.js',
+	outfile: 'vm/dist/iife/ulang.js',
 	format: "iife",
 	globalName: "ulang",
 	watch: watch,

@@ -156,19 +156,12 @@ body {
 	overflow: auto;
 }
 
-.debug-view-item {	
-}
-
 .debug-view-item-name {
 	color: #569cd6;
 }
 
 .debug-view-item-changed {
 	color: #cc6566;
-}
-
-#debug-max-stack-entries {
-	
 }
 
 .debug-view-register-config {
@@ -203,9 +196,45 @@ input:focus {
 	border-color: #666;
 	outline: 0;
 }
-
 select {
 	background: #1a1a1a;
     color: #ccc;
     border-style: groove;
+}
+
+.dialog {
+	position: fixed;
+	z-index: 100;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	overflow: auto;
+	background-color: rgba(0, 0, 0, 0.4);
+}
+
+.dialog-content {
+	background-color: #1a1a1a;
+  	margin: 2em auto;
+  	padding: 1em;  	
+  	width: 400px;
+	box-shadow: 0px 0px 10px black;
+}
+
+.dialog-header {
+	font-weight: 200;
+	font-size: 1.5em;
+}
+
+.dialog-button {
+	background: none;
+	border: 1px solid #333;
+	padding: 0.5em;
+	margin-right: 0.4em;
+	color: #ccc;
+	cursor: pointer;	
+}
+
+.dialog-button:hover {
+	border-color: #666;	
 }

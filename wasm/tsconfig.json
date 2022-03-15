@@ -2,10 +2,13 @@
 	"files": [],
 	"references": [
 		{
-			"path": "./ulang-vm"
+			"path": "./vm"
 		},
 		{
-			"path": "./ulang-site"
+			"path": "./client"
+		},
+		{
+			"path": "./server"
 		}
 	]
 }

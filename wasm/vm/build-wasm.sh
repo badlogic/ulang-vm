@@ -36,7 +36,7 @@ mkdir -p dist/iife
 cp src/ulang.wasm dist
 cp src/ulang.wasm dist/iife
 
-mkdir -p ../ulang-site/assets/bundle
-cp src/ulang.wasm ../ulang-site/assets/bundle
+mkdir -p ../client/assets/bundle
+cp src/ulang.wasm ../client/assets/bundle
 
 popd

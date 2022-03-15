@@ -4,13 +4,13 @@ let watch = process.argv.length >= 3 && process.argv[2] == "-watch";
 
 require('esbuild').build({
 	entryPoints: {
-		index: "ulang-site/src/index.ts",
+		index: "client/src/index.ts",
 		"editor.worker": "monaco-editor/esm/vs/editor/editor.worker.js",
 	},
 	bundle: true,
-	tsconfig: "ulang-site/tsconfig.json",
+	tsconfig: "client/tsconfig.json",
 	sourcemap: true,
-	outdir: 'ulang-site/assets/bundle',
+	outdir: 'client/assets/bundle',
 	loader: {
 		".ttf": "dataurl",
 		".ul": "text"

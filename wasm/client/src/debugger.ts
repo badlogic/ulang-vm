@@ -258,7 +258,6 @@ export class Debugger {
 	private createItem (name: string, intVal: number, floatVal: number, changed: boolean) {
 		let changedClass = changed ? "debug-view-item-changed" : "";
 		let dom = document.createElement("div");
-		dom.classList.add("debug-view-item");
 		dom.innerHTML = `
 			<span class="debug-view-item-name">${name}</span>
 			<span class="${changedClass}">${intVal}</span>

@@ -3,21 +3,23 @@
   "version": "1.0.1",
   "description": "Virtual machine & assembler for recreational programming like it's 1992.",
   "scripts": {
-    "minify": "esbuild --minify ulang-vm/dist/iife/ulang.js --outfile=ulang-vm/dist/iife/ulang.min.js && esbuild --allow-overwrite --minify ulang-site/assets/bundle/index.js --outfile=ulang-site/assets/bundle/index.js && esbuild --allow-overwrite --minify ulang-site/assets/bundle/editor.worker.js --outfile=ulang-site/assets/bundle/editor.worker.js",
-    "clean": "rm -rf ulang-vm/dist && rm -f ulang-vm/src/ulang.* && rm -rf ulang-site/assets/bundle",
-    "build": "npm run clean && npm run build:wasm && npm run build:modules && npm run build:ulang-vm && npm run build:ulang-site && npm run minify",
-    "build:modules": "npx tsc --project ulang-vm && cp ulang-vm/src/ulang.js ulang-vm/dist",
-    "build:wasm": "./ulang-vm/build-wasm.sh",
-    "build:ulang-vm": "./ulang-vm/esbuild.js",
-    "build:ulang-site": "./ulang-site/esbuild.js",
-    "dev": "npm run build:wasm && concurrently \"npx live-server --no-browser\" \"npm run dev:wasm\" \"npm run dev:ulang-vm\" \"npm run dev:ulang-site\"",
+    "clean": "rm -rf vm/dist && rm -f vm/src/ulang.* && rm -f vm/tsconfig.tsbuildinfo && rm -rf client/assets/bundle && rm -rf server/build",
+    "minify": "esbuild --minify vm/dist/iife/ulang.js --outfile=vm/dist/iife/ulang.min.js && esbuild --allow-overwrite --minify client/assets/bundle/index.js --outfile=client/assets/bundle/index.js && esbuild --allow-overwrite --minify client/assets/bundle/editor.worker.js --outfile=client/assets/bundle/editor.worker.js",
+    "build": "npm run clean && npm run build:wasm && npm run build:modules && npm run build:vm && npm run build:client && npm run build:server && npm run minify",
+    "build:modules": "tsc -p vm && cp vm/src/ulang.js vm/dist",
+    "build:wasm": "./vm/build-wasm.sh",
+    "build:vm": "./vm/esbuild.js",
+    "build:client": "./client/esbuild.js",
+    "build:server": "tsc -p server/tsconfig.json",
+    "dev": "npm run build:wasm && concurrently \"npm run dev:wasm\" \"npm run dev:vm\" \"npm run dev:client\" \"npm run dev:server\"",
     "dev:wasm": "watch \"npm run build:wasm\" ../src",
-    "dev:ulang-vm": "npm run build:ulang-vm -- -watch",
-    "dev:ulang-site": "npm run build:ulang-site -- -watch"
+    "dev:vm": "npm run build:vm -- -watch",
+    "dev:client": "npm run build:client -- -watch",
+    "dev:server": "tsc-watch -p server/tsconfig.json --onSuccess \"node server/build/server.js\""
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/badlogic/ulang-vm.git"
+    "url": "git+https://github.com/badlogic/vm.git"
   },
   "keywords": [
     "Assembler",
@@ -28,23 +30,25 @@
   "author": "Mario Zechner",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/badlogic/ulang-vm/issues"
+    "url": "https://github.com/badlogic/vm/issues"
   },
-  "homepage": "https://github.com/badlogic/ulang-vm#readme",
+  "homepage": "https://github.com/badlogic/vm#readme",
   "workspaces": [
-    "ulang-vm"
+    "vm"
   ],
   "devDependencies": {
+    "@types/express": "^4.17.13",
     "concurrently": "^7.0.0",
     "esbuild": "^0.14.24",
-    "live-server": "^1.2.1",
-    "monaco-editor": "^0.32.1",
-    "npx": "^10.2.2",
+    "tsc-watch": "^4.6.2",
     "typescript": "^4.6.2",
-    "watch": "^1.0.2"
+    "watch": "^0.13.0"
   },
   "dependencies": {
+    "chokidar": "^3.5.3",
+    "express": "^4.17.3",
     "file-saver": "^2.0.5",
+    "monaco-editor": "^0.32.1",
     "split.js": "^1.6.5"
   }
 }

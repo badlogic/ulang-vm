@@ -6,9 +6,13 @@
 		"outDir": "./dist",
 		"paths": {
 			"@marioslab/ulang-vm": [
-				"../ulang-vm/src"
+				"../vm/src"
 			]
-		}
+		},
+		"lib": [
+			"ES2017",
+			"DOM"
+		]
 	},
 	"include": [
 		"**/*.ts"
@@ -18,7 +22,7 @@
 	],
 	"references": [
 		{
-			"path": "../ulang-vm"
+			"path": "../vm"
 		}
 	]
 }

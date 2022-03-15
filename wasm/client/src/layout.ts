@@ -1,14 +1,6 @@
-import "./ui.css"
-import fireExample from "../../../tests/fire.ul";
-import { Editor } from "./editor"
-import { loadUlang, VirtualMachine } from "@marioslab/ulang-vm"
-import { Debugger } from "./debugger";
 import Split from "split.js"
-import { saveAs } from "file-saver";
 
-(async function () {
-	await loadUlang();
-
+export function setupLayout () {
 	let resizeOutput = () => {
 		let canvas = document.getElementById("debugger-output");
 		let container = canvas.parentElement;
@@ -52,7 +44,7 @@ import { saveAs } from "file-saver";
 		sizes.right = splitRight.getSizes();
 		sizes.debug = splitDebug.getSizes();
 		localStorage.setItem("split-sizes", JSON.stringify(sizes));
-	}
+	};
 
 	let splitOuter = Split(['#left-col', '#right-col'], {
 		minSize: 0,
@@ -60,7 +52,7 @@ import { saveAs } from "file-saver";
 		sizes: sizes.outer,
 		onDrag: resizeOutput,
 		onDragEnd: saveSplitSizes
-	})
+	});
 
 	let splitLeft = Split(['#editor-container', '#help-container'], {
 		direction: "vertical",
@@ -68,7 +60,7 @@ import { saveAs } from "file-saver";
 		gutterSize: 5,
 		sizes: sizes.left,
 		onDragEnd: saveSplitSizes
-	})
+	});
 
 	let splitRight = Split(['#debugger-container', '#debug-view-container'], {
 		direction: "vertical",
@@ -77,7 +69,7 @@ import { saveAs } from "file-saver";
 		sizes: sizes.right,
 		onDrag: resizeOutput,
 		onDragEnd: saveSplitSizes
-	})
+	});
 
 	let splitDebug = Split(["#debug-view-registers", "#debug-view-stack", "#debug-view-memory"], {
 		direction: "horizontal",
@@ -85,24 +77,7 @@ import { saveAs } from "file-saver";
 		gutterSize: 5,
 		sizes: sizes.debug,
 		onDragEnd: saveSplitSizes
-	})
-
-	let editor = new Editor("editor-container");
-	let virtualMachine = new VirtualMachine("debugger-output");
-	let debuggerUI = new Debugger(editor, virtualMachine, "toolbar-run", "toolbar-continue", "toolbar-pause", "toolbar-step", "toolbar-stop", "debug-view-registers", "debug-view-stack", "debug-view-memory");
-
-	editor.setContentListener((content) => {
-		localStorage.setItem("source", content);
-	})
-	let lastSource = localStorage.getItem("source");
-	if (lastSource != null) { editor.setContent(lastSource); }
-	else editor.setContent(fireExample);
+	});
 
 	(document.getElementsByClassName("main")[0] as HTMLElement).style.display = "flex";
-
-	let download = document.getElementById("toolbar-download");
-	download.addEventListener("click", () => {
-		var file = new File([editor.getContent()], "source.ul", { type: "text/plain;charset=utf-8" });
-		saveAs(file);
-	});
-})();
+}

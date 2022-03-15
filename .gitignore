@@ -13,3 +13,6 @@ wasm/ulang-vm/src/ulang.wasm
 wasm/ulang-site/assets/js/ulang.wasm
 wasm/ulang-site/assets/js
 wasm/ulang-site/assets/bundle
+wasm/client/assets/bundle
+wasm/docker/data
+wasm/server/build
