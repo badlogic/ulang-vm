@@ -4,4 +4,4 @@ WORKDIR /ulang
 RUN git clone https://github.com/badlogic/ulang-vm /ulang
 RUN git clone https://github.com/emscripten-core/emsdk.git /emsdk && cd /emsdk && git pull && ./emsdk install latest && ./emsdk activate latest
 WORKDIR /ulang
-CMD ./docker/main.sh
+CMD ./wasm/docker/main.sh
