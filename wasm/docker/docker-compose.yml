@@ -4,13 +4,16 @@ services:
         image: nginx:latest
         container_name: ulang_nginx
         restart: always
+        links:
+            - site
         volumes:
             - ./nginx.conf:/etc/nginx/conf.d/default.conf            
             - ./data/logs:/logs
+            - static-assets:/ulang/wasm/client/assets
         environment:
             VIRTUAL_HOST: ulang.io,www.ulang.io
             LETSENCRYPT_HOST: ulang.io,www.ulang.io
-            LETSENCRYPT_EMAIL: "badlogicgames@gmail.com"   
+            LETSENCRYPT_EMAIL: "badlogicgames@gmail.com"
     site:
         build:
             dockerfile: Dockerfile.site
@@ -20,6 +23,10 @@ services:
         environment:
             - ULANG_RESTART_PWD=${ULANG_RESTART_PWD}
             - EMSDK=/emsdk
+        volumes:
+            - static-assets:/ulang/wasm/client/assets
+volumes:
+    static-assets:
 networks:
     default:
         external:
