@@ -1,7 +1,7 @@
 version: "3"
 services:
     web:
-        image: nginx:latest
+        image: nginx:1.21.6
         container_name: ulang_nginx
         restart: always
         links:
