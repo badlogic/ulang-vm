@@ -7,15 +7,11 @@ if [ -d ./node_modules ]; then
 	fi
 fi
 
-echo "DEV: ${ULANG_DEV}"
-
-if [[ -z "${ULANG_DEV}" ]]; then
-	echo "=================== PROD MODE ==================="
+if [ -z "$ULANG_DEV" ]; then	
 	npm install
 	npm run build
-	NODE_DEV=production node server/build/server.js	
-else
-	echo "=================== DEV MODE ==================="
+	node server/build/server.js	
+else	
 	npm install
 	npm run dev
 fi

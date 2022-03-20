@@ -19,3 +19,4 @@ wasm/server/build
 wasm/vm/dist
 wasm/vm/tsconfig.tsbuildinfo
 wasm/client/tsconfig.tsbuildinfo
+wasm/vm/src/ulang.wasm

@@ -39,7 +39,7 @@ start)
 	;;
 startdev)	
 	docker-compose -f docker-compose.base.yml -f docker-compose.dev.yml build
-	docker-compose -f docker-compose.base.yml -f docker-compose.dev.yml up -d
+	docker-compose -f docker-compose.base.yml -f docker-compose.dev.yml up
 	;;
 reloadnginx)
 	docker exec -it ulang_nginx nginx -t

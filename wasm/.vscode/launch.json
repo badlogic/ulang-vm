@@ -19,7 +19,9 @@
 			"address": "localhost",
 			"localRoot": "${workspaceFolder}/server/build",
 			"remoteRoot": "${workspaceFolder}/server/build",
-			"protocol": "inspector"
+			"protocol": "inspector",
+			"restart": true,
+			"continueOnAttach": true
 		},
 		{
 			"type": "pwa-chrome",
@@ -36,7 +38,9 @@
 			"address": "localhost",
 			"localRoot": "${workspaceFolder}/server/build",
 			"remoteRoot": "/ulang/wasm/server/build",
-			"protocol": "inspector"
+			"protocol": "inspector",
+			"restart": true,
+			"continueOnAttach": true
 		}
 	],
 	"compounds": [

@@ -1,11 +1,11 @@
 import { showDialog } from "./ui";
 
-const isDev = window.location.host == "localhost:8080";
-const CLIENT_ID = isDev ? "5d70175768102ff08ee4" : "98d7ee42b2a5f52f8e97";
-const redirectUri = isDev ? "http://localhost:8080/ulang-site/assets/index.html" : "https://marioslab.io/ulang";
+const CLIENT_ID = "98d7ee42b2a5f52f8e97";
+const redirectUri = `${window.location.protocol}//${window.location.host}/api/auth_redirect`;
 let accessToken = localStorage.getItem("access-token");
 
 export async function setupAuth () {
+	console.log(`Redirect URI: ${redirectUri}`);
 	if (isAuthenticated()) return;
 }
 

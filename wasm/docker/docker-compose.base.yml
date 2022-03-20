@@ -18,5 +18,6 @@ services:
         restart: always
         environment:
             - EMSDK=/emsdk
+            - ULANG_CLIENT_SECRET=${ULANG_CLIENT_SECRET}
         volumes:
             - ../..:/ulang

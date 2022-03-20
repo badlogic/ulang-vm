@@ -5,10 +5,10 @@ import { Server } from "http";
 import { Server as SocketServer, Socket } from "socket.io"
 
 var lastChangeTimestamp = 0;
-
+// test
 export function setupLiveEdit (server: Server, assetPath: string) {
 	const sockets: Socket[] = [];
-	const io = new SocketServer(server, { path: "/ws" });
+	const io = new SocketServer(server, { path: "/api/ws", transports: ["websocket"] });
 	io.on('connection', (socket) => sockets.push(socket));
 
 	let p = path.join(__dirname, assetPath);
