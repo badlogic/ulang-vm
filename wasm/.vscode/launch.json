@@ -12,6 +12,16 @@
 			"webRoot": "${workspaceFolder}/client/assets"
 		},
 		{
+			"type": "node",
+			"request": "attach",
+			"name": "server",
+			"port": 9229,
+			"address": "localhost",
+			"localRoot": "${workspaceFolder}/server/build",
+			"remoteRoot": "${workspaceFolder}/server/build",
+			"protocol": "inspector"
+		},
+		{
 			"type": "pwa-chrome",
 			"request": "launch",
 			"name": "client-docker",
@@ -30,6 +40,14 @@
 		}
 	],
 	"compounds": [
+		{
+			"name": "client-server",
+			"configurations": [
+				"client",
+				"server"
+			],
+			"stopAll": true
+		},
 		{
 			"name": "client-server-docker",
 			"configurations": [
