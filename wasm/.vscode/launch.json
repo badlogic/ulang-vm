@@ -7,9 +7,36 @@
 		{
 			"type": "pwa-chrome",
 			"request": "launch",
-			"name": "ulang",
-			"url": "http://localhost:8080/ulang-site/assets/",
-			"webRoot": "${workspaceFolder}"
+			"name": "client",
+			"url": "http://localhost:3000",
+			"webRoot": "${workspaceFolder}/client/assets"
 		},
+		{
+			"type": "pwa-chrome",
+			"request": "launch",
+			"name": "client-docker",
+			"url": "http://localhost",
+			"webRoot": "${workspaceFolder}/client/assets"
+		},
+		{
+			"type": "node",
+			"request": "attach",
+			"name": "server-docker",
+			"port": 9229,
+			"address": "localhost",
+			"localRoot": "${workspaceFolder}/server/build",
+			"remoteRoot": "/ulang/wasm/server/build",
+			"protocol": "inspector"
+		}
+	],
+	"compounds": [
+		{
+			"name": "client-server-docker",
+			"configurations": [
+				"client-docker",
+				"server-docker"
+			],
+			"stopAll": true
+		}
 	]
 }

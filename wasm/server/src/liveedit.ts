@@ -1,48 +1,21 @@
 import { Express, Response } from "express";
-import * as fs from "fs";
 import * as path from "path";
 import chokidar from "chokidar"
+import { Server } from "http";
+import { Server as SocketServer, Socket } from "socket.io"
 
 var lastChangeTimestamp = 0;
 
-export function setupLiveEdit (app: Express, assetPath: string) {
+export function setupLiveEdit (server: Server, assetPath: string) {
+	const sockets: Socket[] = [];
+	const io = new SocketServer(server, { path: "/ws" });
+	io.on('connection', (socket) => sockets.push(socket));
+
 	let p = path.join(__dirname, assetPath);
 	chokidar.watch(p).on('all', () => {
 		lastChangeTimestamp = Date.now()
-		console.log("Files changed");
+		for (let i = 0; i < sockets.length; i++) {
+			sockets[i].send(`${lastChangeTimestamp}`);
+		}
 	});
-
-	var reloadScript = `
-	<script>
-	(function(){
-	var lastChangeTimestamp = null;
-	setInterval(() => {
-		fetch("/live-edit")
-			.then(response => response.text())
-			.then(timestamp => {
-				if (lastChangeTimestamp == null) {
-					lastChangeTimestamp = timestamp;
-				} else if (lastChangeTimestamp != timestamp) {
-					location.reload();
-				}
-			});
-	}, 500);
-	})();
-	</script>
-	`;
-
-	let sendFile = (filename: string, res: Response<any, Record<string, any>>) => {
-		fs.readFile(path.join(__dirname, assetPath, filename), function (err, data) {
-			if (err) {
-				res.sendStatus(404);
-			} else {
-				res.setHeader("Content-Type", "text/html; charset=UTF-8");
-				res.send(Buffer.concat([data, Buffer.from(reloadScript)]));
-			}
-		});
-	};
-
-	app.get("/", (req, res, next) => sendFile("index.html", res));
-	app.get("/*.html", (req, res, next) => sendFile(req.path, res));
-	app.get("/live-edit", (req, res) => res.send(`${lastChangeTimestamp}`));
 }

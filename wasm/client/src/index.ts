@@ -5,9 +5,11 @@ import { setupStorage } from "./storage";
 import { authenticate, setupAuth } from "./auth";
 import { loadUlang, VirtualMachine } from "@marioslab/ulang-vm"
 import { Debugger } from "./debugger";
+import { setupLiveEdit } from "./liveedit"
 
 (async function () {
 	await loadUlang();
+	setupLiveEdit();
 
 	let editor = new Editor("editor-container");
 	let virtualMachine = new VirtualMachine("debugger-output");

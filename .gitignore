@@ -16,3 +16,6 @@ wasm/ulang-site/assets/bundle
 wasm/client/assets/bundle
 wasm/docker/data
 wasm/server/build
+wasm/vm/dist
+wasm/vm/tsconfig.tsbuildinfo
+wasm/client/tsconfig.tsbuildinfo

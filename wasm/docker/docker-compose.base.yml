@@ -1,0 +1,22 @@
+version: "3"
+services:
+    web:
+        image: nginx:1.21.6
+        container_name: ulang_nginx
+        restart: always
+        links:
+            - site
+        volumes:
+            - ./nginx.conf:/etc/nginx/conf.d/default.conf
+            - ./data/logs:/logs
+            - ../..:/ulang
+    site:
+        build:
+            dockerfile: Dockerfile.site
+            context: .
+        container_name: ulang_site
+        restart: always
+        environment:
+            - EMSDK=/emsdk
+        volumes:
+            - ../..:/ulang

@@ -34,20 +34,19 @@ restart)
 	;;
 start)
 	git pull
-	docker-compose build --no-cache
-	docker-compose up -d
+	docker-compose -f docker-compose.base.yml -f docker-compose.prod.yml build --no-cache
+	docker-compose -f docker-compose.base.yml -f docker-compose.prod.yml up -d
 	;;
-startdev)
-	git pull
-	docker-compose -f docker-compose.yml -f docker-compose.dev.yml build
-	docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d
+startdev)	
+	docker-compose -f docker-compose.base.yml -f docker-compose.dev.yml build
+	docker-compose -f docker-compose.base.yml -f docker-compose.dev.yml up -d
 	;;
 reloadnginx)
 	docker exec -it ulang_nginx nginx -t
 	docker exec -it ulang_nginx nginx -s reload
 	;;
 stop)
-	docker-compose down -t 1
+	docker-compose -f docker-compose.base.yml down -t 1
 	;;
 shell)
 	docker exec -it ulang_site bash
@@ -56,7 +55,7 @@ shellnginx)
 	docker exec -it ulang_nginx bash
 	;;
 logs)
-	docker-compose logs -f
+	docker-compose -f docker-compose.base.yml logs -f
 	;;
 *) 
 	echo "Invalid command $1"

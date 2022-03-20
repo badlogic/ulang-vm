@@ -15,7 +15,10 @@
     "dev:wasm": "watch \"npm run build:wasm\" ../src",
     "dev:vm": "npm run build:vm -- -watch",
     "dev:client": "npm run build:client -- -watch",
-    "dev:server": "tsc-watch -p server/tsconfig.json --onSuccess \"node server/build/server.js\""
+    "dev:server": "tsc-watch -p server/tsconfig.json --onSuccess \"node --inspect=0.0.0.0:9229 server/build/server.js\"",
+    "docker:dev": "./docker/control.sh startdev && ./docker/control.sh logs",
+    "docker:stop": "./docker/control.sh stop",
+    "docker:logs": "./docker/control.sh stop"
   },
   "repository": {
     "type": "git",
@@ -45,10 +48,13 @@
     "watch": "^0.13.0"
   },
   "dependencies": {
+    "@keyv/sqlite": "^3.0.0",
     "chokidar": "^3.5.3",
     "express": "^4.17.3",
     "file-saver": "^2.0.5",
     "monaco-editor": "^0.32.1",
+    "socket.io": "^4.4.1",
+    "socket.io-client": "^4.4.1",
     "split.js": "^1.6.5"
   }
 }

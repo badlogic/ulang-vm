@@ -1,0 +1,10 @@
+services:
+    web:
+        environment:
+            VIRTUAL_HOST: ulang.io,www.ulang.io
+            LETSENCRYPT_HOST: ulang.io,www.ulang.io
+            LETSENCRYPT_EMAIL: "badlogicgames@gmail.com"
+networks:
+    default:
+        external:
+            name: nginx-proxy

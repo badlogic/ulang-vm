@@ -2,3 +2,8 @@ services:
     web:
       ports:
         - 80:80
+    site:
+      ports:
+        - 9229:9229
+      environment:
+        - ULANG_DEV=true
