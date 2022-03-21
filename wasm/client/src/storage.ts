@@ -1,6 +1,7 @@
 import { Editor } from "./editor";
 import { saveAs } from "file-saver";
 import fireExample from "../../../tests/fire.ul";
+import { auth } from "./auth"
 
 export function setupStorage (editor: Editor) {
 	let download = document.getElementById("toolbar-download");
@@ -8,7 +9,13 @@ export function setupStorage (editor: Editor) {
 		var file = new File([editor.getContent()], "source.ul", { type: "text/plain;charset=utf-8" });
 		saveAs(file);
 	});
-
+	let save = document.getElementById("toolbar-save");
+	save.addEventListener("click", () => {
+		if (!auth.isAuthenticated()) {
+			auth.login();
+			return;
+		}
+	});
 
 	editor.setContentListener((content) => {
 		localStorage.setItem("source", content);
