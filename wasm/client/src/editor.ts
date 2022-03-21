@@ -1,5 +1,4 @@
 import "monaco-editor/min/vs/editor/editor.main.css"
-import "./editor.css"
 import * as monaco from "monaco-editor";
 import * as ulang from "@marioslab/ulang-vm"
 

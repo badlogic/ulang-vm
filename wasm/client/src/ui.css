@@ -80,10 +80,39 @@ a {
 	height: 1.8em;
 	vertical-align: middle;	
 	border-radius: 50%;
+	cursor: pointer;	
+}
+
+.toolbar-separator {
+	width: 1px;
+	height: 1.5em;	
+	margin: auto;
+	vertical-align: middle;
+	border-left: 1px solid #3f3f3f;
+}
+
+.toolbar-filler {
+	flex-grow: 1;
 }
 
 .toolbar-spacer {
-	flex-grow: 1;
+	width: 0.5em;
+	height: 2em;
+}
+
+.toolbar-label {
+	height: 2em;
+	line-height: 2em;
+	vertical-align: middle;
+	margin: auto;	
+	font-size: 14px;
+}
+
+#toolbar-title {
+	height: 1.6em;
+	line-height: 1.6em;
+	margin-top: auto;
+	margin-bottom: auto;	
 }
 
 .no-icon {
@@ -110,6 +139,10 @@ a {
 
 .icon-download {
 	background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2388d184' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' class='feather feather-download'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'%3E%3C/path%3E%3Cpolyline points='7 10 12 15 17 10'%3E%3C/polyline%3E%3Cline x1='12' y1='15' x2='12' y2='3'%3E%3C/line%3E%3C/svg%3E");	
+}
+
+.icon-new {
+	background-image: url("data:image/svg+xml,%3C%3Fxml version='1.0' encoding='iso-8859-1'%3F%3E%3C!-- Generator: Adobe Illustrator 19.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0) --%3E%3Csvg version='1.1' id='Capa_1' xmlns='http://www.w3.org/2000/svg' xmlns:xlink='http://www.w3.org/1999/xlink' x='0px' y='0px' viewBox='0 0 53 53' style='fill:%2388d184; enable-background:new 0 0 53 53;' xml:space='preserve'%3E%3Cg%3E%3Cpath d='M45.707,10.075l-9.794-9.783C35.725,0.105,35.471,0,35.206,0H8C7.448,0,7,0.448,7,1v51c0,0.552,0.448,1,1,1h37 c0.552,0,1-0.448,1-1V10.783C46,10.517,45.895,10.263,45.707,10.075z M42.586,10H36V3.414L42.586,10z M9,51V2h25v9 c0,0.552,0.448,1,1,1h9v39H9z'/%3E%3C/g%3E%3Cg%3E%3C/g%3E%3Cg%3E%3C/g%3E%3Cg%3E%3C/g%3E%3Cg%3E%3C/g%3E%3Cg%3E%3C/g%3E%3Cg%3E%3C/g%3E%3Cg%3E%3C/g%3E%3Cg%3E%3C/g%3E%3Cg%3E%3C/g%3E%3Cg%3E%3C/g%3E%3Cg%3E%3C/g%3E%3Cg%3E%3C/g%3E%3Cg%3E%3C/g%3E%3Cg%3E%3C/g%3E%3Cg%3E%3C/g%3E%3C/svg%3E%0A");
 }
 
 .icon-save {
@@ -289,4 +322,13 @@ select {
 
 .dialog-button:hover {
 	border-color: #666;	
+}
+
+.ulang-debug-curr-line {
+	background: rgba(255, 240, 0, 0.1);
+}
+
+.ulang-debug-breakpoint::before {
+	content: '⬤';
+	color: crimson;
 }

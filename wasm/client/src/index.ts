@@ -16,11 +16,10 @@ import { loadProject, project } from "./project";
 	new Debugger(editor, virtualMachine, "toolbar-run", "toolbar-continue", "toolbar-pause", "toolbar-step", "toolbar-stop", "debug-view-registers", "debug-view-stack", "debug-view-memory");
 	new Auth("toolbar-login", "toolbar-logout", "toolbar-avatar");
 
+	await loadProject(editor, "toolbar-title", "toolbar-author");
 	setupLiveEdit();
 	setupLayout();
 	setupUIEvents(editor);
-
-	await loadProject(editor, document.getElementById("toolbar-title") as HTMLInputElement);
 
 	(document.getElementsByClassName("main")[0] as HTMLElement).style.display = "flex";
 })();
@@ -31,20 +30,29 @@ function setupUIEvents (editor: Editor) {
 		project.setTitle(titleInput.value);
 	})
 
-	let downloadButton = document.getElementById("toolbar-download");
-	downloadButton.addEventListener("click", () => project.download());
-
-	let save = document.getElementById("toolbar-save");
-	save.addEventListener("click", () => project.save());
-
 	editor.setContentListener((content) => {
 		project.setSource(content);
 	});
 
-	editor.getDOM().addEventListener("keydown", (ev) => {
+	let unsavedLabel = document.getElementById("toolbar-unsaved") as HTMLDivElement;
+	project.setUnsavedListener((isUnsaved) => {
+		unsavedLabel.textContent = isUnsaved ? "(unsaved)" : "";
+	})
+	unsavedLabel.textContent = project.isUnsaved() ? "(unsaved)" : "";
+
+	let newButton = document.getElementById("toolbar-new");
+	newButton.addEventListener("click", () => window.location.href = "/");
+
+	let saveButton = document.getElementById("toolbar-save");
+	saveButton.addEventListener("click", () => project.save());
+
+	let downloadButton = document.getElementById("toolbar-download");
+	downloadButton.addEventListener("click", () => project.download());
+
+	document.body.addEventListener("keydown", (ev) => {
 		if ((ev.metaKey || ev.ctrlKey)) {
-			ev.preventDefault();
 			if (ev.key == "s") {
+				ev.preventDefault();
 				project.save();
 			}
 			if (ev.key == "d") {
@@ -53,4 +61,12 @@ function setupUIEvents (editor: Editor) {
 			}
 		}
 	}, false);
+
+	window.addEventListener("beforeunload", (ev) => {
+		if (!project.isUnsaved() || localStorage.getItem("authorize-project")) {
+			delete ev['returnValue'];
+		} else {
+			ev.returnValue = true;
+		}
+	});
 }

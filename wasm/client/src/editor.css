@@ -1,8 +1,0 @@
-.ulang-debug-curr-line {
-	background: rgba(255, 240, 0, 0.1);
-}
-
-.ulang-debug-breakpoint::before {
-	content: '⬤';
-	color: crimson;
-}
