@@ -1312,6 +1312,14 @@ emit_op(ulang_file *file, opcode *op, token operands[3], expression_value operan
 				numEmittedRegs++;
 				break;
 			case UL_OFF:
+				if (operandValue->unresolved) {
+					patch p;
+					p.type = PT_OFFSET;
+					p.expr = *operandValue;
+					p.patchAddress = code->size;
+					patch_array_add(patches, p);
+					break;
+				}
 				ENCODE_OFF(word1, operandValue->i);
 				break;
 			case UL_INT:
@@ -1644,7 +1652,7 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 				span.startLine = tok->span.startLine;
 				span.endLine = lastToken->span.endLine;
 				span.data.data = tok->span.data.data;
-				span.data.length = lastToken->span.data.data - tok->span.data.data + 1;
+				span.data.length = lastToken->span.data.data - tok->span.data.data + tok->span.data.length + 1;
 				if (error->is_set) ulang_error_free(error);
 				char *alternatives = NULL;
 				size_t len = 0;
@@ -1706,8 +1714,15 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 			if (p->expr.type == UL_INTEGER) memcpy(&ctx.code.items[p->patchAddress], &expr.i, 4);
 			else memcpy(&ctx.code.items[p->patchAddress], &expr.f, 4);
 		} else {
-			ulang_error_init(ctx.error, ctx.stream.file, &span, "Labels in offsets not supported.");
-		}
+			if (p->expr.type != UL_INTEGER) {
+				ulang_error_init(ctx.error, ctx.stream.file, &span, "Offsets must be integers.");
+				break;
+			}
+
+			uint32_t op;
+			memcpy(&op, &ctx.code.items[p->patchAddress], 4);
+			ENCODE_OFF(op, p->expr.i);
+			memcpy(&ctx.code.items[p->patchAddress], &op, 4);}
 	}
 
 	patch_array_free_inplace(&ctx.patches);
