@@ -1,4 +1,4 @@
-export function showDialog (title: string, content: string, buttons: { label: string, callback: () => void }[], hasCancel: boolean) {
+export function showDialog (title: string, content: string, buttons: { label: string, callback: () => void }[], hasCancel: boolean, cancelLabel: string = "Cancel") {
 	let buttonsDom = "";
 	for (let i = 0; i < buttons.length; i++) {
 		let button = buttons[i];
@@ -19,7 +19,10 @@ export function showDialog (title: string, content: string, buttons: { label: st
 	`;
 	for (let i = 0; i < buttons.length; i++) {
 		let button = buttons[i];
-		dialog.querySelector("#button" + i).addEventListener("click", button.callback);
+		dialog.querySelector("#button" + i).addEventListener("click", () => {
+			dialog.remove();
+			button.callback()
+		});
 	}
 	if (hasCancel) dialog.querySelector("#cancel").addEventListener("click", () => { dialog.remove() });
 	document.body.appendChild(dialog);

@@ -1,11 +1,11 @@
 #!/bin/bash
-set -e
-
 if [ -d ./node_modules ]; then
 	if ! ./node_modules/esbuild/bin/esbuild --version ; then
 		rm -r node_modules
 	fi
 fi
+
+set -e
 
 if [ -z "$ULANG_DEV" ]; then	
 	npm install

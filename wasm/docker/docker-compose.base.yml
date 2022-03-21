@@ -19,5 +19,6 @@ services:
         environment:
             - EMSDK=/emsdk
             - ULANG_CLIENT_SECRET=${ULANG_CLIENT_SECRET}
+            - ULANG_CLIENT_ID=${ULANG_CLIENT_ID}
         volumes:
             - ../..:/ulang

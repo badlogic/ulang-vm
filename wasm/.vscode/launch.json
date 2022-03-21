@@ -23,25 +23,6 @@
 			"restart": true,
 			"continueOnAttach": true
 		},
-		{
-			"type": "pwa-chrome",
-			"request": "launch",
-			"name": "client-docker",
-			"url": "http://localhost",
-			"webRoot": "${workspaceFolder}/client/assets"
-		},
-		{
-			"type": "node",
-			"request": "attach",
-			"name": "server-docker",
-			"port": 9229,
-			"address": "localhost",
-			"localRoot": "${workspaceFolder}/server/build",
-			"remoteRoot": "/ulang/wasm/server/build",
-			"protocol": "inspector",
-			"restart": true,
-			"continueOnAttach": true
-		}
 	],
 	"compounds": [
 		{
@@ -49,14 +30,6 @@
 			"configurations": [
 				"client",
 				"server"
-			],
-			"stopAll": true
-		},
-		{
-			"name": "client-server-docker",
-			"configurations": [
-				"client-docker",
-				"server-docker"
 			],
 			"stopAll": true
 		}
