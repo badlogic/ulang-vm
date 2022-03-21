@@ -26,4 +26,5 @@ export function showDialog (title: string, content: string, buttons: { label: st
 	}
 	if (hasCancel) dialog.querySelector("#cancel").addEventListener("click", () => { dialog.remove() });
 	document.body.appendChild(dialog);
+	return dialog;
 }

@@ -2,7 +2,7 @@ import { createServer, Server } from "http";
 import express from "express";
 import { setupLiveEdit } from "./liveedit";
 import axios from "axios"
-import querystring from "querystring"
+import querystring from "query-string"
 
 const port = process.env.ULANG_PORT || 3000;
 const app = express()

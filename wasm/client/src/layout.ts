@@ -78,6 +78,4 @@ export function setupLayout () {
 		sizes: sizes.debug,
 		onDragEnd: saveSplitSizes
 	});
-
-	(document.getElementsByClassName("main")[0] as HTMLElement).style.display = "flex";
 }
