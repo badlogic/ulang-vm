@@ -6,6 +6,7 @@ import { loadUlang, VirtualMachine } from "@marioslab/ulang-vm"
 import { Debugger } from "./debugger";
 import { setupLiveEdit } from "./liveedit"
 import { loadProject, project } from "./project";
+import { showDialog } from "./ui";
 
 (async function () {
 	await checkAuthorizationCode();
@@ -27,6 +28,10 @@ import { loadProject, project } from "./project";
 function setupUIEvents (editor: Editor) {
 	let titleInput = document.getElementById("toolbar-title") as HTMLInputElement;
 	titleInput.addEventListener("input", () => {
+		if (titleInput.value.trim().length == 0) {
+			showDialog("Sorry", "<p>Title can't be empty.</p>", [], true, "OK");
+			titleInput.value = "Untitled";
+		}
 		project.setTitle(titleInput.value);
 	})
 

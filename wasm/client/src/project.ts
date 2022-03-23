@@ -4,6 +4,7 @@ import { Editor } from "./editor";
 import querystring from "query-string"
 import { getGist, Gist, newGist, updateGist } from "./gist";
 import { showDialog } from "./ui";
+import axios from "axios";
 
 export let project: Project;
 
@@ -40,6 +41,7 @@ export async function loadProject (editor: Editor, _titleLabel: string, _authorL
 
 export class Project {
 	private title: string;
+	private titleModified: boolean;
 	private owner: string;
 	private id: string;
 	private source: string;
@@ -48,6 +50,7 @@ export class Project {
 
 	constructor (title: string, owner: string, id: string, source: string) {
 		this.title = title || "Untitled";
+		this.titleModified = false;
 		this.owner = owner;
 		this.id = id;
 		this.source = source;
@@ -60,6 +63,7 @@ export class Project {
 
 	fromGist (gist: Gist) {
 		this.title = gist.description;
+		this.titleModified = false;
 		this.owner = gist.owner.login;
 		this.id = gist.id;
 		this.source = gist.files["source.ul"].content;
@@ -80,6 +84,8 @@ export class Project {
 			return;
 		}
 
+		if (!this.isUnsaved()) return;
+
 		if (!auth.isAuthenticated()) {
 			auth.login();
 			return;
@@ -92,11 +98,25 @@ export class Project {
 				let gist = await newGist(this.title, this.source, auth.getAccessToken());
 				this.fromGist(gist);
 				history.replaceState(null, "", `/?id=${this.id}`);
+				axios.post(`/api/${auth.getUsername()}/projects`, {
+					user: auth.getUsername(),
+					accessToken: auth.getAccessToken(),
+					gistId: gist.id,
+					title: this.title
+				});
 			} else if (this.id != null && this.owner != auth.getUsername()) {
 				console.log("Forking gist");
 			} else {
 				dialog = showDialog("", "Saving Gist", [], false);
 				await updateGist(this.id, this.title, this.source, auth.getAccessToken());
+				if (project.titleModified) {
+					axios.patch(`/api/${auth.getUsername()}/projects`, {
+						user: auth.getUsername(),
+						accessToken: auth.getAccessToken(),
+						gistId: this.id,
+						title: this.title
+					});
+				}
 			}
 		} catch (e) {
 			if (dialog) dialog.remove();
@@ -111,11 +131,13 @@ export class Project {
 
 	private setUnsaved (isUnsaved: boolean) {
 		this.unsaved = isUnsaved;
+		if (!isUnsaved) this.titleModified = false;
 		if (this.unsavedListener) this.unsavedListener(isUnsaved);
 	}
 
 	setTitle (title: string) {
 		if (this.title == title.trim()) return;
+		this.titleModified = true;
 		this.title = title.trim();
 		this.setUnsaved(true);
 	}

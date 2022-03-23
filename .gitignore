@@ -21,3 +21,6 @@ wasm/vm/tsconfig.tsbuildinfo
 wasm/client/tsconfig.tsbuildinfo
 wasm/vm/src/ulang.wasm
 wasm/vm/src/ulang.js
+wasm/server/data/db.sqlite
+wasm/server/data/db.sqlite-wal
+wasm/server/data/db.sqlite-shm
