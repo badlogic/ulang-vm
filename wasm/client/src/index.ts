@@ -26,7 +26,7 @@ import { loadProject, project } from "./project";
 
 function setupUIEvents (editor: Editor) {
 	let titleInput = document.getElementById("toolbar-title") as HTMLInputElement;
-	titleInput.addEventListener("change", () => {
+	titleInput.addEventListener("input", () => {
 		project.setTitle(titleInput.value);
 	})
 
