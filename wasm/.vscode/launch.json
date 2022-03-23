@@ -18,7 +18,6 @@
 			"port": 9229,
 			"address": "localhost",
 			"localRoot": "${workspaceFolder}/server/build",
-			"remoteRoot": "${workspaceFolder}/server/build",
 			"protocol": "inspector",
 			"restart": true,
 			"continueOnAttach": true

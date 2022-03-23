@@ -96,6 +96,10 @@ export class Auth {
 		return this.user?.user?.avatar_url;
 	}
 
+	getAccessToken () {
+		return this.user?.accessToken;
+	}
+
 	login () {
 		if (this.isAuthenticated()) return;
 
@@ -123,7 +127,7 @@ export class Auth {
 		const authorizeState = cryptoRandomString();
 		localStorage.setItem("authorize-state", authorizeState);
 		localStorage.setItem("authorize-final-url", window.location.href);
-		localStorage.setItem("authorize-project", JSON.stringify({ title: project.getTitle(), source: project.getSource() }));
+		localStorage.setItem("authorize-project", JSON.stringify(project));
 		const redirectUri = window.location.protocol + "//" + window.location.host + "/";
 		window.location.href = `https://github.com/login/oauth/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=gist&state=${encodeURIComponent(authorizeState)}&allow_signup=true}`;
 	}

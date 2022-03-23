@@ -47,18 +47,20 @@ app.use(express.urlencoded({ extended: true }));
 
 app.post("/api/access_token", async (req, res) => {
 	let code = req.body.code as string;
-	let accessToken = await axios.post("https://github.com/login/oauth/access_token", querystring.stringify({
+	let resp = await axios.post("https://github.com/login/oauth/access_token", querystring.stringify({
 		client_id: clientId,
 		client_secret: clientSecret,
 		code: code
 	}), { headers: { "Accept": "application/json" } });
+	if (resp.status >= 400)
+		throw new Error(`Couldn't get acess token from GitHub: ${JSON.stringify(resp.data)}`);
 
 	let user = await axios.get("https://api.github.com/user", {
 		headers: {
-			"Authorization": `token ${accessToken.data.access_token}`
+			"Authorization": `token ${resp.data.access_token}`
 		}
 	});
-	res.send({ accessToken: code, user: user.data });
+	res.send({ accessToken: resp.data.access_token, user: user.data });
 });
 
 // Run server

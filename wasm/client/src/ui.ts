@@ -5,7 +5,7 @@ export function showDialog (title: string, content: string, buttons: { label: st
 		buttonsDom += `<button id="${"button" + i}" class="dialog-button">${button.label}</button>`;
 	}
 	if (hasCancel) {
-		buttonsDom += `<button id="cancel" class="dialog-button">Cancel</button>`;
+		buttonsDom += `<button id="cancel" class="dialog-button">${cancelLabel}</button>`;
 	}
 
 	let dialog = document.createElement("div");
