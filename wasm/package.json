@@ -59,6 +59,7 @@
     "express": "^4.17.3",
     "file-saver": "^2.0.5",
     "keyv": "^4.1.1",
+    "mariadb": "^3.0.0",
     "monaco-editor": "^0.32.1",
     "query-string": "^7.1.1",
     "socket.io": "^4.4.1",

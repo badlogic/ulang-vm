@@ -18,6 +18,7 @@
 			"port": 9229,
 			"address": "localhost",
 			"localRoot": "${workspaceFolder}/server/build",
+			"remoteRoot": "/ulang/wasm/server/build",
 			"protocol": "inspector",
 			"restart": true,
 			"continueOnAttach": true

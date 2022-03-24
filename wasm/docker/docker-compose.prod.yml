@@ -5,7 +5,9 @@ services:
             VIRTUAL_HOST: ulang.io,www.ulang.io
             LETSENCRYPT_HOST: ulang.io,www.ulang.io
             LETSENCRYPT_EMAIL: "badlogicgames@gmail.com"
+        networks:
+            - reverse_proxy
 networks:
-    default:
+    reverse_proxy:
         external:
             name: nginx-proxy

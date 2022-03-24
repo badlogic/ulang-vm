@@ -7,6 +7,7 @@ import Keyv from "keyv"
 import fs from "fs"
 import path from "path"
 import bcrypt from "bcrypt"
+import mariadb from "mariadb"
 
 const port = process.env.ULANG_PORT || 3000;
 const app = express()
@@ -17,6 +18,7 @@ const staticFiles = "../../client/assets";
 let dataDir = process.env.ULANG_DATA_DIR;
 let clientId = process.env.ULANG_CLIENT_ID;
 let clientSecret = process.env.ULANG_CLIENT_SECRET;
+let dbPassword = process.env.ULANG_DB_PASSWORD;
 
 // Setup live edit of anything in assets/
 // when we are not in production mode.
@@ -48,6 +50,12 @@ if (!clientId || clientId.length == 0) {
 	console.error("===============================================================================");
 	process.exit(-1);
 }
+if (!dbPassword || dbPassword.length == 0) {
+	console.error("===============================================================================");
+	console.error("No ULANG_DB_PASSWORD found in env.");
+	console.error("===============================================================================");
+	process.exit(-1);
+}
 
 console.log(`Port:                 ${port}`)
 console.log(`GitHub client id:     ${clientId}`);
@@ -63,8 +71,19 @@ console.log(`DB file:              ${dbFile}`);
 const projectsDb = new Keyv(`sqlite://${dbFile}`, { namespace: "projects" });
 const hashesDb = new Keyv(`sqlite://${dbFile}`, { namespace: "hashes" });
 
-(projectsDb as any).opts.store.db.pragma("journal_mode = WAL");
-(hashesDb as any).opts.store.db.pragma("journal_mode = WAL");
+const connectionPool = mariadb.createPool({
+	host: 'database',
+	user: 'root',
+	database: "ulang",
+	password: process.env.ULANG_DB_PASSWORD,
+	connectionLimit: 10
+});
+
+(async () => {
+	let con = await connectionPool.getConnection();
+	let res = await con.query("CREATE TABLE  IF NOT EXISTS test (a int);");
+	console.log(res);
+})();
 
 // Setup express 
 app.use(express.static("./client/assets"));
@@ -83,7 +102,7 @@ interface Hashes {
 }
 
 // This should be atomic, but it's unlikely a user logs in multiple
-// times at the exact same time.
+// times at the exact same time. 
 async function createUser (accessToken: string, user: string) {
 	let salt = await bcrypt.genSalt(saltRounds);
 	let hash = await bcrypt.hash(accessToken, salt);
