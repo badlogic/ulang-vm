@@ -37,7 +37,7 @@ services:
             MARIADB_ROOT_PASSWORD: ${ULANG_DB_PASSWORD}
             MARIADB_DATABASE: ulang
         volumes:
-            - ../data:/data/db
+            - ./data/db:/var/lib/mysql
         networks:
             - ulang_network
 networks:

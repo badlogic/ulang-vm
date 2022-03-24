@@ -81,7 +81,7 @@ const connectionPool = mariadb.createPool({
 
 (async () => {
 	let con = await connectionPool.getConnection();
-	let res = await con.query("CREATE TABLE  IF NOT EXISTS test (a int);");
+	let res = await con.query("CREATE TABLE IF NOT EXISTS test (a int);");
 	console.log(res);
 })();
 
