@@ -38,6 +38,7 @@ services:
             MARIADB_DATABASE: ulang
         volumes:
             - ./data/db:/var/lib/mysql
+            - ../server/ulang-db.conf:/etc/mysql/conf.d/ulang-db.conf
         networks:
             - ulang_network
 networks:

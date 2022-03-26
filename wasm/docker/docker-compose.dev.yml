@@ -10,3 +10,6 @@ services:
       - ULANG_DEV=true
       - ULANG_CLIENT_SECRET_DEV=${ULANG_CLIENT_SECRET_DEV}
       - ULANG_CLIENT_ID_DEV=${ULANG_CLIENT_ID_DEV}
+  database:
+    ports:
+      - 3306:3306
