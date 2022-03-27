@@ -1,6 +1,6 @@
 {
 	"name": "@marioslab/ulang-vm",
-	"version": "1.0.4",
+	"version": "1.0.6",
 	"description": "Virtual machine & assembler for recreational programming like it's 1992.",
 	"main": "dist/index.js",
 	"types": "dist/index.d.ts",
