@@ -16,7 +16,6 @@ export async function loadProject (editor: Editor, _titleLabel: string, _authorL
 		if (!params.code && authorizeProject) {
 			project = new Project("", authorizeProject["owner"], authorizeProject["id"], authorizeProject["source"]);
 			project.setTitle(authorizeProject["title"]);
-			localStorage.removeItem("authorize-project");
 		} else if (params && params.id) {
 			let gist = await getGist(params.id, auth.getAccessToken());
 			if (gist && gist.files["source.ul"]) {
@@ -29,6 +28,8 @@ export async function loadProject (editor: Editor, _titleLabel: string, _authorL
 		}
 	} catch (err) {
 		console.log("Unexpectedly unable to load project.");
+	} finally {
+		localStorage.removeItem("authorize-project");
 	}
 
 
