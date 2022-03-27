@@ -10,7 +10,7 @@ export let project: Project;
 
 export async function loadProject (editor: Editor, _titleLabel: string, _authorLabel: string) {
 	try {
-		let authorizeProject = JSON.parse(localStorage.getItem("authorize-project"));
+		let authorizeProject = localStorage.getItem("authorize-project") ? JSON.parse(localStorage.getItem("authorize-project")) : null;
 		let params: any = querystring.parse(location.search);
 
 		if (!params.code && authorizeProject) {
