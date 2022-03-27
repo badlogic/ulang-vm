@@ -1,8 +1,5 @@
 FROM node:16
 
-RUN addgroup --gid 1024 badlogic
-RUN usermod -aG docker badlogic
-
 RUN git clone https://github.com/emscripten-core/emsdk.git /home/badlogic/emsdk && cd /home/badlogic/emsdk && git pull && ./emsdk install latest && ./emsdk activate latest
 WORKDIR /ulang/wasm
 ENTRYPOINT ["./docker/main.sh"]

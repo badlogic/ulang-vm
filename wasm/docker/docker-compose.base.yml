@@ -33,6 +33,7 @@ services:
     database:
         image: mariadb:latest
         container_name: ulang_db
+        user: badlogic
         environment:
             MARIADB_ROOT_PASSWORD: ${ULANG_DB_PASSWORD}
             MARIADB_DATABASE: ulang
