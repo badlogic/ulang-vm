@@ -12,48 +12,19 @@
 <body>
 	<div class="main">
 		<div class="toolbar">
-			<a class="logo" href="https://github.com/badlogic/ulang-vm">µlang</a>
-			<div class="toolbar-separator"></div>
-			<div class="toolbar-button icon-run" id="toolbar-run"></div>
-			<div class="toolbar-button icon-continue" id="toolbar-continue"></div>
-			<div class="toolbar-button icon-pause" id="toolbar-pause"></div>
-			<div class="toolbar-button icon-step" id="toolbar-step"></div>
-			<div class="toolbar-button icon-stop" id="toolbar-stop"></div>
-			<div class="toolbar-separator"></div>
-			<div class="toolbar-spacer"></div>
-			<div class="toolbar-button icon-new" id="toolbar-new"></div>
-			<div class="toolbar-button icon-save" id="toolbar-save"></div>
-			<div class="toolbar-button icon-download" id="toolbar-download"></div>
-			<div class="toolbar-spacer"></div>
-			<input id="toolbar-title" type="text">
-			<div class="toolbar-spacer"></div>
-			<div class="toolbar-label" style="font-size: 10px;" id="toolbar-unsaved"></div>
-			<div class="toolbar-spacer"></div>
-			<div class="toolbar-label" id="toolbar-author">by you</div>
+			<a class="logo" href="/">µlang</a>
 			<div class="toolbar-filler"></div>
 			<img class="toolbar-avatar left hide" id="toolbar-avatar"></img>
 			<div class="toolbar-button no-icon left hide" id="toolbar-login">Login</div>
 			<div class="toolbar-button no-icon left hide" id="toolbar-logout">Logout</div>
 		</div>
-		<div class="split-row">
-			<div class="split-col" id="left-col">
-				<div id="editor-container">
-				</div>
-				<div id="help-container"></div>
-			</div>
-			<div class="split-col" id="right-col">
-				<div id="debugger-container">
-					<canvas id="debugger-output" width="320" height="240"></canvas>
-				</div>
-				<div id="debug-view-container" class="split-row">
-					<div id="debug-view-registers"></div>
-					<div id="debug-view-stack"></div>
-					<div id="debug-view-memory"></div>
-				</div>
-			</div>
+
+		<div class="main-content">
+			<h1>µlang</h1>
+			<p class="teaser">Feed your nostalgia by building and sharing programs for a DOS-like environment.</p>
+			<button class="button big-button" id="start-building">Start building</button>
 		</div>
 	</div>
-
 
 	<script src='./bundle/index.js'></script>
 </body>

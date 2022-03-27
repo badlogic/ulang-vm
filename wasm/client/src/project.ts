@@ -9,23 +9,29 @@ import axios from "axios";
 export let project: Project;
 
 export async function loadProject (editor: Editor, _titleLabel: string, _authorLabel: string) {
-	let authorizeProject = JSON.parse(localStorage.getItem("authorize-project"));
-	let params: any = querystring.parse(location.search);
+	try {
+		let authorizeProject = JSON.parse(localStorage.getItem("authorize-project"));
+		let params: any = querystring.parse(location.search);
 
-	if (!params.code && authorizeProject) {
-		project = new Project("", authorizeProject["owner"], authorizeProject["id"], authorizeProject["source"]);
-		project.setTitle(authorizeProject["title"]);
-		localStorage.removeItem("authorize-project");
-	} else if (params && params.id) {
-		let gist = await getGist(params.id, auth.getAccessToken());
-		if (gist && gist.files["source.ul"]) {
-			project = Project.fromGist(gist);
-		} else {
-			showDialog("Sorry", "<p>This Gist could not be loaded. Either it doesn't exist, or you ran into GitHub's rate limit of 60 requests per hour for anonymous users. Login to get increase that limit to 5000 requests per hour.</p>", [], true, "OK", () => {
-				window.location.href = "/";
-			});
+		if (!params.code && authorizeProject) {
+			project = new Project("", authorizeProject["owner"], authorizeProject["id"], authorizeProject["source"]);
+			project.setTitle(authorizeProject["title"]);
+			localStorage.removeItem("authorize-project");
+		} else if (params && params.id) {
+			let gist = await getGist(params.id, auth.getAccessToken());
+			if (gist && gist.files["source.ul"]) {
+				project = Project.fromGist(gist);
+			} else {
+				showDialog("Sorry", "<p>This Gist could not be loaded. Either it doesn't exist, or you ran into GitHub's rate limit of 60 requests per hour for anonymous users. Login to get increase that limit to 5000 requests per hour.</p>", [], true, "OK", () => {
+					window.location.href = "/";
+				});
+			}
 		}
+	} catch (err) {
+		console.log("Unexpectedly unable to load project.");
 	}
+
+
 	if (!project) project = new Project("Untitled", null, null, "");
 
 	let titleInput = document.getElementById(_titleLabel) as HTMLInputElement;
@@ -97,7 +103,7 @@ export class Project {
 				dialog = showDialog("", "Creating new Gist", [], false);
 				let gist = await newGist(this.title, this.source, auth.getAccessToken());
 				this.fromGist(gist);
-				history.replaceState(null, "", `/?id=${this.id}`);
+				history.replaceState(null, "", `${window.location.href.split('?')[0]}?id=${this.id}`);
 				await axios.post(`/api/${auth.getUsername()}/projects`, {
 					user: auth.getUsername(),
 					accessToken: auth.getAccessToken(),

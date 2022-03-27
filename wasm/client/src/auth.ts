@@ -128,7 +128,7 @@ export class Auth {
 		localStorage.setItem("authorize-state", authorizeState);
 		localStorage.setItem("authorize-final-url", window.location.href);
 		localStorage.setItem("authorize-project", JSON.stringify(project));
-		const redirectUri = window.location.protocol + "//" + window.location.host + "/";
+		const redirectUri = window.location.href;
 		window.location.href = `https://github.com/login/oauth/authorize?client_id=${CLIENT_ID}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=gist&state=${encodeURIComponent(authorizeState)}&allow_signup=true}`;
 	}
 }

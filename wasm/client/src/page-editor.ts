@@ -1,4 +1,5 @@
-import "./ui.css"
+import "./common.css"
+import "./page-editor.css"
 import { Editor } from "./editor"
 import { setupLayout } from "./layout";
 import { Auth, checkAuthorizationCode } from "./auth";
@@ -46,7 +47,7 @@ function setupUIEvents (editor: Editor) {
 	unsavedLabel.textContent = project.isUnsaved() ? "(unsaved)" : "";
 
 	let newButton = document.getElementById("toolbar-new");
-	newButton.addEventListener("click", () => window.location.href = "/");
+	newButton.addEventListener("click", () => window.location.href = window.location.href.split('?')[0]);
 
 	let saveButton = document.getElementById("toolbar-save");
 	saveButton.addEventListener("click", () => project.save());

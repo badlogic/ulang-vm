@@ -4,7 +4,8 @@ let watch = process.argv.length >= 3 && process.argv[2] == "-watch";
 
 require('esbuild').build({
 	entryPoints: {
-		index: "client/src/index.ts",
+		editor: "client/src/page-editor.ts",
+		index: "client/src/page-index.ts",
 		"editor.worker": "monaco-editor/esm/vs/editor/editor.worker.js",
 	},
 	bundle: true,
