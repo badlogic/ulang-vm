@@ -9,12 +9,29 @@
 	<script src='./ulang.min.js'></script>
 </head>
 
+<style>
+	body,
+	* {
+		margin: 0;
+		padding: 0;
+		box-sizing: border-box;
+	}
+
+	canvas {
+		width: 100%;
+		height: 100%;
+		image-rendering: pixelated;
+		image-rendering: crisp-edges;
+	}
+</style>
+
 <body>
-	<canvas style="width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges;" width="320" height="240"></canvas>
+	<canvas width="320" height="240"></canvas>
 	<script>
 		(async () => {
+			let gistId = window.frameElement.getAttribute("data-gistid");
 			let canvas = document.getElementsByTagName("canvas")[0];
-			let player = await ulang.createPlayerFromGist(canvas, "a3929e69602cb54d64ffc2c3f638208b");
+			let player = await ulang.createPlayerFromGist(canvas, gistId);
 			player.play();
 		})();		
 	</script>

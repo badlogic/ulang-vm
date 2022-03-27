@@ -1,6 +1,6 @@
 {
   "name": "@marioslab/ulang",
-  "version": "1.0.1",
+  "version": "1.0.3",
   "description": "Virtual machine & assembler for recreational programming like it's 1992.",
   "scripts": {
     "clean": "rm -rf vm/dist && rm -f vm/src/ulang.* && rm -f vm/tsconfig.tsbuildinfo && rm -rf client/assets/bundle && rm -rf server/build",
