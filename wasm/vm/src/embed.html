@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+	<meta charset='utf-8'>
+	<meta http-equiv='X-UA-Compatible' content='IE=edge'>
+	<title>Page Title</title>
+	<meta name='viewport' content='width=device-width, initial-scale=1'>
+	<script src='./ulang.min.js'></script>
+</head>
+
+<body>
+	<canvas style="width: 100%; height: 100%; image-rendering: pixelated; image-rendering: crisp-edges;" width="320" height="240"></canvas>
+	<script>
+		(async () => {
+			let canvas = document.getElementsByTagName("canvas")[0];
+			let player = await ulang.createPlayerFromGist(canvas, "a3929e69602cb54d64ffc2c3f638208b");
+			player.play();
+		})();		
+	</script>
+</body>
+
+</html>

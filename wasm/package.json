@@ -8,7 +8,7 @@
     "build": "npm run clean && npm run build:wasm && npm run build:modules && npm run build:vm && npm run build:client && npm run build:server && npm run minify",
     "build:modules": "tsc -p vm && cp vm/src/ulang.js vm/dist",
     "build:wasm": "./vm/build-wasm.sh",
-    "build:vm": "./vm/esbuild.js",
+    "build:vm": "./vm/esbuild.js && cp ./vm/src/embed.html ./vm/dist/iife",
     "build:client": "./client/esbuild.js",
     "build:server": "tsc -p server/tsconfig.json",
     "dev": "npm run build:wasm && concurrently \"npm run dev:wasm\" \"npm run dev:vm\" \"npm run dev:client\" \"npm run dev:server\"",

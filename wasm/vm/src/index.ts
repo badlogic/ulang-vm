@@ -185,7 +185,7 @@ export class VirtualMachine {
 		return this.bpPtr;
 	}
 
-	run (source) {
+	run (source: string) {
 		if (this.compilerResult) {
 			this.compilerResult.free();
 			this.compilerResult = null;
@@ -294,6 +294,10 @@ export class VirtualMachine {
 		this.vm.print();
 	}
 
+	getCanvas () {
+		return this.canvas;
+	}
+
 	private frame () {
 		if (this.state == VirtualMachineState.Running) {
 			let frameStart = performance.now();
@@ -365,5 +369,42 @@ export async function loadUlang () {
 	if (!loaded) {
 		loaded = true;
 		await ulang.loadUlang();
+	}
+}
+
+export async function createPlayerFromGist (canvas: HTMLCanvasElement | string, gistId: string) {
+	await loadUlang();
+	let response = await fetch(`https:/api.github.com/gists/${gistId}`);
+	if (response.status >= 400) throw new Error("Couldn't fetch gist ${gistId}");
+	let gist = await response.json();
+	if (!gist.files || !gist.files["source.ul"] || !gist.files["source.ul"].content) {
+		throw new Error("Gist ${gistId} is not a ulang program.");
+	}
+	return new UlangPlayer(canvas, gist.files["source.ul"].content);
+}
+
+export class UlangPlayer {
+	vm: VirtualMachine;
+	source: string;
+
+	constructor (canvas: HTMLCanvasElement | string, source: string) {
+		this.vm = new VirtualMachine(canvas);
+		this.source = source;
+	}
+
+	play () {
+		this.vm.run(this.source);
+	}
+
+	getVirtualMachine () {
+		return this.vm;
+	}
+
+	getSource () {
+		return this.source;
+	}
+
+	dispose () {
+		if (this.vm) this.vm.dipose();
 	}
 }
