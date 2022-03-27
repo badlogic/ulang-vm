@@ -46,7 +46,7 @@ reloadnginx)
 	docker exec -it ulang_nginx nginx -s reload
 	;;
 stop)
-	docker-compose -f docker-compose.base.yml down -t 1
+	docker-compose -f docker-compose.base.yml down
 	;;
 shell)
 	docker exec -it ulang_site bash
