@@ -3,9 +3,8 @@ import express, { Response } from "express";
 import { setupLiveEdit } from "./liveedit";
 import axios from "axios"
 import querystring from "query-string"
-import bcrypt from "bcrypt"
-import mariadb from "mariadb"
-import { createProject, createUser, getProjects, isAuthorized, setupDb, updateProject } from "./db";
+import { createProject, createUser, getProjects, isAuthorized, setupDb, updateProject } from "./database";
+import { body, param, validationResult } from "express-validator"
 
 const port = process.env.ULANG_PORT || 3000;
 const app = express()
@@ -71,62 +70,70 @@ app.post("/api/access_token", async (req, res) => {
 	}
 });
 
-// This should be atomic, but it's unlikely a user creates a new projects
-// on two separate devices at the same time.
-app.post("/api/:user/projects", async (req, res) => {
-	try {
-		let user = req.params.user;
-		let accessToken = req.body.accessToken;
-		let gistId = req.body.gistId;
-		let title = req.body.title;
-		if (!user) throw new Error("No user given.");
-		if (!accessToken) throw new Error("No access token given.");
-		if (!gistId) throw new Error("No Gist id given.");
-		if (!title) throw new Error("No title given.");
+app.post("/api/:user/projects",
+	param("user").exists().trim().notEmpty().escape(),
+	body("accessToken").exists().trim().notEmpty(),
+	body("gistId").exists().trim().notEmpty(),
+	body("title").exists().trim().notEmpty().escape(),
+	async (req, res) => {
+		try {
+			if (!validationResult(req).isEmpty()) throw new Error("Invalid inputs");
 
-		await isAuthorized(user, accessToken);
+			let user = req.params?.user;
+			let accessToken = req.body.accessToken;
+			let gistId = req.body.gistId;
+			let title = req.body.title;
 
-		await createProject(user, title, gistId);
+			await isAuthorized(user, accessToken);
 
-		res.sendStatus(200);
-	} catch (err) {
-		sendError(res, "Couldn't create project.", JSON.stringify(err, Object.getOwnPropertyNames(err)));
-	}
-});
+			await createProject(user, title, gistId);
 
-app.patch("/api/:user/projects", async (req, res) => {
-	try {
-		let user = req.params.user;
-		let accessToken = req.body.accessToken;
-		let gistId = req.body.gistId;
-		let title = req.body.title;
-		if (!user) throw new Error("No user given.");
-		if (!accessToken) throw new Error("No access token given.");
-		if (!gistId) throw new Error("No Gist id given.");
-		if (!title) throw new Error("No title given.");
+			res.sendStatus(200);
+		} catch (err) {
+			sendError(res, "Couldn't create project.", JSON.stringify(err, Object.getOwnPropertyNames(err)));
+		}
+	});
 
-		await isAuthorized(user, accessToken);
+app.patch("/api/:user/projects",
+	param("user").exists().trim().notEmpty().escape(),
+	body("accessToken").exists().trim().notEmpty(),
+	body("gistId").exists().trim().notEmpty(),
+	body("title").exists().trim().notEmpty().escape(),
+	async (req, res) => {
+		try {
+			if (!validationResult(req).isEmpty()) throw new Error("Invalid inputs");
 
-		await updateProject(user, title, gistId);
+			let user = req.params?.user;
+			let accessToken = req.body.accessToken;
+			let gistId = req.body.gistId;
+			let title = req.body.title;
 
-		res.sendStatus(200);
-	} catch (err) {
-		sendError(res, "Couldn't update project.", JSON.stringify(err, Object.getOwnPropertyNames(err)));
-	}
-});
+			await isAuthorized(user, accessToken);
 
-app.get("/api/:user/projects", async (req, res) => {
-	try {
-		let user = req.params.user;
-		if (!user) throw new Error("No user given.");
+			await updateProject(user, title, gistId);
 
-		let projects = await getProjects(user);
-		if (!projects) throw new Error("User doesn't exist.");
-		res.send(projects);
-	} catch (err) {
-		sendError(res, "Couldn't get user projects.", JSON.stringify(err, Object.getOwnPropertyNames(err)));
-	}
-});
+			res.sendStatus(200);
+		} catch (err) {
+			sendError(res, "Couldn't update project.", JSON.stringify(err, Object.getOwnPropertyNames(err)));
+		}
+	});
+
+app.get("/api/:user/projects",
+	param("user").exists().trim().notEmpty(),
+	async (req, res) => {
+		try {
+			if (!validationResult(req).isEmpty()) throw new Error("Invalid inputs");
+
+			let user = req.params?.user;
+			if (!user) throw new Error("No user given.");
+
+			let projects = await getProjects(user);
+			if (!projects) throw new Error("User doesn't exist.");
+			res.send(projects);
+		} catch (err) {
+			sendError(res, "Couldn't get user projects.", JSON.stringify(err, Object.getOwnPropertyNames(err)));
+		}
+	});
 
 // Run server
 server.on("listening", () => console.log(`Started on port ${port}`));

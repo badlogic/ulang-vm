@@ -98,7 +98,7 @@ export class Project {
 				let gist = await newGist(this.title, this.source, auth.getAccessToken());
 				this.fromGist(gist);
 				history.replaceState(null, "", `/?id=${this.id}`);
-				axios.post(`/api/${auth.getUsername()}/projects`, {
+				await axios.post(`/api/${auth.getUsername()}/projects`, {
 					user: auth.getUsername(),
 					accessToken: auth.getAccessToken(),
 					gistId: gist.id,
@@ -110,7 +110,7 @@ export class Project {
 				dialog = showDialog("", "Saving Gist", [], false);
 				await updateGist(this.id, this.title, this.source, auth.getAccessToken());
 				if (project.titleModified) {
-					axios.patch(`/api/${auth.getUsername()}/projects`, {
+					await axios.patch(`/api/${auth.getUsername()}/projects`, {
 						user: auth.getUsername(),
 						accessToken: auth.getAccessToken(),
 						gistId: this.id,
