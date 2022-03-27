@@ -1,5 +1,5 @@
 import { createServer, Server } from "http";
-import express from "express";
+import express, { Response } from "express";
 import { setupLiveEdit } from "./liveedit";
 import axios from "axios"
 import querystring from "query-string"
@@ -34,71 +34,98 @@ app.use(express.static("./client/assets"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+interface ErrorResult {
+	message: string,
+	detail: string
+}
+
+function sendError (res: Response, message: string, detail: string) {
+	res.status(400).send({ message: message, detail: detail });
+}
+
 app.post("/api/access_token", async (req, res) => {
-	let code = req.body.code as string;
-	if (!code) throw new Error("No code given.");
-	let resp = await axios.post("https://github.com/login/oauth/access_token", querystring.stringify({
-		client_id: clientId,
-		client_secret: clientSecret,
-		code: code
-	}), { headers: { "Accept": "application/json" } });
-	if (resp.status >= 400)
-		throw new Error(`Couldn't get acess token from GitHub: ${JSON.stringify(resp.data)}`);
+	try {
+		let code = req.body.code as string;
+		if (!code) throw new Error("No code given.");
+		let params = querystring.stringify({
+			client_id: clientId,
+			client_secret: clientSecret,
+			code: code
+		});
+		let headers = { headers: { "Accept": "application/json" } };
+		let resp = await axios.post("https://github.com/login/oauth/access_token", params, headers);
+		if (resp.status >= 400 || resp.data.error)
+			throw new Error(`Couldn't get acess token from GitHub: ${JSON.stringify(resp.data)}`);
 
-	let user = await axios.get("https://api.github.com/user", {
-		headers: {
-			"Authorization": `token ${resp.data.access_token}`
-		}
-	});
+		let user = await axios.get("https://api.github.com/user", {
+			headers: {
+				"Authorization": `token ${resp.data.access_token}`
+			}
+		});
 
-	await createUser(resp.data.access_token, user.data.login);
+		await createUser(user.data.login, resp.data.access_token);
 
-	res.send({ accessToken: resp.data.access_token, user: user.data });
+		res.send({ accessToken: resp.data.access_token, user: user.data });
+	} catch (err) {
+		sendError(res, "Couldn't create user.", JSON.stringify(err, Object.getOwnPropertyNames(err)));
+	}
 });
 
 // This should be atomic, but it's unlikely a user creates a new projects
 // on two separate devices at the same time.
 app.post("/api/:user/projects", async (req, res) => {
-	let user = req.params.user;
-	let accessToken = req.body.accessToken;
-	let gistId = req.body.gistId;
-	let title = req.body.title;
-	if (!user) throw new Error("No user given.");
-	if (!accessToken) throw new Error("No access token given.");
-	if (!gistId) throw new Error("No Gist id given.");
-	if (!title) throw new Error("No title given.");
+	try {
+		let user = req.params.user;
+		let accessToken = req.body.accessToken;
+		let gistId = req.body.gistId;
+		let title = req.body.title;
+		if (!user) throw new Error("No user given.");
+		if (!accessToken) throw new Error("No access token given.");
+		if (!gistId) throw new Error("No Gist id given.");
+		if (!title) throw new Error("No title given.");
 
-	await isAuthorized(user, accessToken);
+		await isAuthorized(user, accessToken);
 
-	await createProject(user, gistId, title);
+		await createProject(user, title, gistId);
 
-	res.sendStatus(200);
+		res.sendStatus(200);
+	} catch (err) {
+		sendError(res, "Couldn't create project.", JSON.stringify(err, Object.getOwnPropertyNames(err)));
+	}
 });
 
 app.patch("/api/:user/projects", async (req, res) => {
-	let user = req.params.user;
-	let accessToken = req.body.accessToken;
-	let gistId = req.body.gistId;
-	let title = req.body.title;
-	if (!user) throw new Error("No user given.");
-	if (!accessToken) throw new Error("No access token given.");
-	if (!gistId) throw new Error("No Gist id given.");
-	if (!title) throw new Error("No title given.");
+	try {
+		let user = req.params.user;
+		let accessToken = req.body.accessToken;
+		let gistId = req.body.gistId;
+		let title = req.body.title;
+		if (!user) throw new Error("No user given.");
+		if (!accessToken) throw new Error("No access token given.");
+		if (!gistId) throw new Error("No Gist id given.");
+		if (!title) throw new Error("No title given.");
 
-	await isAuthorized(user, accessToken);
+		await isAuthorized(user, accessToken);
 
-	await updateProject(user, gistId, title);
+		await updateProject(user, title, gistId);
 
-	res.sendStatus(200);
+		res.sendStatus(200);
+	} catch (err) {
+		sendError(res, "Couldn't update project.", JSON.stringify(err, Object.getOwnPropertyNames(err)));
+	}
 });
 
 app.get("/api/:user/projects", async (req, res) => {
-	let user = req.params.user;
-	if (!user) throw new Error("No user given.");
+	try {
+		let user = req.params.user;
+		if (!user) throw new Error("No user given.");
 
-	let projects = await getProjects(user);
-	if (!projects) throw new Error("User doesn't exist.");
-	res.send(projects);
+		let projects = await getProjects(user);
+		if (!projects) throw new Error("User doesn't exist.");
+		res.send(projects);
+	} catch (err) {
+		sendError(res, "Couldn't get user projects.", JSON.stringify(err, Object.getOwnPropertyNames(err)));
+	}
 });
 
 // Run server

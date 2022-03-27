@@ -11,9 +11,11 @@ interface Project {
 	user: string,
 	title: string,
 	gistId: string,
+	created?: number,
+	modified?: number
 }
 
-interface User {
+interface UserHash {
 	hash: string,
 	user: string
 }
@@ -33,7 +35,7 @@ export async function setupDb (rootPassword: string) {
 		directory: path.join(__dirname, "../schema")
 	});
 
-	knex.client.pool.destroy()
+	knex.client.pool.destroy();
 
 	pool = createPool({
 		host: 'database',
@@ -57,7 +59,7 @@ async function query (query: string, values?: any[]) {
 	let connection: PoolConnection | null = null;
 	try {
 		connection = await pool.getConnection();
-		return await values ? connection.query(query, values) : connection.query(query);
+		return await values ? connection.execute(query, values) : connection.query(query);
 	} catch (err) {
 		throw new Error("Couldn't execute query.");
 	} finally {
@@ -67,22 +69,38 @@ async function query (query: string, values?: any[]) {
 
 export async function isAuthorized (user: string, accessToken: string) {
 	let con = await pool.getConnection();
-	let rows = await con.query("select hash, user from hashes where user = ?", [user]);
+	let rows = await con.query("select hash, user from hashes where user=?", [user]) as UserHash[];
+	if (rows.length < 1) throw new Error("User not authorized.");
+
+	for (let i = 0; i < rows.length; i++) {
+		let hash = rows[i].hash;
+		if (await bcrypt.compare(accessToken, hash)) {
+			return;
+		}
+	}
+
+	throw new Error("User not authorized.");
 }
 
 export async function createUser (user: string, accessToken: string) {
-	let tokenHash = hash(accessToken);
-
+	let tokenHash = await hash(accessToken);
+	await query("insert into hashes (user, hash) values (?, ?)", [user, tokenHash]);
 }
 
-export async function createProject (user: string, gistId: string, title: string) {
-
+export async function createProject (user: string, title: string, gistId: string) {
+	await query("insert into projects (user, title, gistid) values (?, ?, ?)", [user, title, gistId]);
 }
 
-export async function updateProject (user: string, gistId: string, title: string) {
-
+export async function updateProject (user: string, title: string, gistId: string) {
+	await query("update projects set title=? where user=? and gistid=?", [title, user, gistId]);
 }
 
 export async function getProjects (user: string) {
-	return [] as Project[];
+	let result = await query("select user, title, gistid, UNIX_TIMESTAMP(created) as created, UNIX_TIMESTAMP(modified) as modified from projects where user=?", [user]);
+	delete result.meta; // 
+	for (let i = 0; i < result.length; i++) {
+		result[i].created = parseInt(result[i].created.toString()) * 1000;
+		result[i].modified = parseInt(result[i].modified.toString()) * 1000;
+	}
+	return result as Project[];
 }

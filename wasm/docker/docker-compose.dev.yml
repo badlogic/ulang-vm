@@ -8,8 +8,8 @@ services:
       - 9229:9229
     environment:
       - ULANG_DEV=true
-      - ULANG_CLIENT_SECRET_DEV=${ULANG_CLIENT_SECRET_DEV}
-      - ULANG_CLIENT_ID_DEV=${ULANG_CLIENT_ID_DEV}
+      - ULANG_CLIENT_SECRET=${ULANG_CLIENT_SECRET_DEV}
+      - ULANG_CLIENT_ID=${ULANG_CLIENT_ID_DEV}
   database:
     ports:
       - 3306:3306
