@@ -29,7 +29,7 @@
 	<canvas width="320" height="240"></canvas>
 	<script>
 		(async () => {
-			let gistId = window.frameElement.getAttribute("data-gistid");
+			let gistId = location.search.split("=")[1];
 			let canvas = document.getElementsByTagName("canvas")[0];
 			let player = await ulang.createPlayerFromGist(canvas, gistId);
 			player.play();

@@ -375,7 +375,7 @@ export async function loadUlang () {
 export async function createPlayerFromGist (canvas: HTMLCanvasElement | string, gistId: string) {
 	await loadUlang();
 	let response = await fetch(`https:/api.github.com/gists/${gistId}`);
-	if (response.status >= 400) throw new Error("Couldn't fetch gist ${gistId}");
+	if (response.status >= 400) throw new Error(`Couldn't fetch gist ${gistId}`);
 	let gist = await response.json();
 	if (!gist.files || !gist.files["source.ul"] || !gist.files["source.ul"].content) {
 		throw new Error("Gist ${gistId} is not a ulang program.");
