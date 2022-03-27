@@ -2,10 +2,10 @@ export function showDialog (title: string, content: string, buttons: { label: st
 	let buttonsDom = "";
 	for (let i = 0; i < buttons.length; i++) {
 		let button = buttons[i];
-		buttonsDom += `<button id="${"button" + i}" class="dialog-button">${button.label}</button>`;
+		buttonsDom += `<button id="${"button" + i}" class="button">${button.label}</button>`;
 	}
 	if (hasCancel) {
-		buttonsDom += `<button id="cancel" class="dialog-button">${cancelLabel}</button>`;
+		buttonsDom += `<button id="cancel" class="button">${cancelLabel}</button>`;
 	}
 
 	let dialog = document.createElement("div");
@@ -13,7 +13,7 @@ export function showDialog (title: string, content: string, buttons: { label: st
 	dialog.innerHTML = `
 		<div class="dialog-content">
 			<div class="dialog-header">${title}</div>
-			${content}			
+			${content}
 			${buttonsDom}
 		</div>
 	`;
