@@ -6,12 +6,17 @@
 	<meta http-equiv='X-UA-Compatible' content='IE=edge'>
 	<title>Page Title</title>
 	<meta name='viewport' content='width=device-width, initial-scale=1'>
-	<link rel='stylesheet' type='text/css' media='screen' href='main.css'>
-	<script src='main.js'></script>
+	<script src="https://unpkg.com/@marioslab/ulang-vm@latest/dist/iife/ulang.min.js"></script>
 </head>
 
 <body>
-	<iframe width="320" height="240" style="border: 0;" src="https://unpkg.com/@marioslab/ulang-vm@latest/dist/iife/embed.html?g=a3929e69602cb54d64ffc2c3f638208b"></iframe>
+	<canvas width="320" height="240" style="image-rendering: pixelated;"></canvas>
+	<script>
+		(async () => {
+			let player = await ulang.createPlayerFromGist(document.getElementsByTagName("canvas")[0], "a3929e69602cb54d64ffc2c3f638208b");
+			player.play();
+		})();
+	</script>
 </body>
 
 </html>
