@@ -22,6 +22,6 @@ import { setupLiveEdit } from "./liveedit";
 
 function setupUIEvents () {
 	document.getElementById("start-building").addEventListener("click", () => {
-		window.location.href = "/editor.html";
+		window.location.href = "/editor";
 	});
 }

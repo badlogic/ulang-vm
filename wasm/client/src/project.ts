@@ -8,30 +8,39 @@ import axios from "axios";
 
 export let project: Project;
 
-export async function loadProject (editor: Editor, _titleLabel: string, _authorLabel: string) {
+export async function loadProject (editor: Editor, _titleLabel: string, _authorLabel: string, _unsavedLabel) {
+	let dialog: HTMLElement = null;
+
 	try {
 		let authorizeProject = localStorage.getItem("authorize-project") ? JSON.parse(localStorage.getItem("authorize-project")) : null;
 		let params: any = querystring.parse(location.search);
+		let pathElements = location.pathname.split("/");
+		pathElements.splice(0, 2);
+		let gistId = null;
+
+		if (params.id) gistId = params.id;
+		if (!gistId && pathElements.length > 0) gistId = pathElements[0];
 
 		if (!params.code && authorizeProject) {
-			project = new Project("", authorizeProject["owner"], authorizeProject["id"], authorizeProject["source"]);
-			project.setTitle(authorizeProject["title"]);
-		} else if (params && params.id) {
-			let gist = await getGist(params.id, auth.getAccessToken());
+			project = new Project(authorizeProject["title"], authorizeProject["owner"], authorizeProject["id"], authorizeProject["source"]);
+			project.setUnsaved(authorizeProject.unsaved);
+		} else if (gistId) {
+			dialog = showDialog("", "Loading Gist", [], false);
+			let gist = await getGist(gistId, auth.getAccessToken());
 			if (gist && gist.files["source.ul"]) {
 				project = Project.fromGist(gist);
 			} else {
 				showDialog("Sorry", "<p>This Gist could not be loaded. Either it doesn't exist, or you ran into GitHub's rate limit of 60 requests per hour for anonymous users. Login to get increase that limit to 5000 requests per hour.</p>", [], true, "OK", () => {
-					window.location.href = "/";
+					window.location.href = "/editor";
 				});
 			}
 		}
 	} catch (err) {
 		console.log("Unexpectedly unable to load project.");
 	} finally {
+		if (dialog) dialog.remove();
 		localStorage.removeItem("authorize-project");
 	}
-
 
 	if (!project) project = new Project("Untitled", null, null, "");
 
@@ -43,6 +52,13 @@ export async function loadProject (editor: Editor, _titleLabel: string, _authorL
 	} else {
 		authorLabel.innerHTML = "";
 	}
+
+	let unsavedLabel = document.getElementById(_unsavedLabel) as HTMLDivElement;
+	project.setUnsavedListener((isUnsaved) => {
+		unsavedLabel.textContent = isUnsaved ? "(unsaved)" : "";
+	})
+	unsavedLabel.textContent = project.isUnsaved() ? "(unsaved)" : "";
+
 	editor.setContent(project.getSource());
 }
 
@@ -104,7 +120,7 @@ export class Project {
 				dialog = showDialog("", "Creating new Gist", [], false);
 				let gist = await newGist(this.title, this.source, auth.getAccessToken());
 				this.fromGist(gist);
-				history.replaceState(null, "", `${window.location.href.split('?')[0]}?id=${this.id}`);
+				history.replaceState(null, "", `/editor/${this.id}`);
 				await axios.post(`/api/${auth.getUsername()}/projects`, {
 					user: auth.getUsername(),
 					accessToken: auth.getAccessToken(),
@@ -136,7 +152,7 @@ export class Project {
 		this.setUnsaved(false);
 	}
 
-	private setUnsaved (isUnsaved: boolean) {
+	setUnsaved (isUnsaved: boolean) {
 		this.unsaved = isUnsaved;
 		if (!isUnsaved) this.titleModified = false;
 		if (this.unsavedListener) this.unsavedListener(isUnsaved);

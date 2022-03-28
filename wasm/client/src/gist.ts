@@ -26,7 +26,7 @@ export interface GistFile {
 export async function getGist (id: string, accessToken: string) {
 	let headers = accessToken ? { headers: { "Authorization": `token ${accessToken}` } } : null;
 	let resp = await axios.get(`/gists/${id}?ts=${performance.now()}`, headers);
-	console.log(resp.data);
+	// console.log(resp.data);
 	if (resp.status != 200) return null;
 	return JSON.parse(resp.data) as Gist
 }

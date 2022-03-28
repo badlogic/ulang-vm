@@ -18,7 +18,7 @@ import { showDialog } from "./ui";
 	new Debugger(editor, virtualMachine, "toolbar-run", "toolbar-continue", "toolbar-pause", "toolbar-step", "toolbar-stop", "debug-view-registers", "debug-view-stack", "debug-view-memory");
 	new Auth("toolbar-login", "toolbar-logout", "toolbar-avatar");
 
-	await loadProject(editor, "toolbar-title", "toolbar-author");
+	loadProject(editor, "toolbar-title", "toolbar-author", "toolbar-unsaved");
 	setupLiveEdit();
 	setupLayout();
 	setupUIEvents(editor);
@@ -40,14 +40,8 @@ function setupUIEvents (editor: Editor) {
 		project.setSource(content);
 	});
 
-	let unsavedLabel = document.getElementById("toolbar-unsaved") as HTMLDivElement;
-	project.setUnsavedListener((isUnsaved) => {
-		unsavedLabel.textContent = isUnsaved ? "(unsaved)" : "";
-	})
-	unsavedLabel.textContent = project.isUnsaved() ? "(unsaved)" : "";
-
 	let newButton = document.getElementById("toolbar-new");
-	newButton.addEventListener("click", () => window.location.href = window.location.href.split('?')[0]);
+	newButton.addEventListener("click", () => window.location.href = "/editor");
 
 	let saveButton = document.getElementById("toolbar-save");
 	saveButton.addEventListener("click", () => project.save());

@@ -8,7 +8,7 @@
 			"type": "pwa-chrome",
 			"request": "launch",
 			"name": "client",
-			"url": "http://localhost:3000/editor.html",
+			"url": "http://localhost:3000/editor",
 			"webRoot": "${workspaceFolder}/client/assets"
 		},
 		{
