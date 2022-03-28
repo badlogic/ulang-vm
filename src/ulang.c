@@ -1428,7 +1428,7 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 							goto _compilation_error;
 						}
 						if (exprValue.unresolved) {
-							ulang_error_init(error, file, &span, "Expression either contains an undefined constant, or a label.");
+							ulang_error_init(error, file, &span, "Constant expression must not contain undefined constant, or label.");
 							goto _compilation_error;
 						}
 						int numRepeat = 1;
