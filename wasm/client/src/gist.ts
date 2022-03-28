@@ -51,7 +51,16 @@ export async function newGist (title: string, source: string, accessToken: strin
 }
 
 export async function forkGist (id: string, accessToken: string) {
-
+	let resp = await axios.post(`/gists/${id}/forks`, null, {
+		headers: {
+			"Accept": "application/vnd.github.v3+json",
+			"Authorization": `token ${accessToken}`,
+			'Content-Type': 'application/json'
+		}
+	});
+	if (resp.status >= 400)
+		throw new Error(`GitHub returned (${resp.status}): ${resp.data}`);
+	return JSON.parse(resp.data) as Gist;
 }
 
 export async function updateGist (id: string, title: string, source: String, accessToken: string) {
