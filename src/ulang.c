@@ -1722,7 +1722,8 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 			uint32_t op;
 			memcpy(&op, &ctx.code.items[p->patchAddress], 4);
 			ENCODE_OFF(op, p->expr.i);
-			memcpy(&ctx.code.items[p->patchAddress], &op, 4);}
+			memcpy(&ctx.code.items[p->patchAddress], &op, 4);
+		}
 	}
 
 	patch_array_free_inplace(&ctx.patches);
