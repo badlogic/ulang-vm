@@ -8,8 +8,10 @@ import axios from "axios";
 
 export let project: Project;
 let authorLabel: HTMLDivElement;
+let forkedFromLabel: HTMLDivElement;
+let gist: Gist = null;
 
-export async function loadProject (editor: Editor, _titleLabel: string, _authorLabel: string, _unsavedLabel) {
+export async function loadProject (editor: Editor, _titleLabel: string, _authorLabel: string, _forkedfromLabel: string, _unsavedLabel) {
 	let dialog: HTMLElement = null;
 
 	try {
@@ -27,7 +29,7 @@ export async function loadProject (editor: Editor, _titleLabel: string, _authorL
 			project.setUnsaved(authorizeProject.unsaved);
 		} else if (gistId) {
 			dialog = showDialog("", "Loading Gist", [], false);
-			let gist = await getGist(gistId, auth.getAccessToken());
+			gist = await getGist(gistId, auth.getAccessToken());
 			if (gist && gist.files["source.ul"]) {
 				project = Project.fromGist(gist);
 			} else {
@@ -46,12 +48,20 @@ export async function loadProject (editor: Editor, _titleLabel: string, _authorL
 	if (!project) project = new Project("Untitled", null, null, "");
 
 	let titleInput = document.getElementById(_titleLabel) as HTMLInputElement;
-	authorLabel = document.getElementById(_authorLabel) as HTMLDivElement;
 	titleInput.value = project.getTitle();
+
+	authorLabel = document.getElementById(_authorLabel) as HTMLDivElement;
 	if (project.getId()) {
 		authorLabel.innerHTML = project.getOwner() != auth.getUsername() ? `by <a href="https://github.com/${project.getOwner()}">${project.getOwner()}</a>` : "";
 	} else {
 		authorLabel.innerHTML = "";
+	}
+
+	forkedFromLabel = document.getElementById(_forkedfromLabel) as HTMLDivElement;
+	if (gist?.fork_of) {
+		forkedFromLabel.innerHTML = `forked from <a href="/editor/${gist.fork_of.id}">${gist.fork_of.owner.login}</a>`;
+	} else {
+		forkedFromLabel.innerHTML = "";
 	}
 
 	let unsavedLabel = document.getElementById(_unsavedLabel) as HTMLDivElement;
@@ -120,7 +130,7 @@ export class Project {
 		try {
 			if (this.id == null) {
 				dialog = showDialog("", "Creating new Gist", [], false);
-				let gist = await newGist(this.title, this.source, auth.getAccessToken());
+				gist = await newGist(this.title, this.source, auth.getAccessToken());
 				this.fromGist(gist);
 				await axios.post(`/api/${auth.getUsername()}/projects`, {
 					user: auth.getUsername(),
@@ -130,42 +140,74 @@ export class Project {
 				});
 				history.replaceState(null, "", `/editor/${this.id}`);
 			} else if (this.id != null && this.owner != auth.getUsername()) {
-				showDialog("Fork?", "<p>This gist belongs to another user. Do you want to fork it?</p>", [{
-					label: "OK", callback: async () => {
-						dialog = showDialog("", "Forking Gist", [], false);
-						try {
-							let gist = await forkGist(this.id, auth.getAccessToken());
-							let source = this.getSource();
-							this.fromGist(gist);
-							this.setSource(source);
-							await updateGist(this.id, this.title, this.source, auth.getAccessToken());
+				let forkedId: string = null;
+				for (let i = 0; i < gist.forks.length; i++) {
+					if (gist.forks[i].user.login == auth.getUsername()) {
+						forkedId = gist.forks[i].id;
+					}
+				}
+
+				if (forkedId) {
+					showDialog("Update fork?", "<p>You have already forked this Gist. Do you want to update it?</p>", [{
+						label: "Yes", callback: async () => {
+							dialog = showDialog("", "Updating forked Gist", [], false);
 							try {
-								await axios.post(`/api/${auth.getUsername()}/projects`, {
-									user: auth.getUsername(),
-									accessToken: auth.getAccessToken(),
-									gistId: gist.id,
-									title: this.title
-								});
-							} catch (e) {
+								await updateGist(forkedId, this.title, this.source, auth.getAccessToken());
 								await axios.patch(`/api/${auth.getUsername()}/projects`, {
 									user: auth.getUsername(),
 									accessToken: auth.getAccessToken(),
-									gistId: gist.id,
+									gistId: forkedId,
 									title: this.title
 								});
+								this.setUnsaved(false);
+								location.href = `/editor/${forkedId}`;
+							} catch (e) {
+								if (dialog) dialog.remove();
+								dialog = showDialog("Sorry", `<p>Couldn't create or save your Gist.</p><p>${e.toString()}</p>`, [], true, "OK");
+								return;
+							} finally {
+								if (dialog) dialog.remove();
 							}
-							authorLabel.innerHTML = "";
-							this.setUnsaved(false);
-							history.replaceState(null, "", `/editor/${this.id}`);
-						} catch (e) {
-							if (dialog) dialog.remove();
-							dialog = showDialog("Sorry", `<p>Couldn't create or save your Gist.</p><p>${e.toString()}</p>`, [], true, "OK");
-							return;
-						} finally {
-							if (dialog) dialog.remove();
 						}
-					}
-				}], true);
+					}], true);
+				} else {
+					showDialog("Fork?", "<p>This gist belongs to another user. Do you want to fork it?</p>", [{
+						label: "OK", callback: async () => {
+							dialog = showDialog("", "Forking Gist", [], false);
+							try {
+								gist = await forkGist(this.id, auth.getAccessToken());
+								let source = this.getSource();
+								this.fromGist(gist);
+								this.setSource(source);
+								await updateGist(this.id, this.title, this.source, auth.getAccessToken());
+								try {
+									await axios.post(`/api/${auth.getUsername()}/projects`, {
+										user: auth.getUsername(),
+										accessToken: auth.getAccessToken(),
+										gistId: gist.id,
+										title: this.title
+									});
+								} catch (e) {
+									await axios.patch(`/api/${auth.getUsername()}/projects`, {
+										user: auth.getUsername(),
+										accessToken: auth.getAccessToken(),
+										gistId: gist.id,
+										title: this.title
+									});
+								}
+								authorLabel.innerHTML = "";
+								this.setUnsaved(false);
+								history.replaceState(null, "", `/editor/${this.id}`);
+							} catch (e) {
+								if (dialog) dialog.remove();
+								dialog = showDialog("Sorry", `<p>Couldn't create or save your Gist.</p><p>${e.toString()}</p>`, [], true, "OK");
+								return;
+							} finally {
+								if (dialog) dialog.remove();
+							}
+						}
+					}], true);
+				}
 				return;
 			} else {
 				dialog = showDialog("", "Saving Gist", [], false);

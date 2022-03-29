@@ -14,7 +14,19 @@ export interface Gist {
 		"source.ul": GistFile
 	} | GistFile[]
 	comments?: number
-	public: boolean | string
+	public: boolean | string,
+	fork_of?: Gist,
+	forks: Fork[]
+}
+
+export interface Fork {
+	created_at: string,
+	updated_at: string,
+	id: string,
+	url: string,
+	user: {
+		login: string
+	}
 }
 
 export interface GistFile {

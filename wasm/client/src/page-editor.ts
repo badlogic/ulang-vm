@@ -18,7 +18,7 @@ import { showDialog } from "./ui";
 	new Debugger(editor, virtualMachine, "toolbar-run", "toolbar-continue", "toolbar-pause", "toolbar-step", "toolbar-stop", "debug-view-registers", "debug-view-stack", "debug-view-memory");
 	new Auth("toolbar-login", "toolbar-logout", "toolbar-avatar");
 
-	loadProject(editor, "toolbar-title", "toolbar-author", "toolbar-unsaved");
+	loadProject(editor, "toolbar-title", "toolbar-author", "toolbar-forked-from", "toolbar-unsaved");
 	setupLiveEdit();
 	setupLayout();
 	setupUIEvents(editor);
