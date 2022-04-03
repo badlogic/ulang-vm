@@ -1,7 +1,8 @@
 import { auth } from "../auth";
 
-export function createToolbar (toolbar: HTMLElement) {
+export function createToolbar (toolbar: HTMLElement, includeEditorButtons: boolean = false) {
 	toolbar.innerHTML = toolbarHtml;
+	if (includeEditorButtons) toolbar.querySelector(".toolbar-editor").classList.remove("hide");
 	setupUIEvents(toolbar);
 }
 
