@@ -1,5 +1,5 @@
 import * as monaco from "monaco-editor";
-import { Editor } from "./components/editor"
+import { Editor } from "./editor"
 import { VirtualMachine, VirtualMachineState } from "@marioslab/ulang-vm"
 import { UlangLabelTarget, UlangValue, UL_VM_MEMORY_SIZE } from "@marioslab/ulang-vm/src/wrapper";
 
@@ -21,24 +21,12 @@ export class Debugger {
 	private numMemoryEntries: HTMLInputElement;
 	private lastValues: { i: number, f: number }[] = [];
 
-	constructor (private editor: Editor, private vm: VirtualMachine,
-		runElement: HTMLElement | string,
-		continueElement: HTMLElement | string,
-		pauseElement: HTMLElement | string,
-		stepElement: HTMLElement | string,
-		stopElement: HTMLElement | string,
-		registerView: HTMLElement | string,
-		stackView: HTMLElement | string,
-		memoryView: HTMLElement | string) {
-		this.run = typeof (runElement) === "string" ? document.getElementById(runElement) : runElement;
-		this.cont = typeof (continueElement) === "string" ? document.getElementById(continueElement) : continueElement;
-		this.pause = typeof (pauseElement) === "string" ? document.getElementById(pauseElement) : pauseElement;
-		this.step = typeof (stepElement) === "string" ? document.getElementById(stepElement) : stepElement;
-		this.stop = typeof (stopElement) === "string" ? document.getElementById(stopElement) : stopElement;
-		this.registerView = typeof (registerView) === "string" ? document.getElementById(registerView) : registerView;
-		this.stackView = typeof (stackView) === "string" ? document.getElementById(stackView) : stackView;
-		this.memoryView = typeof (memoryView) === "string" ? document.getElementById(memoryView) : memoryView;
-
+	constructor (private editor: Editor, private vm: VirtualMachine, toolbar: HTMLElement, debugViewContainer: HTMLElement) {
+		this.run = toolbar.querySelector(".toolbar-run");
+		this.cont = toolbar.querySelector(".toolbar-continue");
+		this.pause = toolbar.querySelector(".toolbar-pause");
+		this.step = toolbar.querySelector(".toolbar-step");
+		this.stop = toolbar.querySelector(".toolbar-stop");
 		this.run.addEventListener("click", (e) => {
 			e.stopPropagation();
 			vm.run(editor.getContent());
@@ -60,6 +48,25 @@ export class Debugger {
 			vm.step();
 		});
 
+		debugViewContainer.innerHTML = debuggerViews;
+
+		this.registerView = debugViewContainer.querySelector(".debug-view-registers");
+		this.registerViewConfig = this.registerView.querySelector(".debug-view-registers-config");
+
+		this.stackView = debugViewContainer.querySelector(".debug-view-stack");
+		this.stackViewConfig = this.stackView.querySelector(".debug-view-stack-config");
+		this.maxStackEntries = this.stackViewConfig.querySelector(".debug-max-stack-entries") as HTMLInputElement;
+		this.maxStackEntries.addEventListener("change", () => this.updateViews());
+
+		this.memoryView = debugViewContainer.querySelector(".debug-view-memory");
+		this.memoryViewConfig = this.memoryView.querySelector(".debug-view-memory-config");
+		this.memoryAddress = this.memoryViewConfig.querySelector(".debug-memory-address") as HTMLInputElement;
+		this.memoryAddress.addEventListener("change", () => this.updateViews());
+		this.memoryType = this.memoryViewConfig.querySelector(".debug-memory-type") as HTMLSelectElement;
+		this.memoryType.addEventListener("change", () => this.updateViews());
+		this.numMemoryEntries = this.memoryViewConfig.querySelector(".debug-num-memory-entries") as HTMLInputElement;
+		this.numMemoryEntries.addEventListener("change", () => this.updateViews());
+
 		vm.setStateChangeListener((vm, state) => {
 			this.setButtonStates(state);
 			switch (state) {
@@ -80,60 +87,8 @@ export class Debugger {
 			vm.setBreakpoints(breakpoints);
 		});
 
-		this.setupEditorTokenHoven();
+		this.setupEditorTokenHover();
 		this.setButtonStates(VirtualMachineState.Stopped);
-
-		this.setupRegisterView();
-		this.setupStackView();
-		this.setupMemoryView();
-	}
-
-	private setupRegisterView () {
-		this.registerViewConfig = document.createElement("div");
-		this.registerViewConfig.innerHTML = "<h4>Registers</h4>";
-		this.registerView.innerHTML = "";
-		this.registerView.appendChild(this.registerViewConfig);
-	}
-
-	private setupStackView () {
-		this.stackViewConfig = document.createElement("div");
-		this.stackViewConfig.classList.add("debug-view-stack-config");
-		this.stackViewConfig.innerHTML = `
-			<h4>Stack</h4>
-			<label for="debug-max-stack-entries">Max. stack entries: </label>
-			<input id="debug-max-stack-entries" type="number" min="1" max="100" value="10">
-		`;
-		this.stackView.innerHTML = "";
-		this.stackView.appendChild(this.stackViewConfig);
-
-		this.maxStackEntries = document.getElementById("debug-max-stack-entries") as HTMLInputElement;
-		this.maxStackEntries.addEventListener("change", () => this.updateViews());
-	}
-
-	private setupMemoryView () {
-		this.memoryViewConfig = document.createElement("div");
-		this.memoryViewConfig.innerHTML = `
-			<h4>Memory</h4>
-			<label for="debug-memory-address">Address: </label><input id="debug-memory-address" type="text" value="0">
-			<label for="debug-memory-type">Element type: </label>
-			<select id="debug-memory-type">
-				<option selected="true" value="Byte">Byte</option>				
-				<option value="Int">Int</option>				
-				<option value="Float">Float</option>
-			</select>	
-			<label for="debug-num-memory-entries">Num. elements: </label>
-			<input id="debug-num-memory-entries" type="number" min="1" max="200" value="50">
-		`;
-		this.memoryViewConfig.classList.add("debug-view-memory-config");
-		this.memoryView.innerHTML = "";
-		this.memoryView.appendChild(this.memoryViewConfig);
-
-		this.memoryAddress = document.getElementById("debug-memory-address") as HTMLInputElement;
-		this.memoryAddress.addEventListener("change", () => this.updateViews());
-		this.memoryType = document.getElementById("debug-memory-type") as HTMLSelectElement;
-		this.memoryType.addEventListener("change", () => this.updateViews());
-		this.numMemoryEntries = document.getElementById("debug-num-memory-entries") as HTMLInputElement;
-		this.numMemoryEntries.addEventListener("change", () => this.updateViews());
 	}
 
 	private updateViews () {
@@ -145,7 +100,6 @@ export class Debugger {
 		this.memoryView.innerHTML = "";
 		this.memoryView.appendChild(this.memoryViewConfig);
 
-		// this.memoryView.innerHTML = "";
 		if (vm.getState() != VirtualMachineState.Paused) return;
 
 		// Registers		
@@ -325,7 +279,7 @@ export class Debugger {
 		}
 	}
 
-	private setupEditorTokenHoven () {
+	private setupEditorTokenHover () {
 		monaco.languages.registerHoverProvider('ulang', {
 			provideHover: (model, position, token) => {
 				if (this.vm.getState() == VirtualMachineState.Paused) {
@@ -398,3 +352,6 @@ export class Debugger {
 		});
 	}
 }
+
+import "./debugger.css";
+import debuggerViews from "./debugger.html";

@@ -1,0 +1,79 @@
+#debugger-output {
+	image-rendering: pixelated;
+	image-rendering: crisp-edges;
+	background-color: black;
+	margin: auto 0;
+}
+
+#debug-views-container {
+	display: flex;
+	flex-direction: row;
+	font-size: 14px;
+}
+
+.debug-view-registers {
+	height: 100%;
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	padding: 0 1em 0 1em;
+	border-right: 5px solid #1a1a1a;
+	overflow: auto;
+}
+
+.debug-view-stack {
+	height: 100%;
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	padding: 0 1em 0 1em;
+	border-right: 5px solid #1a1a1a;
+	overflow: auto;
+}
+
+.debug-view-memory {
+	height: 100%;
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	padding: 0 1em 0 1em;
+	overflow: auto;
+}
+
+.debug-view-item-name {
+	color: #569cd6;
+}
+
+.debug-view-item-changed {
+	color: #cc6566;
+}
+
+.debug-view-register-config {
+	margin-bottom: 1em;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.debug-view-stack-config {
+	margin-bottom: 1em;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.debug-view-memory-config {
+	margin-bottom: 1em;
+	display: flex;
+	flex-direction: column;
+	gap: 5px;
+}
+
+.ulang-debug-curr-line {
+	background: rgba(255, 240, 0, 0.1);
+}
+
+.ulang-debug-breakpoint::before {
+	content: '⬤';
+	color: crimson;
+}

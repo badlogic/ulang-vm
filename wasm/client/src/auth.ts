@@ -5,8 +5,6 @@ import { project } from "./project";
 
 const CLIENT_ID = window.location.host.indexOf("localhost") >= 0 ? "fe384d3b8df3158bc8ec" /*DEV*/ : "98d7ee42b2a5f52f8e97" /*PROD*/;
 
-export let auth: Auth;
-
 export class User {
 	constructor (public accessToken: string, public user: { login: string, avatar_url: string, html_url: string }) { }
 }
@@ -86,7 +84,10 @@ export class Auth {
 	}
 
 	private startLoginFlow () {
-		const authorizeState = cryptoRandomString();
+		const entropy = new Uint32Array(10)
+		window.crypto.getRandomValues(entropy)
+		const authorizeState = window.btoa([...entropy].join(','))
+
 		localStorage.setItem("authorize-state", authorizeState);
 		localStorage.setItem("authorize-final-url", window.location.href);
 		if (project) localStorage.setItem("authorize-project", JSON.stringify(project));
@@ -95,8 +96,4 @@ export class Auth {
 	}
 }
 
-const cryptoRandomString = () => {
-	const entropy = new Uint32Array(10)
-	window.crypto.getRandomValues(entropy)
-	return window.btoa([...entropy].join(','))
-}
+export let auth = new Auth();

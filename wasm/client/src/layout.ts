@@ -71,7 +71,7 @@ export function setupLayout () {
 		onDragEnd: saveSplitSizes
 	});
 
-	let splitDebug = Split(["#debug-view-registers", "#debug-view-stack", "#debug-view-memory"], {
+	let splitDebug = Split([".debug-view-registers", ".debug-view-stack", ".debug-view-memory"], {
 		direction: "horizontal",
 		minSize: 0,
 		gutterSize: 5,

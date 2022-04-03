@@ -1,0 +1,27 @@
+<div class="debug-view-registers">
+	<div class="debug-view-registers-config">
+		<h4>Registers</h4>
+	</div>
+</div>
+<div class="debug-view-stack">
+	<div class="debug-view-stack-config">
+		<h4>Stack</h4>
+		<label>Max. stack entries:
+			<input class="debug-max-stack-entries" type="number" min="1" max="100" value="10">
+		</label>
+	</div>
+</div>
+<div class="debug-view-memory">
+	<div class="debug-view-memory-config">
+		<h4>Memory</h4>
+		<label>Address:<input class="debug-memory-address" type="text" value="0"></label>
+		<label>Element type:
+			<select class="debug-memory-type">
+				<option selected="true" value="Byte">Byte</option>
+				<option value="Int">Int</option>
+				<option value="Float">Float</option>
+			</select>
+		</label>
+		<label>Num. elements:<input class="debug-num-memory-entries" type="number" min="1" max="200" value="50"></label>
+	</div>
+</div>

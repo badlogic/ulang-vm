@@ -1,6 +1,5 @@
 import { auth } from "./auth";
 import { saveAs } from "file-saver";
-import { Editor } from "./components/editor";
 import querystring from "query-string"
 import { forkGist, getGist, Gist, newGist, updateGist } from "./gist";
 import { showDialog } from "./components/dialog";
@@ -11,7 +10,7 @@ let authorLabel: HTMLDivElement;
 let forkedFromLabel: HTMLDivElement;
 let gist: Gist = null;
 
-export async function loadProject (editor: Editor, _titleLabel: string, _authorLabel: string, _forkedfromLabel: string, _unsavedLabel) {
+export async function loadProject () {
 	let dialog: HTMLElement = null;
 
 	try {
@@ -45,32 +44,12 @@ export async function loadProject (editor: Editor, _titleLabel: string, _authorL
 		localStorage.removeItem("authorize-project");
 	}
 
-	if (!project) project = new Project("Untitled", null, null, "");
+	if (!project) project = new Project("Untitled", null, null, "", null);
+}
 
-	let titleInput = document.getElementById(_titleLabel) as HTMLInputElement;
-	titleInput.value = project.getTitle();
-
-	authorLabel = document.getElementById(_authorLabel) as HTMLDivElement;
-	if (project.getId()) {
-		authorLabel.innerHTML = project.getOwner() != auth.getUsername() ? `by <a href="https://github.com/${project.getOwner()}">${project.getOwner()}</a>` : "";
-	} else {
-		authorLabel.innerHTML = "";
-	}
-
-	forkedFromLabel = document.getElementById(_forkedfromLabel) as HTMLDivElement;
-	if (gist?.fork_of) {
-		forkedFromLabel.innerHTML = `forked from <a href="/editor/${gist.fork_of.id}">${gist.fork_of.owner.login}</a>`;
-	} else {
-		forkedFromLabel.innerHTML = "";
-	}
-
-	let unsavedLabel = document.getElementById(_unsavedLabel) as HTMLDivElement;
-	project.setUnsavedListener((isUnsaved) => {
-		unsavedLabel.textContent = isUnsaved ? "(unsaved)" : "";
-	})
-	unsavedLabel.textContent = project.isUnsaved() ? "(unsaved)" : "";
-
-	editor.setContent(project.getSource());
+export interface Fork {
+	id: string,
+	owner: string
 }
 
 export class Project {
@@ -82,7 +61,7 @@ export class Project {
 	private unsaved: boolean;
 	private unsavedListener: (isUnsaved: boolean) => void;
 
-	constructor (title: string, owner: string, id: string, source: string) {
+	constructor (title: string, owner: string, id: string, source: string, private forkedFrom: Fork) {
 		this.title = title || "Untitled";
 		this.titleModified = false;
 		this.owner = owner;
@@ -92,7 +71,8 @@ export class Project {
 	}
 
 	static fromGist (gist: Gist) {
-		return new Project(gist.description, gist.owner.login, gist.id, gist.files["source.ul"].content);
+		let fork = gist.fork_of ? { id: gist.fork_of.id, owner: gist.fork_of.owner.login } : null;
+		return new Project(gist.description, gist.owner.login, gist.id, gist.files["source.ul"].content, fork);
 	}
 
 	fromGist (gist: Gist) {
@@ -269,5 +249,9 @@ export class Project {
 
 	isUnsaved () {
 		return this.unsaved;
+	}
+
+	getForkedFrom () {
+		return this.forkedFrom;
 	}
 }

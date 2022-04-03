@@ -372,7 +372,7 @@ export async function loadUlang () {
 	}
 }
 
-export async function createPlayerFromGist (canvas: HTMLCanvasElement | string, gistId: string) {
+export async function createPlayerFromGist (canvas: HTMLCanvasElement, gistId: string) {
 	await loadUlang();
 	let response = await fetch(`https://api.github.com/gists/${gistId}`);
 	if (response.status >= 400) throw new Error(`Couldn't fetch gist ${gistId}`);
@@ -387,7 +387,7 @@ export class UlangPlayer {
 	vm: VirtualMachine;
 	source: string;
 
-	constructor (canvas: HTMLCanvasElement | string, source: string) {
+	constructor (canvas: HTMLCanvasElement, source: string) {
 		this.vm = new VirtualMachine(canvas);
 		this.source = source;
 	}

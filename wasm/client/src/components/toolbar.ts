@@ -4,12 +4,13 @@ export function createToolbar (toolbar: HTMLElement, includeEditorButtons: boole
 	toolbar.innerHTML = toolbarHtml;
 	if (includeEditorButtons) toolbar.querySelector(".toolbar-editor").classList.remove("hide");
 	setupUIEvents(toolbar);
+	return toolbar;
 }
 
 function setupUIEvents (toolbar: HTMLElement) {
-	let loginButton = toolbar.querySelector("#toolbar-login");
-	let logoutButton = toolbar.querySelector("#toolbar-logout");
-	let avatarImage = toolbar.querySelector("#toolbar-avatar") as HTMLImageElement;
+	let loginButton = toolbar.querySelector(".toolbar-login");
+	let logoutButton = toolbar.querySelector(".toolbar-logout");
+	let avatarImage = toolbar.querySelector(".toolbar-avatar") as HTMLImageElement;
 
 	loginButton.addEventListener("click", () => {
 		auth.login();
