@@ -40,7 +40,7 @@ function setupUIEvents (editor: Editor, toolbar: HTMLElement) {
 
 	let authorLabel = toolbar.querySelector(".toolbar-author") as HTMLDivElement;
 	if (project.getId()) {
-		authorLabel.innerHTML = project.getOwner() != auth.getUsername() ? `by <a href="https://github.com/${project.getOwner()}">${project.getOwner()}</a>` : "";
+		authorLabel.innerHTML = project.getOwner() != auth.getUsername() ? `<span style="margin-right: 0.5em">by</span><a href="https://github.com/${project.getOwner()}">${project.getOwner()}</a>` : "";
 	} else {
 		authorLabel.innerHTML = "";
 	}
@@ -48,7 +48,7 @@ function setupUIEvents (editor: Editor, toolbar: HTMLElement) {
 	let forkedFromLabel = toolbar.querySelector(".toolbar-forked-from") as HTMLDivElement;
 	if (project.getForkedFrom()) {
 		let fork = project.getForkedFrom();
-		forkedFromLabel.innerHTML = `forked from <a href="/editor/${fork.id}">${fork.owner}</a>`;
+		forkedFromLabel.innerHTML = `<span style="margin-right: 0.5em">forked from</span><a href="/editor/${fork.id}">${fork.owner}</a>`;
 	} else {
 		forkedFromLabel.innerHTML = "";
 	}
