@@ -8,6 +8,7 @@ import { Debugger } from "./debugger";
 import { setupLiveEdit } from "./liveedit"
 import { loadProject, project } from "./project";
 import { showDialog } from "./ui";
+import { createToolbar } from "./components/toolbar";
 
 (async function () {
 	await checkAuthorizationCode();
@@ -16,7 +17,8 @@ import { showDialog } from "./ui";
 	let editor = new Editor("editor-container");
 	let virtualMachine = new VirtualMachine("debugger-output");
 	new Debugger(editor, virtualMachine, "toolbar-run", "toolbar-continue", "toolbar-pause", "toolbar-step", "toolbar-stop", "debug-view-registers", "debug-view-stack", "debug-view-memory");
-	new Auth("toolbar-login", "toolbar-logout", "toolbar-avatar");
+	new Auth();
+	createToolbar(document.querySelector(".toolbar"));
 
 	loadProject(editor, "toolbar-title", "toolbar-author", "toolbar-forked-from", "toolbar-unsaved");
 	setupLiveEdit();

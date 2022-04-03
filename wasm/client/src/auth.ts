@@ -39,49 +39,12 @@ export async function checkAuthorizationCode () {
 }
 
 export class Auth {
-	private loginButton: HTMLElement;
-	private logoutButton: HTMLElement;
-	private avatarImage: HTMLImageElement;
 	private user: User;
 
-	constructor (
-		loginButton: HTMLElement | string,
-		logoutButton: HTMLElement | string,
-		avatarImage: HTMLImageElement | string) {
+	constructor () {
 		auth = this;
-		this.loginButton = typeof (loginButton) === "string" ? document.getElementById(loginButton) : loginButton;
-		this.logoutButton = typeof (logoutButton) === "string" ? document.getElementById(logoutButton) : logoutButton;
-		this.avatarImage = typeof (avatarImage) === "string" ? document.getElementById(avatarImage) as HTMLImageElement : avatarImage;
-
 		const userJson = localStorage.getItem("user");
-		if (userJson) {
-			this.user = JSON.parse(userJson);
-			this.avatarImage.src = this.user.user.avatar_url;
-		}
-
-		this.loginButton.addEventListener("click", () => {
-			this.login();
-		});
-		this.logoutButton.addEventListener("click", () => {
-			this.logout();
-		});
-		this.avatarImage.addEventListener("click", () => {
-			window.location.href = this.user.user.html_url;
-		});
-
-		this.updateUI();
-	}
-
-	private updateUI () {
-		if (this.user) {
-			this.loginButton.classList.add("hide");
-			this.logoutButton.classList.remove("hide");
-			this.avatarImage.classList.remove("hide");
-		} else {
-			this.loginButton.classList.remove("hide");
-			this.logoutButton.classList.add("hide");
-			this.avatarImage.classList.add("hide");
-		}
+		if (userJson) this.user = JSON.parse(userJson);
 	}
 
 	isAuthenticated () {
@@ -119,7 +82,6 @@ export class Auth {
 	logout () {
 		this.user = null;
 		localStorage.removeItem("user");
-		this.updateUI();
 		location.reload();
 	}
 

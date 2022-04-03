@@ -6,9 +6,6 @@ printHelp () {
 	echo "Usage: control.sh <command>"
 	echo "Available commands:"
 	echo
-	echo "   restart      Restarts the Node.js server, pulling in new assets."
-	echo "                Uses ULANG_RESTART_PWD env variable."
-	echo
 	echo "   start        Pulls changes, builds docker image(s), and starts"
 	echo "                the services (Nginx, Node.js)."
 	echo "   startdev     Pulls changes, builds docker image(s), and starts"
@@ -29,9 +26,6 @@ dir="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 pushd $dir > /dev/null
 
 case "$1" in
-restart)
-	curl -X GET https://ulang.io/restart?pwd=$ULANG_RESTART_PWD
-	;;
 start)
 	git pull
 	docker-compose -p ulang -f docker-compose.base.yml -f docker-compose.prod.yml build

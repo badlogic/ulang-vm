@@ -1,6 +1,7 @@
 import "./common.css"
 import "./page-index.css"
 
+import { createToolbar } from "./components/toolbar"
 import { createPlayerFromGist, loadUlang, UlangPlayer } from "@marioslab/ulang-vm";
 import { Auth, checkAuthorizationCode } from "./auth";
 import { setupLiveEdit } from "./liveedit";
@@ -9,7 +10,8 @@ import { setupLiveEdit } from "./liveedit";
 	await checkAuthorizationCode();
 	await loadUlang();
 
-	new Auth("toolbar-login", "toolbar-logout", "toolbar-avatar");
+	new Auth();
+	createToolbar(document.querySelector(".toolbar"));
 
 	setupLiveEdit();
 	setupUIEvents();

@@ -14,7 +14,8 @@ require('esbuild').build({
 	outdir: 'client/assets/bundle',
 	loader: {
 		".ttf": "dataurl",
-		".ul": "text"
+		".ul": "text",
+		".html": "text"
 	},
 	watch: watch,
 	logLevel: 'info'
