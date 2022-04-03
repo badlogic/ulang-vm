@@ -17,7 +17,7 @@ import { createToolbar } from "./components/toolbar";
 	let toolbar = createToolbar(document.querySelector(".toolbar"), true); // 	
 	let editor = new Editor(document.querySelector("#editor-container"));
 	let virtualMachine = new VirtualMachine("debugger-output");
-	new Debugger(editor, virtualMachine, toolbar, document.querySelector("#debug-view-container"));
+	new Debugger(editor, virtualMachine, toolbar, document.querySelector("#debug-views-container"));
 
 	await loadProject();
 	setupLiveEdit();

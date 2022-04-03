@@ -62,7 +62,7 @@ export function setupLayout () {
 		onDragEnd: saveSplitSizes
 	});
 
-	let splitRight = Split(['#debugger-container', '#debug-view-container'], {
+	let splitRight = Split(['#debugger-container', '#debug-views-container'], {
 		direction: "vertical",
 		minSize: 0,
 		gutterSize: 5,
