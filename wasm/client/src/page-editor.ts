@@ -61,9 +61,26 @@ function setupUIEvents (editor: Editor, toolbar: HTMLElement) {
 
 	editor.setContent(project.getSource());
 
-
 	editor.setContentListener((content) => {
 		project.setSource(content);
+	});
+
+	if (project.getId()) {
+		let bpsJson = localStorage.getItem("bps-" + project.getId());
+		if (bpsJson) {
+			let bps = JSON.parse(bpsJson);
+			for (let bp of bps) {
+				try {
+					editor.toggleBreakpoint(bp);
+				} catch (e) {
+					// no, breakpoint/source mismatch
+				}
+			}
+		}
+	}
+
+	editor.setBreakpointListener((bps: number[]) => {
+		if (project.getId()) localStorage.setItem("bps-" + project.getId(), JSON.stringify(bps));
 	});
 
 	let newButton = toolbar.querySelector(".toolbar-new");
