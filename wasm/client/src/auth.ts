@@ -1,4 +1,4 @@
-import { showDialog } from "./ui";
+import { showDialog } from "./components/dialog";
 import axios from "axios"
 import querystring from "query-string"
 import { project } from "./project";

@@ -32,3 +32,5 @@ export function showDialog (title: string, content: string, buttons: { label: st
 	document.body.appendChild(dialog);
 	return dialog;
 }
+
+import "./dialog.css"

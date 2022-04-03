@@ -20,7 +20,7 @@ function setupUIEvents (toolbar: HTMLElement) {
 		updateUI();
 	});
 	avatarImage.addEventListener("click", () => {
-		window.location.href = auth.getAvatar();
+		window.location.href = `/user/${auth.getUsername()}`;
 	});
 
 	let updateUI = () => {
@@ -39,3 +39,4 @@ function setupUIEvents (toolbar: HTMLElement) {
 }
 
 import toolbarHtml from "./toolbar.html"
+import "./toolbar.css"

@@ -1,0 +1,23 @@
+.dialog {
+	position: fixed;
+	z-index: 100;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	overflow: auto;
+	background-color: rgba(0, 0, 0, 0.4);
+}
+
+.dialog-content {
+	background-color: #1a1a1a;
+	margin: 2em auto;
+	padding: 1em;
+	width: 400px;
+	box-shadow: 0px 0px 10px black;
+}
+
+.dialog-header {
+	font-weight: 200;
+	font-size: 1.5em;
+}

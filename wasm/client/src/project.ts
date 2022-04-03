@@ -3,7 +3,7 @@ import { saveAs } from "file-saver";
 import { Editor } from "./editor";
 import querystring from "query-string"
 import { forkGist, getGist, Gist, newGist, updateGist } from "./gist";
-import { showDialog } from "./ui";
+import { showDialog } from "./components/dialog";
 import axios from "axios";
 
 export let project: Project;
@@ -33,7 +33,7 @@ export async function loadProject (editor: Editor, _titleLabel: string, _authorL
 			if (gist && gist.files["source.ul"]) {
 				project = Project.fromGist(gist);
 			} else {
-				showDialog("Sorry", "<p>This Gist could not be loaded. Either it doesn't exist, or you ran into GitHub's rate limit of 60 requests per hour for anonymous users. Login to get increase that limit to 5000 requests per hour.</p>", [], true, "OK", () => {
+				showDialog("Sorry", "<p>This Gist could not be loaded. Either it doesn't exist, or you ran into GitHub's rate limit of 60 requests per hour for anonymous users. Login to increase that limit to 5000 requests per hour.</p>", [], true, "OK", () => {
 					window.location.href = "/editor";
 				});
 			}
@@ -171,7 +171,7 @@ export class Project {
 						}
 					}], true);
 				} else {
-					showDialog("Fork?", "<p>This gist belongs to another user. Do you want to fork it?</p>", [{
+					showDialog("Fork?", "<p>This Gist belongs to another user. Do you want to fork it?</p>", [{
 						label: "OK", callback: async () => {
 							dialog = showDialog("", "Forking Gist", [], false);
 							try {

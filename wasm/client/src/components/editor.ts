@@ -9,7 +9,6 @@ import * as ulang from "@marioslab/ulang-vm"
 };
 
 export class Editor {
-	private container: HTMLElement;
 	private editor: monaco.editor.IStandaloneCodeEditor;
 	private decorations: string[] = [];
 	private breakpoints: monaco.editor.IModelDeltaDecoration[] = [];
@@ -17,9 +16,7 @@ export class Editor {
 	private breakpointListener: (bps: number[]) => void = null;
 	private contentListener: (content: string) => void = null;
 
-	constructor (containerElement: HTMLElement | string) {
-		if (typeof (containerElement) === "string") this.container = document.getElementById(containerElement);
-		else this.container = containerElement;
+	constructor (private container: HTMLElement) {
 		defineUlangLanguage();
 		this.editor = monaco.editor.create(this.container, {
 			automaticLayout: true,
