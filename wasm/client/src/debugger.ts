@@ -1,5 +1,5 @@
 import * as monaco from "monaco-editor";
-import { Editor } from "./editor"
+import { Editor } from "./components/editor"
 import { VirtualMachine, VirtualMachineState } from "@marioslab/ulang-vm"
 import { UlangLabelTarget, UlangValue, UL_VM_MEMORY_SIZE } from "@marioslab/ulang-vm/src/wrapper";
 

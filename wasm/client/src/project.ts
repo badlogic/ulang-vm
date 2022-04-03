@@ -1,6 +1,6 @@
 import { auth } from "./auth";
 import { saveAs } from "file-saver";
-import { Editor } from "./editor";
+import { Editor } from "./components/editor";
 import querystring from "query-string"
 import { forkGist, getGist, Gist, newGist, updateGist } from "./gist";
 import { showDialog } from "./components/dialog";

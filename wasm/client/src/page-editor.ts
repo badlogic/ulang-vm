@@ -1,6 +1,6 @@
 import "./common.css"
 import "./page-editor.css"
-import { Editor } from "./editor"
+import { Editor } from "./components/editor"
 import { setupLayout } from "./layout";
 import { Auth, checkAuthorizationCode } from "./auth";
 import { loadUlang, VirtualMachine } from "@marioslab/ulang-vm"
