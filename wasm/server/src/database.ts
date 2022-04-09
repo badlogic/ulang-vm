@@ -97,7 +97,7 @@ export async function updateProject (user: string, title: string, gistId: string
 }
 
 export async function getProjects (user: string) {
-	let result = await query("select user, title, gistid, UNIX_TIMESTAMP(created) as created, UNIX_TIMESTAMP(modified) as modified from projects where user=?", [user]);
+	let result = await query("select user, title, gistid, UNIX_TIMESTAMP(created) as created, UNIX_TIMESTAMP(modified) as modified from projects where user=? order by modified desc", [user]);
 	delete result.meta; // 
 	for (let i = 0; i < result.length; i++) {
 		result[i].created = parseInt(result[i].created.toString()) * 1000;

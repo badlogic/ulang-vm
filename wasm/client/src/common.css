@@ -51,17 +51,24 @@ select {
 }
 
 .button {
-	font-size: 1em;
-	background: none;
+	display: inline-block;
 	border: 1px solid #333;
 	padding: 0.5em;
 	margin-right: 0.4em;
-	color: #ccc;
+	background: none;
+	border: 1px solid #ccc;
+	border-radius: 5px;
+	color: #cccccc;
 	cursor: pointer;
+	outline: none !important;
 }
 
 .button:hover {
-	border-color: #666;
+	border-color: #fff;
+}
+
+.button:active {
+	transform: translate(2px, 2px);
 }
 
 .big-button {
