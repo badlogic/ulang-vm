@@ -1,0 +1,26 @@
+.main-content {
+	padding: 2em;
+	max-width: 800px;
+	width: 100%;
+	margin: 0 auto;
+}
+
+.user-header {
+	display: flex;
+	flex-direction: row;
+	vertical-align: middle;
+	height: 4em;
+	width: 100%;
+}
+
+.user-avatar {
+	height: 2em;
+	margin-right: 1em;
+}
+
+.user-name {
+	font-size: 1.5em;
+	height: auto;
+}
+
+.user-projects {}

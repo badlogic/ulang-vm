@@ -1,6 +1,7 @@
-.main-content {	
+.main-content {
 	padding: 2em;
 	max-width: 800px;
+	width: 100%;
 	margin: 0 auto;
 }
 

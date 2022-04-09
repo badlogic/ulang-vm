@@ -9,9 +9,11 @@ set -e
 
 if [ -z "$ULANG_DEV" ]; then	
 	npm install
+	npm rebuild
 	npm run build
 	node server/build/server.js	
 else	
 	npm install
+	npm rebuild
 	npm run dev
 fi

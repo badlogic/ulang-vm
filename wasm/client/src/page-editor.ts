@@ -9,6 +9,7 @@ import { setupLiveEdit } from "./liveedit"
 import { loadProject, project } from "./project";
 import { showDialog } from "./components/dialog";
 import { createToolbar } from "./components/toolbar";
+import { decode } from "html-entities";
 
 (async function () {
 	await checkAuthorizationCode();
@@ -29,7 +30,7 @@ import { createToolbar } from "./components/toolbar";
 
 function setupUIEvents (editor: Editor, toolbar: HTMLElement) {
 	let titleInput = toolbar.querySelector(".toolbar-title") as HTMLInputElement;
-	titleInput.value = project.getTitle();
+	titleInput.value = decode(project.getTitle());
 	titleInput.addEventListener("input", () => {
 		if (titleInput.value.trim().length == 0) {
 			showDialog("Sorry", "<p>Title can't be empty.</p>", [], true, "OK");

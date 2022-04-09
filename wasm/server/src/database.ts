@@ -92,7 +92,8 @@ export async function createProject (user: string, title: string, gistId: string
 }
 
 export async function updateProject (user: string, title: string, gistId: string) {
-	await query("update projects set title=? where user=? and gistid=?", [title, user, gistId]);
+	let result = await query("update projects set title=? where user=? and gistid=?", [title, user, gistId]);
+	if (result.affectedRows == 0) throw new Error("Couldn't update project.");
 }
 
 export async function getProjects (user: string) {

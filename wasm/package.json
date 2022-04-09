@@ -57,6 +57,7 @@
     "express": "^4.17.3",
     "express-validator": "^6.14.0",
     "file-saver": "^2.0.5",
+    "html-entities": "^2.3.3",
     "knex": "^1.0.4",
     "mariadb": "^3.0.0",
     "monaco-editor": "^0.32.1",

@@ -24,7 +24,7 @@ export async function loadProject () {
 		if (!gistId && pathElements.length > 0) gistId = pathElements[0];
 
 		if (!params.code && authorizeProject) {
-			project = new Project(authorizeProject["title"], authorizeProject["owner"], authorizeProject["id"], authorizeProject["source"]);
+			project = new Project(authorizeProject["title"], authorizeProject["owner"], authorizeProject["id"], authorizeProject["source"], authorizeProject["forkedFrom"]);
 			project.setUnsaved(authorizeProject.unsaved);
 		} else if (gistId) {
 			dialog = showDialog("", "Loading Gist", [], false);
@@ -192,11 +192,18 @@ export class Project {
 			} else {
 				dialog = showDialog("", "Saving Gist", [], false);
 				await updateGist(this.id, this.title, this.source, auth.getAccessToken());
-				if (project.titleModified) {
+				try {
 					await axios.patch(`/api/${auth.getUsername()}/projects`, {
 						user: auth.getUsername(),
 						accessToken: auth.getAccessToken(),
 						gistId: this.id,
+						title: this.title
+					});
+				} catch (e) {
+					await axios.post(`/api/${auth.getUsername()}/projects`, {
+						user: auth.getUsername(),
+						accessToken: auth.getAccessToken(),
+						gistId: gist.id,
 						title: this.title
 					});
 				}

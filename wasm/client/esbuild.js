@@ -6,6 +6,7 @@ require('esbuild').build({
 	entryPoints: {
 		editor: "client/src/page-editor.ts",
 		index: "client/src/page-index.ts",
+		user: "client/src/page-user.ts",
 		"editor.worker": "monaco-editor/esm/vs/editor/editor.worker.js",
 	},
 	bundle: true,
