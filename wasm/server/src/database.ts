@@ -96,6 +96,10 @@ export async function updateProject (user: string, title: string, gistId: string
 	if (result.affectedRows == 0) throw new Error("Couldn't update project.");
 }
 
+export async function deleteProject (user: string, gistId: string) {
+	let result = await query("delete from projects where user=? and gistid=?", [user, gistId]);
+}
+
 export async function getProjects (user: string) {
 	let result = await query("select user, title, gistid, UNIX_TIMESTAMP(created) as created, UNIX_TIMESTAMP(modified) as modified from projects where user=? order by modified desc", [user]);
 	delete result.meta; // 

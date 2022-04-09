@@ -11,6 +11,12 @@
 	background: black;
 }
 
+.user-project-thumb-link {
+	width: 160px;
+	height: 120px;
+	background: black;
+}
+
 .user-project-details {
 	width: 120px;
 	padding-left: 1em;

@@ -3,7 +3,7 @@ import express, { Response } from "express";
 import { setupLiveEdit } from "./liveedit";
 import axios from "axios"
 import querystring from "query-string"
-import { createProject, createUser, getProjects, isAuthorized, setupDb, updateProject } from "./database";
+import { createProject, createUser, deleteProject, getProjects, isAuthorized, setupDb, updateProject } from "./database";
 import { body, param, validationResult } from "express-validator"
 import * as path from "path";
 import * as fs from "fs";
@@ -135,6 +135,28 @@ app.patch("/api/:user/projects",
 			res.sendStatus(200);
 		} catch (err) {
 			sendError(res, "Couldn't update project.", JSON.stringify(err, Object.getOwnPropertyNames(err)));
+		}
+	});
+
+app.delete("/api/:user/projects",
+	param("user").exists().trim().notEmpty().escape(),
+	body("accessToken").exists().trim().notEmpty(),
+	body("gistId").exists().trim().notEmpty(),
+	async (req, res) => {
+		try {
+			if (!validationResult(req).isEmpty()) throw new Error("Invalid inputs");
+
+			let user = req.params?.user;
+			let accessToken = req.body.accessToken;
+			let gistId = req.body.gistId;
+
+			await isAuthorized(user, accessToken);
+
+			await deleteProject(user, gistId);
+
+			res.sendStatus(200);
+		} catch (err) {
+			sendError(res, "Couldn't delete project.", JSON.stringify(err, Object.getOwnPropertyNames(err)));
 		}
 	});
 

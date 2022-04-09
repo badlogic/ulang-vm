@@ -1,4 +1,6 @@
 import { decode } from "html-entities";
+import axios from "axios";
+import { auth } from "src/auth";
 
 export interface UserProject {
 	gistid: string,
@@ -16,6 +18,9 @@ export function createUserProjectDom (project: UserProject) {
 	let url = `/editor/${project.gistid}`;
 
 	let thumb = projectDom.querySelector(".user-project-thumb") as HTMLImageElement;
+	thumb.onerror = () => {
+		thumb.style.display = "none";
+	}
 	thumb.src = `/images/${project.gistid}.png`;
 	let thumbLink = projectDom.querySelector(".user-project-thumb-link") as HTMLAnchorElement;
 	thumbLink.href = url;
@@ -26,6 +31,20 @@ export function createUserProjectDom (project: UserProject) {
 
 	let created = projectDom.querySelector(".user-project-created") as HTMLDivElement;
 	created.textContent = `Created: ${new Date(project.created).toDateString()} ${new Date(project.created).toLocaleTimeString()}`;
+
+	let deleteButton = projectDom.querySelector(".user-project-delete") as HTMLButtonElement;
+	deleteButton.addEventListener("click", async () => {
+		await axios.delete(`/api/${auth.getUsername()}/projects`, {
+			headers: {},
+			data: {
+				user: auth.getUsername(),
+				accessToken: auth.getAccessToken(),
+				gistId: project.gistid,
+			}
+		});
+		projectDom.remove();
+	});
+
 	return projectDom;
 }
 
