@@ -23,12 +23,12 @@ import { decode } from "html-entities";
 	await loadProject();
 	setupLiveEdit();
 	setupLayout();
-	setupUIEvents(editor, toolbar);
+	setupUIEvents(editor, toolbar, virtualMachine);
 
 	(document.querySelector(".main") as HTMLElement).style.display = "flex";
 })();
 
-function setupUIEvents (editor: Editor, toolbar: HTMLElement) {
+function setupUIEvents (editor: Editor, toolbar: HTMLElement, virtualMachine: VirtualMachine) {
 	let titleInput = toolbar.querySelector(".toolbar-title") as HTMLInputElement;
 	titleInput.value = decode(project.getTitle());
 	titleInput.addEventListener("input", () => {
@@ -89,6 +89,11 @@ function setupUIEvents (editor: Editor, toolbar: HTMLElement) {
 
 	let saveButton = document.querySelector(".toolbar-save");
 	saveButton.addEventListener("click", () => project.save());
+
+	let screenshotButton = document.querySelector(".toolbar-screenshot");
+	screenshotButton.addEventListener("click", () => {
+		project.setScreenshot(virtualMachine.takeScreenshot());
+	});
 
 	let downloadButton = toolbar.querySelector(".toolbar-download");
 	downloadButton.addEventListener("click", () => project.download());

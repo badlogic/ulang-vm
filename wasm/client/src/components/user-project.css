@@ -8,6 +8,7 @@
 	width: 160px;
 	height: 120px;
 	image-rendering: pixelated;
+	background: black;
 }
 
 .user-project-details {

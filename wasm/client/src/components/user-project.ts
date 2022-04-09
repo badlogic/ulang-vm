@@ -16,6 +16,7 @@ export function createUserProjectDom (project: UserProject) {
 	let url = `/editor/${project.gistid}`;
 
 	let thumb = projectDom.querySelector(".user-project-thumb") as HTMLImageElement;
+	thumb.src = `/images/${project.gistid}.png`;
 	let thumbLink = projectDom.querySelector(".user-project-thumb-link") as HTMLAnchorElement;
 	thumbLink.href = url;
 

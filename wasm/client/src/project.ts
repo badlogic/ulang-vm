@@ -58,6 +58,7 @@ export class Project {
 	private owner: string;
 	private id: string;
 	private source: string;
+	private screenshot: string;
 	private unsaved: boolean;
 	private unsavedListener: (isUnsaved: boolean) => void;
 
@@ -116,7 +117,8 @@ export class Project {
 					user: auth.getUsername(),
 					accessToken: auth.getAccessToken(),
 					gistId: gist.id,
-					title: this.title
+					title: this.title,
+					screenshot: this.screenshot
 				});
 				history.replaceState(null, "", `/editor/${this.id}`);
 			} else if (this.id != null && this.owner != auth.getUsername()) {
@@ -137,7 +139,8 @@ export class Project {
 									user: auth.getUsername(),
 									accessToken: auth.getAccessToken(),
 									gistId: forkedId,
-									title: this.title
+									title: this.title,
+									screenshot: this.screenshot
 								});
 								this.setUnsaved(false);
 								location.href = `/editor/${forkedId}`;
@@ -165,14 +168,16 @@ export class Project {
 										user: auth.getUsername(),
 										accessToken: auth.getAccessToken(),
 										gistId: gist.id,
-										title: this.title
+										title: this.title,
+										screenshot: this.screenshot
 									});
 								} catch (e) {
 									await axios.patch(`/api/${auth.getUsername()}/projects`, {
 										user: auth.getUsername(),
 										accessToken: auth.getAccessToken(),
 										gistId: gist.id,
-										title: this.title
+										title: this.title,
+										screenshot: this.screenshot
 									});
 								}
 								authorLabel.innerHTML = "";
@@ -197,14 +202,16 @@ export class Project {
 						user: auth.getUsername(),
 						accessToken: auth.getAccessToken(),
 						gistId: this.id,
-						title: this.title
+						title: this.title,
+						screenshot: this.screenshot
 					});
 				} catch (e) {
 					await axios.post(`/api/${auth.getUsername()}/projects`, {
 						user: auth.getUsername(),
 						accessToken: auth.getAccessToken(),
 						gistId: gist.id,
-						title: this.title
+						title: this.title,
+						screenshot: this.screenshot
 					});
 				}
 			}
@@ -214,6 +221,7 @@ export class Project {
 			return;
 		} finally {
 			if (dialog) dialog.remove();
+			this.screenshot = null;
 		}
 
 		this.setUnsaved(false);
@@ -260,5 +268,10 @@ export class Project {
 
 	getForkedFrom () {
 		return this.forkedFrom;
+	}
+
+	setScreenshot (screenshot: string) {
+		this.screenshot = screenshot;
+		this.setUnsaved(true);
 	}
 }

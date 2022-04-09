@@ -362,6 +362,10 @@ export class VirtualMachine {
 			}
 		}
 	}
+
+	takeScreenshot () {
+		return this.canvas.toDataURL("image/png");
+	}
 }
 
 let loaded = false;

@@ -7,8 +7,9 @@ services:
         links:
             - site
         volumes:
-            - ./nginx.conf:/etc/nginx/conf.d/default.conf
+            - ./server.conf:/etc/nginx/conf.d/default.conf
             - ./data/logs:/logs
+            - ./data/images:/images
             - ../..:/ulang
         networks:
             - ulang_network
@@ -28,6 +29,7 @@ services:
             - ULANG_DB_PASSWORD=${ULANG_DB_PASSWORD}
         volumes:
             - ../..:/ulang
+            - ./data/images:/images
         networks:
             - ulang_network
     database:

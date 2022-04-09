@@ -5,6 +5,9 @@ import axios from "axios"
 import querystring from "query-string"
 import { createProject, createUser, getProjects, isAuthorized, setupDb, updateProject } from "./database";
 import { body, param, validationResult } from "express-validator"
+import * as path from "path";
+import * as fs from "fs";
+import { losslessCompressPng } from "@napi-rs/image"
 
 const port = process.env.ULANG_PORT || 3000;
 const app = express()
@@ -42,6 +45,15 @@ function sendError (res: Response, message: string, detail: string) {
 	res.status(400).send({ message: message, detail: detail });
 }
 
+async function saveScreenshot (gistId: string, screenshot: string) {
+	if (!screenshot.startsWith("data:image/png;base64,")) throw new Error("Screenshot must be a PNG file.");
+	screenshot = screenshot.replace(/^data:image\/png;base64,/, "");
+	let file = path.join("/images/", `${gistId}.png`);
+	let buffer = Buffer.from(screenshot, "base64");
+	buffer = losslessCompressPng(buffer);
+	await fs.promises.writeFile(file, buffer);
+}
+
 app.post("/api/access_token", async (req, res) => {
 	try {
 		let code = req.body.code as string;
@@ -75,6 +87,7 @@ app.post("/api/:user/projects",
 	body("accessToken").exists().trim().notEmpty(),
 	body("gistId").exists().trim().notEmpty(),
 	body("title").exists().trim().notEmpty().escape(),
+	body("screenshot").optional().isByteLength({ max: 320 * 240 * 4 * 1.5 }),
 	async (req, res) => {
 		try {
 			if (!validationResult(req).isEmpty()) throw new Error("Invalid inputs");
@@ -83,10 +96,13 @@ app.post("/api/:user/projects",
 			let accessToken = req.body.accessToken;
 			let gistId = req.body.gistId;
 			let title = req.body.title;
+			let screenshot = req.body.screenshot;
 
 			await isAuthorized(user, accessToken);
 
 			await createProject(user, title, gistId);
+
+			if (screenshot) await saveScreenshot(gistId, screenshot);
 
 			res.sendStatus(200);
 		} catch (err) {
@@ -99,6 +115,7 @@ app.patch("/api/:user/projects",
 	body("accessToken").exists().trim().notEmpty(),
 	body("gistId").exists().trim().notEmpty(),
 	body("title").exists().trim().notEmpty().escape(),
+	body("screenshot").optional().isByteLength({ max: 320 * 240 * 4 * 1.5 }),
 	async (req, res) => {
 		try {
 			if (!validationResult(req).isEmpty()) throw new Error("Invalid inputs");
@@ -107,10 +124,13 @@ app.patch("/api/:user/projects",
 			let accessToken = req.body.accessToken;
 			let gistId = req.body.gistId;
 			let title = req.body.title;
+			let screenshot = req.body.screenshot;
 
 			await isAuthorized(user, accessToken);
 
 			await updateProject(user, title, gistId);
+
+			if (screenshot) await saveScreenshot(gistId, screenshot);
 
 			res.sendStatus(200);
 		} catch (err) {
