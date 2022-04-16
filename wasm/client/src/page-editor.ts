@@ -21,16 +21,16 @@ import { Explorer } from "./components/explorer";
 	let editor = new Editor(document.querySelector("#editor-container"));
 	let virtualMachine = new VirtualMachine("debugger-output");
 	new Debugger(editor, virtualMachine, toolbar, document.querySelector("#debug-views-container"));
-	let explorer = new Explorer(document.querySelector("#explorer"), project, editor);
+	let explorer = new Explorer(document.querySelector("#explorer"), project);
 
 	setupLiveEdit();
 	setupLayout();
-	setupUIEvents(editor, toolbar, virtualMachine);
+	setupUIEvents(explorer, editor, toolbar, virtualMachine);
 
 	(document.querySelector(".main") as HTMLElement).style.display = "flex";
 })();
 
-function setupUIEvents (editor: Editor, toolbar: Toolbar, virtualMachine: VirtualMachine) {
+function setupUIEvents (explorer: Explorer, editor: Editor, toolbar: Toolbar, virtualMachine: VirtualMachine) {
 	// Setup toolbar
 	let titleInput = toolbar.getTitleInput()
 	titleInput.value = decode(project.getTitle());
@@ -63,12 +63,18 @@ function setupUIEvents (editor: Editor, toolbar: Toolbar, virtualMachine: Virtua
 	let downloadButton = toolbar.getDownloadButton();
 	downloadButton.addEventListener("click", () => project.download());
 
-	// Setup editor
-	editor.setContent(project.getFileContent("program.ul"));
-
+	// Setup explorer & editor
 	editor.setContentListener((content) => {
-		project.setFileContent("program.ul", content);
+		project.setFileContent(explorer.getSelectedFile(), content);
 	});
+
+	explorer.setSelectedCallback((filename) => {
+		if (filename.endsWith(".ul")) {
+			editor.setContent(project.getFileContent(filename));
+		}
+	})
+
+	explorer.selectFile("program.ul");
 
 	if (project.getId()) {
 		let bpsJson = localStorage.getItem("bps-" + project.getId());

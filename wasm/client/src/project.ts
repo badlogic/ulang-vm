@@ -47,6 +47,8 @@ export async function loadProject () {
 	if (!project) {
 		project = new Project("Untitled", null, null, {}, null);
 		project.newFile("program.ul", "");
+		project.newFile("utils.ul", "");
+		project.setUnsaved(false);
 	}
 }
 
@@ -102,6 +104,7 @@ export class Project {
 	async save () {
 		for (let filename in this.files) {
 			if (filename.endsWith(".ul")) {
+				if (!this.files[filename].content) continue;
 				let content = this.getFileContent(filename);
 				if (content.trim().length == 0) {
 					showDialog("Sorry", `<p>Can't save an empty source file ${filename}.</p>`, [], true, "OK");
@@ -206,6 +209,7 @@ export class Project {
 				return;
 			} else {
 				dialog = showDialog("", "Saving Gist", [], false);
+
 				await updateGist(this.id, this.title, this.files, auth.getAccessToken());
 				try {
 					await axios.patch(`/api/${auth.getUsername()}/projects`, {
@@ -268,13 +272,15 @@ export class Project {
 	}
 
 	fileExists (filename: string): boolean {
-		return this.files[filename] != undefined && this.files[filename] != null;
+		return this.files[filename] != undefined && this.files[filename] != null && !this.files[filename].deleted;
 	}
 
 	getFilenames (): string[] {
 		let result = [];
-		for (let filename in this.files)
+		for (let filename in this.files) {
+			if (this.files[filename].deleted) continue;
 			result.push(filename);
+		}
 		return result;
 	}
 
@@ -284,9 +290,25 @@ export class Project {
 		this.setUnsaved(true);
 	}
 
+	renameFile (oldFilename: string, newFilename: string) {
+		if (!this.fileExists(oldFilename)) throw new Error(`File ${oldFilename} does not exist.`);
+		let oldFile = this.files[oldFilename];
+		let newFile = {
+			filename: newFilename,
+			content: oldFile.content
+		};
+		this.files[newFilename] = newFile;
+		this.deleteFile(oldFilename);
+		this.setUnsaved(true);
+	}
+
 	deleteFile (filename: string) {
 		if (this.files[filename]) {
-			delete this.files[filename];
+			if (this.id) {
+				this.files[filename].content = "";
+				this.files[filename].deleted = true;
+			} else
+				delete this.files[filename];
 			this.setUnsaved(true);
 		}
 	}

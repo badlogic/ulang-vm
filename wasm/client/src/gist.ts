@@ -17,7 +17,8 @@ export interface Fork {
 export interface GistFile {
 	filename?: string,
 	type?: string,
-	content: string
+	content: string,
+	deleted?: boolean
 }
 
 export type GistFiles = {
