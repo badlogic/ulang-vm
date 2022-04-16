@@ -4,11 +4,6 @@ import { VirtualMachine, VirtualMachineState } from "@marioslab/ulang-vm"
 import { UlangLabelTarget, UlangValue, UL_VM_MEMORY_SIZE } from "@marioslab/ulang-vm/src/wrapper";
 
 export class Debugger {
-	private run: HTMLElement;
-	private cont: HTMLElement;
-	private pause: HTMLElement;
-	private step: HTMLElement;
-	private stop: HTMLElement;
 	private registerView: HTMLElement;
 	private registerViewConfig: HTMLElement;
 	private stackView: HTMLElement;
@@ -21,29 +16,24 @@ export class Debugger {
 	private numMemoryEntries: HTMLInputElement;
 	private lastValues: { i: number, f: number }[] = [];
 
-	constructor (private editor: Editor, private vm: VirtualMachine, toolbar: HTMLElement, debugViewContainer: HTMLElement) {
-		this.run = toolbar.querySelector(".toolbar-run");
-		this.cont = toolbar.querySelector(".toolbar-continue");
-		this.pause = toolbar.querySelector(".toolbar-pause");
-		this.step = toolbar.querySelector(".toolbar-step");
-		this.stop = toolbar.querySelector(".toolbar-stop");
-		this.run.addEventListener("click", (e) => {
+	constructor (private editor: Editor, private vm: VirtualMachine, private toolbar: Toolbar, debugViewContainer: HTMLElement) {
+		toolbar.getRunButton().addEventListener("click", (e) => {
 			e.stopPropagation();
 			vm.run(editor.getContent());
 		});
-		this.cont.addEventListener("click", (e) => {
+		toolbar.getContinueButton().addEventListener("click", (e) => {
 			e.stopPropagation();
 			vm.continue();
 		});
-		this.pause.addEventListener("click", (e) => {
+		toolbar.getPauseButton().addEventListener("click", (e) => {
 			e.stopPropagation();
 			vm.pause();
 		});
-		this.stop.addEventListener("click", (e) => {
+		toolbar.getStopButton().addEventListener("click", (e) => {
 			e.stopPropagation();
 			vm.stop();
 		});
-		this.step.addEventListener("click", (e) => {
+		toolbar.getStepButton().addEventListener("click", (e) => {
 			e.stopPropagation();
 			vm.step();
 		});
@@ -68,7 +58,7 @@ export class Debugger {
 		this.numMemoryEntries.addEventListener("change", () => this.updateViews());
 
 		vm.setStateChangeListener((vm, state) => {
-			this.setButtonStates(state);
+			toolbar.setButtonStates(state);
 			switch (state) {
 				case VirtualMachineState.Paused:
 					let lineNum = vm.getCurrentLine();
@@ -88,7 +78,7 @@ export class Debugger {
 		});
 
 		this.setupEditorTokenHover();
-		this.setButtonStates(VirtualMachineState.Stopped);
+		toolbar.setButtonStates(VirtualMachineState.Stopped);
 	}
 
 	private updateViews () {
@@ -251,34 +241,6 @@ export class Debugger {
 		return dom;
 	}
 
-	private setButtonStates (state: VirtualMachineState) {
-		this.run.style.display = "";
-		this.cont.style.display = "none";
-		this.cont.classList.add("toolbar-button-disabled");
-		this.pause.classList.add("toolbar-button-disabled");
-		this.step.classList.add("toolbar-button-disabled");
-		this.stop.classList.add("toolbar-button-disabled");
-
-		switch (state) {
-			case VirtualMachineState.Running:
-				this.run.style.display = "none";
-				this.cont.style.display = "";
-				this.cont.classList.add("toolbar-button-disabled");
-				this.pause.classList.remove("toolbar-button-disabled");
-				this.step.classList.add("toolbar-button-disabled");
-				this.stop.classList.remove("toolbar-button-disabled");
-				break;
-			case VirtualMachineState.Paused:
-				this.run.style.display = "none";
-				this.cont.style.display = "";
-				this.cont.classList.remove("toolbar-button-disabled");
-				this.pause.classList.add("toolbar-button-disabled");
-				this.step.classList.remove("toolbar-button-disabled");
-				this.stop.classList.remove("toolbar-button-disabled");
-				break;
-		}
-	}
-
 	private setupEditorTokenHover () {
 		monaco.languages.registerHoverProvider('ulang', {
 			provideHover: (model, position, token) => {
@@ -355,3 +317,4 @@ export class Debugger {
 
 import "./debugger.css";
 import debuggerViews from "./debugger.html";
+import { Toolbar } from "./toolbar";

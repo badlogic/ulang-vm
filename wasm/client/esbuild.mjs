@@ -1,8 +1,11 @@
 #!/usr/bin/env node
 
+import TsconfigPathsPlugin from '@esbuild-plugins/tsconfig-paths'
+import esbuild from "esbuild"
+
 let watch = process.argv.length >= 3 && process.argv[2] == "-watch";
 
-require('esbuild').build({
+esbuild.build({
 	entryPoints: {
 		editor: "client/src/page-editor.ts",
 		index: "client/src/page-index.ts",
@@ -19,5 +22,6 @@ require('esbuild').build({
 		".html": "text"
 	},
 	watch: watch,
-	logLevel: 'info'
+	logLevel: 'info',
+	plugins: [TsconfigPathsPlugin.TsconfigPathsPlugin({ tsconfig: "client/tsconfig.json" })],
 }).catch(() => process.exit(1))

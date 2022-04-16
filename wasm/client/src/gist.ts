@@ -4,21 +4,6 @@ const axios = new Axios({
 	baseURL: "https://api.github.com/"
 })
 
-export interface Gist {
-	description: string,
-	id?: string,
-	owner?: {
-		login: string
-	}
-	files: {
-		"source.ul": GistFile
-	} | GistFile[]
-	comments?: number
-	public: boolean | string,
-	fork_of?: Gist,
-	forks: Fork[]
-}
-
 export interface Fork {
 	created_at: string,
 	updated_at: string,
@@ -30,9 +15,26 @@ export interface Fork {
 }
 
 export interface GistFile {
-	filename: string,
+	filename?: string,
 	type?: string,
 	content: string
+}
+
+export type GistFiles = {
+	[filename: string]: GistFile
+}
+
+export interface Gist {
+	description: string,
+	id?: string,
+	owner?: {
+		login: string
+	}
+	files: GistFiles
+	comments?: number
+	public?: boolean | string,
+	fork_of?: Gist,
+	forks?: Fork[]
 }
 
 export async function getGist (id: string, accessToken: string) {
@@ -43,12 +45,10 @@ export async function getGist (id: string, accessToken: string) {
 	return JSON.parse(resp.data) as Gist
 }
 
-export async function newGist (title: string, source: string, accessToken: string) {
+export async function newGist (title: string, files: GistFiles, accessToken: string) {
 	let resp = await axios.post("/gists", JSON.stringify({
 		description: title,
-		files: {
-			"source.ul": { content: source }
-		},
+		files: files,
 		public: true,
 	} as Gist), {
 		headers: {
@@ -75,12 +75,10 @@ export async function forkGist (id: string, accessToken: string) {
 	return JSON.parse(resp.data) as Gist;
 }
 
-export async function updateGist (id: string, title: string, source: String, accessToken: string) {
+export async function updateGist (id: string, title: string, files: GistFiles, accessToken: string) {
 	let resp = await axios.patch(`/gists/${id}`, JSON.stringify({
 		description: title,
-		files: {
-			"source.ul": { content: source }
-		},
+		files: files
 	} as Gist), {
 		headers: {
 			"Accept": "application/vnd.github.v3+json",

@@ -1,7 +1,7 @@
 import "./common.css"
 import "./page-user.css"
 
-import { createToolbar } from "./components/toolbar"
+import { createToolbar, Toolbar } from "./components/toolbar"
 import { loadUlang } from "@marioslab/ulang-vm";
 import { auth, checkAuthorizationCode } from "./auth";
 import { setupLiveEdit } from "./liveedit";
@@ -13,7 +13,7 @@ import axios from "axios";
 	await checkAuthorizationCode();
 	await loadUlang();
 
-	createToolbar(document.querySelector(".toolbar"));
+	new Toolbar(document.querySelector(".toolbar"));
 	setupLiveEdit();
 	await loadUser();
 

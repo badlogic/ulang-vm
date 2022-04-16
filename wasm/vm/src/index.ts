@@ -381,10 +381,10 @@ export async function createPlayerFromGist (canvas: HTMLCanvasElement, gistId: s
 	let response = await fetch(`https://api.github.com/gists/${gistId}`);
 	if (response.status >= 400) throw new Error(`Couldn't fetch gist ${gistId}`);
 	let gist = await response.json();
-	if (!gist.files || !gist.files["source.ul"] || !gist.files["source.ul"].content) {
+	if (!gist.files || !gist.files["program.ul"] || !gist.files["program.ul"].content) {
 		throw new Error("Gist ${gistId} is not a ulang program.");
 	}
-	return new UlangPlayer(canvas, gist.files["source.ul"].content);
+	return new UlangPlayer(canvas, gist.files["program.ul"].content);
 }
 
 export class UlangPlayer {

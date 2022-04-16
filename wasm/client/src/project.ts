@@ -1,7 +1,7 @@
 import { auth } from "./auth";
 import { saveAs } from "file-saver";
 import querystring from "query-string"
-import { forkGist, getGist, Gist, newGist, updateGist } from "./gist";
+import { forkGist, getGist, Gist, GistFiles, newGist, updateGist } from "./gist";
 import { showDialog } from "./components/dialog";
 import axios from "axios";
 
@@ -29,10 +29,10 @@ export async function loadProject () {
 		} else if (gistId) {
 			dialog = showDialog("", "Loading Gist", [], false);
 			gist = await getGist(gistId, auth.getAccessToken());
-			if (gist && gist.files["source.ul"]) {
+			if (gist && gist.files["program.ul"]) {
 				project = Project.fromGist(gist);
 			} else {
-				showDialog("Sorry", "<p>This Gist could not be loaded. Either it doesn't exist, or you ran into GitHub's rate limit of 60 requests per hour for anonymous users. Login to increase that limit to 5000 requests per hour.</p>", [], true, "OK", () => {
+				showDialog("Sorry", "<p>This Gist could not be loaded. Either it doesn't exist, is not a µlang project, or you ran into GitHub's rate limit of 60 requests per hour for anonymous users. Login to increase that limit to 5000 requests per hour.</p>", [], true, "OK", () => {
 					window.location.href = "/editor";
 				});
 			}
@@ -44,7 +44,10 @@ export async function loadProject () {
 		localStorage.removeItem("authorize-project");
 	}
 
-	if (!project) project = new Project("Untitled", null, null, "", null);
+	if (!project) {
+		project = new Project("Untitled", null, null, {}, null);
+		project.newFile("program.ul", "");
+	}
 }
 
 export interface Fork {
@@ -57,23 +60,23 @@ export class Project {
 	private titleModified: boolean;
 	private owner: string;
 	private id: string;
-	private source: string;
+	private files: GistFiles;
 	private screenshot: string;
 	private unsaved: boolean;
 	private unsavedListener: (isUnsaved: boolean) => void;
 
-	constructor (title: string, owner: string, id: string, source: string, private forkedFrom: Fork) {
+	constructor (title: string, owner: string, id: string, files: GistFiles, private forkedFrom: Fork) {
 		this.title = title || "Untitled";
 		this.titleModified = false;
 		this.owner = owner;
 		this.id = id;
-		this.source = source;
+		this.files = files;
 		this.unsaved = false;
 	}
 
 	static fromGist (gist: Gist) {
 		let fork = gist.fork_of ? { id: gist.fork_of.id, owner: gist.fork_of.owner.login } : null;
-		return new Project(gist.description, gist.owner.login, gist.id, gist.files["source.ul"].content, fork);
+		return new Project(gist.description, gist.owner.login, gist.id, gist.files, fork);
 	}
 
 	fromGist (gist: Gist) {
@@ -81,7 +84,7 @@ export class Project {
 		this.titleModified = false;
 		this.owner = gist.owner.login;
 		this.id = gist.id;
-		this.source = gist.files["source.ul"].content;
+		this.files = gist.files;
 		this.unsaved = false;
 	}
 
@@ -90,14 +93,21 @@ export class Project {
 	}
 
 	download (): any {
-		var file = new File([this.source], "source.ul", { type: "text/plain;charset=utf-8" });
-		saveAs(file);
+		showDialog("Sorry", "<p>Downloading currently not supported</p>", [], true, "OK");
+		return;
+		// var file = new File([this.source], "program.ul", { type: "text/plain;charset=utf-8" });
+		// saveAs(file);
 	}
 
 	async save () {
-		if (this.source.trim().length == 0) {
-			showDialog("Sorry", "<p>Can't save an empty program.</p>", [], true, "OK");
-			return;
+		for (let filename in this.files) {
+			if (filename.endsWith(".ul")) {
+				let content = this.getFileContent(filename);
+				if (content.trim().length == 0) {
+					showDialog("Sorry", `<p>Can't save an empty source file ${filename}.</p>`, [], true, "OK");
+					return;
+				}
+			}
 		}
 
 		if (!this.isUnsaved()) return;
@@ -111,7 +121,7 @@ export class Project {
 		try {
 			if (this.id == null) {
 				dialog = showDialog("", "Creating new Gist", [], false);
-				gist = await newGist(this.title, this.source, auth.getAccessToken());
+				gist = await newGist(this.title, this.files, auth.getAccessToken());
 				this.fromGist(gist);
 				await axios.post(`/api/${auth.getUsername()}/projects`, {
 					user: auth.getUsername(),
@@ -134,7 +144,7 @@ export class Project {
 						label: "Yes", callback: async () => {
 							dialog = showDialog("", "Updating forked Gist", [], false);
 							try {
-								await updateGist(forkedId, this.title, this.source, auth.getAccessToken());
+								await updateGist(forkedId, this.title, this.files, auth.getAccessToken());
 								await axios.patch(`/api/${auth.getUsername()}/projects`, {
 									user: auth.getUsername(),
 									accessToken: auth.getAccessToken(),
@@ -159,10 +169,10 @@ export class Project {
 							dialog = showDialog("", "Forking Gist", [], false);
 							try {
 								gist = await forkGist(this.id, auth.getAccessToken());
-								let source = this.getSource();
+								let files = this.files;
 								this.fromGist(gist);
-								this.setSource(source);
-								await updateGist(this.id, this.title, this.source, auth.getAccessToken());
+								this.files = files;
+								await updateGist(this.id, this.title, this.files, auth.getAccessToken());
 								try {
 									await axios.post(`/api/${auth.getUsername()}/projects`, {
 										user: auth.getUsername(),
@@ -196,7 +206,7 @@ export class Project {
 				return;
 			} else {
 				dialog = showDialog("", "Saving Gist", [], false);
-				await updateGist(this.id, this.title, this.source, auth.getAccessToken());
+				await updateGist(this.id, this.title, this.files, auth.getAccessToken());
 				try {
 					await axios.patch(`/api/${auth.getUsername()}/projects`, {
 						user: auth.getUsername(),
@@ -244,10 +254,41 @@ export class Project {
 		return this.title;
 	}
 
-	setSource (source: string) {
-		if (this.source == source) return;
-		this.source = source;
+	setFileContent (filename: string, content: string) {
+		if (!this.fileExists(filename)) throw new Error(`File ${filename} does not exist.`);
+		let file = this.files[filename];
+		if (file.content == content) return;
+		file.content = content;
 		this.setUnsaved(true);
+	}
+
+	getFileContent (filename: string) {
+		if (!this.fileExists(filename)) throw new Error(`File ${filename} does not exist.`);
+		return this.files[filename].content;
+	}
+
+	fileExists (filename: string): boolean {
+		return this.files[filename] != undefined && this.files[filename] != null;
+	}
+
+	getFilenames (): string[] {
+		let result = [];
+		for (let filename in this.files)
+			result.push(filename);
+		return result;
+	}
+
+	newFile (filename: string, content: string) {
+		if (this.fileExists(filename)) throw new Error(`File ${filename} already exists.`);
+		this.files[filename] = { content: content };
+		this.setUnsaved(true);
+	}
+
+	deleteFile (filename: string) {
+		if (this.files[filename]) {
+			delete this.files[filename];
+			this.setUnsaved(true);
+		}
 	}
 
 	getId () {
@@ -256,10 +297,6 @@ export class Project {
 
 	getOwner () {
 		return this.owner;
-	}
-
-	getSource () {
-		return this.source;
 	}
 
 	isUnsaved () {

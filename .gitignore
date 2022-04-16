@@ -24,3 +24,4 @@ wasm/vm/src/ulang.js
 wasm/server/data/db.sqlite
 wasm/server/data/db.sqlite-wal
 wasm/server/data/db.sqlite-shm
+wasm/client/dist

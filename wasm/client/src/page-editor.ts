@@ -8,19 +8,21 @@ import { Debugger } from "./components/debugger";
 import { setupLiveEdit } from "./liveedit"
 import { loadProject, project } from "./project";
 import { showDialog } from "./components/dialog";
-import { createToolbar } from "./components/toolbar";
+import { Toolbar } from "./components/toolbar";
 import { decode } from "html-entities";
+import { Explorer } from "./components/explorer";
 
 (async function () {
 	await checkAuthorizationCode();
 	await loadUlang();
+	await loadProject();
 
-	let toolbar = createToolbar(document.querySelector(".toolbar"), true); // 	
+	let toolbar = new Toolbar(document.querySelector(".toolbar"), true); // 	
 	let editor = new Editor(document.querySelector("#editor-container"));
 	let virtualMachine = new VirtualMachine("debugger-output");
 	new Debugger(editor, virtualMachine, toolbar, document.querySelector("#debug-views-container"));
+	let explorer = new Explorer(document.querySelector("#explorer"), project, editor);
 
-	await loadProject();
 	setupLiveEdit();
 	setupLayout();
 	setupUIEvents(editor, toolbar, virtualMachine);
@@ -28,8 +30,9 @@ import { decode } from "html-entities";
 	(document.querySelector(".main") as HTMLElement).style.display = "flex";
 })();
 
-function setupUIEvents (editor: Editor, toolbar: HTMLElement, virtualMachine: VirtualMachine) {
-	let titleInput = toolbar.querySelector(".toolbar-title") as HTMLInputElement;
+function setupUIEvents (editor: Editor, toolbar: Toolbar, virtualMachine: VirtualMachine) {
+	// Setup toolbar
+	let titleInput = toolbar.getTitleInput()
 	titleInput.value = decode(project.getTitle());
 	titleInput.addEventListener("input", () => {
 		if (titleInput.value.trim().length == 0) {
@@ -38,32 +41,33 @@ function setupUIEvents (editor: Editor, toolbar: HTMLElement, virtualMachine: Vi
 		}
 		project.setTitle(titleInput.value);
 	})
+	if (project.getId() && project.getOwner() != auth.getUsername()) toolbar.setAuthor(project.getOwner());
 
-	let authorLabel = toolbar.querySelector(".toolbar-author") as HTMLDivElement;
-	if (project.getId()) {
-		authorLabel.innerHTML = project.getOwner() != auth.getUsername() ? `<span style="margin-right: 0.5em">by</span><a href="https://github.com/${project.getOwner()}">${project.getOwner()}</a>` : "";
-	} else {
-		authorLabel.innerHTML = "";
-	}
+	if (project.getForkedFrom()) toolbar.setForkedFrom(project.getForkedFrom());
 
-	let forkedFromLabel = toolbar.querySelector(".toolbar-forked-from") as HTMLDivElement;
-	if (project.getForkedFrom()) {
-		let fork = project.getForkedFrom();
-		forkedFromLabel.innerHTML = `<span style="margin-right: 0.5em">forked from</span><a href="/editor/${fork.id}">${fork.owner}</a>`;
-	} else {
-		forkedFromLabel.innerHTML = "";
-	}
-
-	let unsavedLabel = toolbar.querySelector(".toolbar-unsaved") as HTMLDivElement;
+	let unsavedLabel = toolbar.getUnsavedLabel();
 	project.setUnsavedListener((isUnsaved) => {
 		unsavedLabel.textContent = isUnsaved ? "(unsaved)" : "";
 	})
 	unsavedLabel.textContent = project.isUnsaved() ? "(unsaved)" : "";
 
-	editor.setContent(project.getSource());
+	let newButton = toolbar.getNewButton();
+	newButton.addEventListener("click", () => window.location.href = "/editor");
+
+	let saveButton = toolbar.getSaveButton();
+	saveButton.addEventListener("click", () => project.save());
+
+	let screenshotButton = toolbar.getScreenshotButton();
+	screenshotButton.addEventListener("click", () => project.setScreenshot(virtualMachine.takeScreenshot()));
+
+	let downloadButton = toolbar.getDownloadButton();
+	downloadButton.addEventListener("click", () => project.download());
+
+	// Setup editor
+	editor.setContent(project.getFileContent("program.ul"));
 
 	editor.setContentListener((content) => {
-		project.setSource(content);
+		project.setFileContent("program.ul", content);
 	});
 
 	if (project.getId()) {
@@ -83,20 +87,6 @@ function setupUIEvents (editor: Editor, toolbar: HTMLElement, virtualMachine: Vi
 	editor.setBreakpointListener((bps: number[]) => {
 		if (project.getId()) localStorage.setItem("bps-" + project.getId(), JSON.stringify(bps));
 	});
-
-	let newButton = toolbar.querySelector(".toolbar-new");
-	newButton.addEventListener("click", () => window.location.href = "/editor");
-
-	let saveButton = document.querySelector(".toolbar-save");
-	saveButton.addEventListener("click", () => project.save());
-
-	let screenshotButton = document.querySelector(".toolbar-screenshot");
-	screenshotButton.addEventListener("click", () => {
-		project.setScreenshot(virtualMachine.takeScreenshot());
-	});
-
-	let downloadButton = toolbar.querySelector(".toolbar-download");
-	downloadButton.addEventListener("click", () => project.download());
 
 	document.body.addEventListener("keydown", (ev) => {
 		if ((ev.metaKey || ev.ctrlKey)) {

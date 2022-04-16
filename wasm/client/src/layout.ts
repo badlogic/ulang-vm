@@ -30,7 +30,7 @@ export function setupLayout () {
 	requestAnimationFrame(() => resizeOutput());
 
 	let sizes = {
-		outer: [50, 50],
+		outer: [20, 40, 40],
 		left: [50, 50],
 		right: [50, 50],
 		debug: [34, 33, 33]
@@ -46,7 +46,7 @@ export function setupLayout () {
 		localStorage.setItem("split-sizes", JSON.stringify(sizes));
 	};
 
-	let splitOuter = Split(['#left-col', '#right-col'], {
+	let splitOuter = Split(['#explorer', '#left-col', '#right-col'], {
 		minSize: 0,
 		gutterSize: 5,
 		sizes: sizes.outer,
