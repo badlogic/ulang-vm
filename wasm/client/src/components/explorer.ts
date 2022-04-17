@@ -24,7 +24,35 @@ export class Explorer {
 	private setupUIEvents () {
 		let newButton = this.container.querySelector(".icon-add-file");
 		newButton.addEventListener("click", () => {
-
+			let dialog = showDialog("New file", `
+				<div style="margin: 1em 0em; display: flex; flex-direction: column;">
+					<input class="name" style="width: 100%; height: 2em;" value="Untitled">
+					<div style="margin-top: 0.5em;">
+						<input id="file-ul" type="radio" name="filetype" value=".ul" checked>
+						<label for="file-ul">Code</label>
+						<input id="file-img" type="radio" name="filetype" value=".img" disabled>
+						<label for="file-img">Image</label>
+						<input id="file-pal" type="radio" name="filetype" value=".pal" disabled>
+						<label for="file-pal">Palette</label>
+					</div>					
+				</div>`, [{
+				label: "Create",
+				callback: () => {
+					let extension = (dialog.querySelector('input[name="filetype"]:checked') as any).value;
+					let nameInput = dialog.querySelector(".name") as HTMLInputElement;
+					let newFilename = nameInput.value + extension;
+					if (this.project.fileExists(newFilename)) {
+						showDialog("Sorry", `<p>The file ${newFilename} already exists.`, [], true, "OK");
+						return;
+					}
+					this.project.newFile(newFilename, "");
+					this.selectedFile = null;
+					this.renderFiles();
+					this.selectFile(newFilename);
+				}
+			}], true);
+			let nameInput = dialog.querySelector(".name") as HTMLInputElement;
+			nameInput.select();
 		});
 
 		let renameButton = this.container.querySelector(".icon-rename-file");

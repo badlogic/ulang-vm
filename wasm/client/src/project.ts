@@ -209,9 +209,8 @@ export class Project {
 		for (let filename in files) {
 			let content = files[filename].content;
 			if (filename.endsWith(".ul")) {
-				if (!content) continue;
 				if (content.trim().length == 0) {
-					showDialog("Sorry", `<p>Can't save an empty source file ${filename}.</p>`, [], true, "OK");
+					showDialog("Sorry", `<p>Can't save an empty source file '${filename}'.</p>`, [], true, "OK");
 					return null;
 				}
 			}
