@@ -1,11 +1,13 @@
 export function showDialog (title: string, content: string, buttons: { label: string, callback: () => void }[], hasCancel: boolean, cancelLabel: string = "Cancel", closeCallback: () => void = () => { }) {
 	let buttonsDom = "";
+
+	if (hasCancel) {
+		buttonsDom += `<button id="cancel" class="button" style="margin-right: 0; margin-left: 0.4em;">${cancelLabel}</button>`;
+	}
+
 	for (let i = 0; i < buttons.length; i++) {
 		let button = buttons[i];
-		buttonsDom += `<button id="${"button" + i}" class="button">${button.label}</button>`;
-	}
-	if (hasCancel) {
-		buttonsDom += `<button id="cancel" class="button">${cancelLabel}</button>`;
+		buttonsDom += `<button id="${"button" + i}" class="button" style="margin-right: 0; margin-left: 0.4em;">${button.label}</button>`;
 	}
 
 	let dialog = document.createElement("div");
@@ -14,7 +16,10 @@ export function showDialog (title: string, content: string, buttons: { label: st
 		<div class="dialog-content">
 			<div class="dialog-header">${title}</div>
 			${content}
-			${buttonsDom}
+			<div style="display: flex; flex-direction: row;">
+				<div class="toolbar-filler"></div>
+				${buttonsDom}
+			</div>
 		</div>
 	`;
 	for (let i = 0; i < buttons.length; i++) {

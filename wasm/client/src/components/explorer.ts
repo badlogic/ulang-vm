@@ -32,7 +32,7 @@ export class Explorer {
 			let rawFilename = this.getSelectedFile();
 			let filename = rawFilename.substring(0, rawFilename.lastIndexOf("."));
 			let extension = rawFilename.substring(rawFilename.lastIndexOf("."));
-			let dialog = showDialog("Rename", `<div style="margin: 1em 0em"><input class="name" value="${filename}"></div>`, [{
+			let dialog = showDialog("Rename", `<div style="margin: 1em 0em"><input class="name" style="width: 100%; height: 2em;" value="${filename}"></div>`, [{
 				label: "Rename",
 				callback: () => {
 					let nameInput = dialog.querySelector(".name") as HTMLInputElement;
@@ -43,6 +43,8 @@ export class Explorer {
 					this.selectFile(newFilename);
 				}
 			}], true);
+			let nameInput = dialog.querySelector(".name") as HTMLInputElement;
+			nameInput.select();
 			(dialog.querySelector(".name") as HTMLInputElement).focus();
 		});
 

@@ -15,10 +15,8 @@ export interface Fork {
 }
 
 export interface GistFile {
-	filename?: string,
-	type?: string,
+	filename: string,
 	content: string,
-	deleted?: boolean
 }
 
 export type GistFiles = {
@@ -38,12 +36,25 @@ export interface Gist {
 	forks?: Fork[]
 }
 
+function cleanFiles (files: GistFiles) {
+	let result: GistFiles = {};
+	for (let filename in files) {
+		result[filename] = {
+			filename: filename,
+			content: files[filename].content
+		};
+	}
+	return result;
+}
+
 export async function getGist (id: string, accessToken: string) {
 	let headers = accessToken ? { headers: { "Authorization": `token ${accessToken}` } } : null;
 	let resp = await axios.get(`/gists/${id}?ts=${performance.now()}`, headers);
 	// console.log(resp.data);
 	if (resp.status != 200) return null;
-	return JSON.parse(resp.data) as Gist
+	let gist = JSON.parse(resp.data) as Gist
+	gist.files = cleanFiles(gist.files);
+	return gist;
 }
 
 export async function newGist (title: string, files: GistFiles, accessToken: string) {
@@ -60,7 +71,9 @@ export async function newGist (title: string, files: GistFiles, accessToken: str
 	});
 	if (resp.status >= 400)
 		throw new Error(`GitHub returned (${resp.status}): ${resp.data}`);
-	return JSON.parse(resp.data) as Gist;
+	let gist = JSON.parse(resp.data) as Gist
+	gist.files = cleanFiles(gist.files);
+	return gist;
 }
 
 export async function forkGist (id: string, accessToken: string) {
@@ -73,7 +86,9 @@ export async function forkGist (id: string, accessToken: string) {
 	});
 	if (resp.status >= 400)
 		throw new Error(`GitHub returned (${resp.status}): ${resp.data}`);
-	return JSON.parse(resp.data) as Gist;
+	let gist = JSON.parse(resp.data) as Gist
+	gist.files = cleanFiles(gist.files);
+	return gist;
 }
 
 export async function updateGist (id: string, title: string, files: GistFiles, accessToken: string) {
@@ -89,5 +104,7 @@ export async function updateGist (id: string, title: string, files: GistFiles, a
 	});
 	if (resp.status >= 400)
 		throw new Error(`GitHub returned (${resp.status}): ${resp.data}`);
-	return JSON.parse(resp.data) as Gist;
+	let gist = JSON.parse(resp.data) as Gist
+	gist.files = cleanFiles(gist.files);
+	return gist;
 }
