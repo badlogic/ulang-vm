@@ -416,7 +416,7 @@ let currentFileReader: (filename: string) => string;
 function fileReadFunction (filenamePtr: number, filePtr: number): number {
 	let filename = UTF8ToString(filenamePtr);
 	let source = currentFileReader(filename);
-	if (!source) return 0;
+	if (source == null || source == undefined) return 0;
 	let data = module.allocateUTF8(source);
 	ulang_file_from_memory(filenamePtr, data, filePtr);
 	module._free(data);

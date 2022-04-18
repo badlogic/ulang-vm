@@ -38,7 +38,10 @@ export class Editor {
 	}
 
 	private onDidChangeModelContent () {
-		let result = ulang.compile(explorer.getSelectedFile(), (filename) => { return this.editor.getValue(); });
+		let result = ulang.compile(explorer.getSelectedFile(), () => {
+			let source = this.editor.getValue();
+			return source;
+		});
 		if (result.error.isSet()) {
 			result.error.print();
 			let file: UlangFile = result.error.file();
