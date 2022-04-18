@@ -7,7 +7,7 @@
     "minify": "esbuild --minify vm/dist/iife/ulang.js --outfile=vm/dist/iife/ulang.min.js && esbuild --allow-overwrite --minify client/assets/bundle/index.js --outfile=client/assets/bundle/index.js && esbuild --allow-overwrite --minify client/assets/bundle/editor.worker.js --outfile=client/assets/bundle/editor.worker.js",
     "build": "npm run clean && npm run build:wasm && npm run build:modules && npm run build:vm && npm run build:client && npm run build:server && npm run minify",
     "build:modules": "tsc -p vm && cp vm/src/ulang.js vm/dist",
-    "build:wasm": "./vm/build-wasm.sh g",
+    "build:wasm": "./vm/build-wasm.sh",
     "build:vm": "./vm/esbuild.js",
     "build:client": "./client/esbuild.mjs",
     "build:server": "tsc -p server/tsconfig.json",
