@@ -39,26 +39,29 @@ typedef struct test_case {
 	check checks[MAX_CHECKS];
 } test_case;
 
+static const char *testCode;
+ulang_bool read_test(const char *filename, ulang_file *file) {
+	return ulang_file_from_memory(filename, testCode, file);
+}
+
 ulang_bool test(size_t testNum, test_case *test) {
-	ulang_file file = {0};
 	ulang_program program = {0};
 	ulang_error error = {0};
 	ulang_vm vm = {0};
 
+	const char *filename;
+	ulang_file_read_function file_read_function;
 	size_t codeLen = strlen(test->code);
 	if (!strcmp(test->code + codeLen - 3, ".ul")) {
-		if (!ulang_file_read(test->code, &file)) {
-			printf("Couldn't read test file %s\n", test->code);
-			return UL_FALSE;
-		}
+		filename = test->code;
+		file_read_function = ulang_file_read;
 	} else {
-		ulang_file_from_memory("test.ul", test->code, &file);
+		filename = "test.ul";
+		testCode = test->code;
+		file_read_function = read_test;
 	}
 
-	if (!strcmp(file.data, "intr 0\nhalt")) {
-		printf("");
-	}
-	ulang_compile(&file, &program, &error);
+	ulang_compile(filename, file_read_function, &program, &error);
 	if (error.is_set) {
 		printf("Test #%zu: compilation error\n", testNum);
 		ulang_error_print(&error);
@@ -148,7 +151,6 @@ ulang_bool test(size_t testNum, test_case *test) {
 	ulang_vm_free(&vm);
 	ulang_error_free(&error);
 	ulang_program_free(&program);
-	ulang_file_free(&file);
 	return UL_TRUE;
 
 	error:

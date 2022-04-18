@@ -1,6 +1,8 @@
 import { Project } from "src/project";
 import { Editor } from "./editor";
 
+export let explorer: Explorer;
+
 export class Explorer {
 	private selectedFile: string;
 	private selectedCallback: (filename) => void;
@@ -10,6 +12,7 @@ export class Explorer {
 		let filesDom = container.querySelector(".explorer-files");
 		this.renderFiles();
 		this.setupUIEvents();
+		explorer = this;
 	}
 
 	private renderFiles () {

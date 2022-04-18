@@ -1,6 +1,8 @@
 import "monaco-editor/min/vs/editor/editor.main.css"
 import * as monaco from "monaco-editor";
 import * as ulang from "@marioslab/ulang-vm"
+import { explorer } from "./explorer";
+import { UlangFile } from "@marioslab/ulang-vm/src/wrapper";
 
 (globalThis as any).self.MonacoEnvironment = {
 	getWorkerUrl: function (moduleId, label) {
@@ -36,14 +38,15 @@ export class Editor {
 	}
 
 	private onDidChangeModelContent () {
-		let result = ulang.compile(this.editor.getValue());
+		let result = ulang.compile(explorer.getSelectedFile(), this.editor.getValue());
 		if (result.error.isSet()) {
 			result.error.print();
-			let base = result.file.data().data();
+			let file: UlangFile = result.error.file();
+			let base = file.data().data();
 			let startLineNumber = result.error.span().startLine();
-			let startLine = result.file.lines()[startLineNumber].data().data() - base;
+			let startLine = file.lines()[startLineNumber].data().data() - base;
 			let endLineNumber = result.error.span().endLine();
-			let endLine = result.file.lines()[endLineNumber].data().data() - base;
+			let endLine = file.lines()[endLineNumber].data().data() - base;
 
 			let spanStart = result.error.span().data().data() - base;
 			let spanEnd = spanStart + result.error.span().data().length();

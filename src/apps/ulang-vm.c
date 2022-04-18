@@ -79,18 +79,11 @@ int main(int argc, char **argv) {
 		return -1;
 	}
 
-	ulang_file file;
-	if (!ulang_file_read(argv[1], &file)) {
-		printf("Couldn't read file %s.\n", argv[1]);
-		return -1;
-	}
-
 	ulang_error error = {0};
 	ulang_program program = {0};
-	if (!ulang_compile(&file, &program, &error)) {
+	if (!ulang_compile(argv[1], ulang_file_read, &program, &error)) {
 		ulang_error_print(&error);
 		ulang_error_free(&error);
-		ulang_file_free(&file);
 		return -1;
 	}
 
@@ -102,7 +95,6 @@ int main(int argc, char **argv) {
 		printf("Couldn't create window.");
 		ulang_error_print(&error);
 		ulang_error_free(&error);
-		ulang_file_free(&file);
 		return -1;
 	}
 
@@ -118,6 +110,5 @@ int main(int argc, char **argv) {
 	ulang_vm_free(&vm);
 	ulang_program_free(&program);
 	ulang_error_free(&error);
-	ulang_file_free(&file);
 	return 0;
 }

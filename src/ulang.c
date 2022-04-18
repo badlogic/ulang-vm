@@ -82,6 +82,8 @@ typedef struct token {
 	token_type type;
 } token;
 
+ARRAY_IMPLEMENT(file_array, ulang_file*)
+
 ARRAY_IMPLEMENT(token_array, token)
 
 ARRAY_IMPLEMENT(patch_array, patch)
@@ -98,9 +100,11 @@ typedef struct token_stream {
 	ulang_file *file;
 	token_array *tokens;
 	size_t index;
+	size_t end;
 } token_stream;
 
 typedef struct compiler_context {
+	file_array files;
 	token_array tokens;
 	token_stream stream;
 	patch_array patches;
@@ -109,6 +113,7 @@ typedef struct compiler_context {
 	byte_array code;
 	byte_array data;
 	int_array addressToLine;
+	file_array addressToFile;
 	size_t numReservedBytes;
 	ulang_error *error;
 	ulang_bool resolveLabelsInExpressions;
@@ -393,7 +398,8 @@ void *ulang_realloc(void *old, size_t numBytes) {
 }
 
 EMSCRIPTEN_KEEPALIVE void ulang_free(void *ptr) {
-	if (!ptr) return;
+	if (!ptr)
+		return;
 	frees++;
 	free(ptr);
 }
@@ -455,33 +461,6 @@ EMSCRIPTEN_KEEPALIVE void ulang_file_free(ulang_file *file) {
 	}
 }
 
-void ulang_error_init(ulang_error *error, ulang_file *file, ulang_span *span, const char *msg, ...) {
-	va_list args;
-	va_start(args, msg);
-	char scratch[1];
-	int len = vsnprintf(scratch, 1, msg, args);
-	va_end(args);
-
-	char *buffer = (char *) ulang_alloc(len + 1);
-	va_start(args, msg);
-	vsnprintf(buffer, len + 1, msg, args);
-	va_end(args);
-
-	error->file = file;
-	error->message.data = buffer;
-	error->message.length = len;
-	error->span = *span;
-	error->is_set = UL_TRUE;
-}
-
-EMSCRIPTEN_KEEPALIVE void ulang_error_free(ulang_error *error) {
-	if (error->is_set) ulang_free(error->message.data);
-	error->is_set = UL_FALSE;
-	error->file = NULL;
-	error->message.data = NULL;
-	error->message.length = 0;
-}
-
 static void ulang_file_get_lines(ulang_file *file) {
 	if (file->lines != NULL) return;
 
@@ -512,6 +491,45 @@ static void ulang_file_get_lines(ulang_file *file) {
 		ulang_line line = {{data + lineStart, file->length - lineStart}, addedLines + 1};
 		file->lines[addedLines + 1] = line;
 	}
+}
+
+void ulang_error_init(ulang_error *error, ulang_file *file, ulang_span *span, const char *msg, ...) {
+	va_list args;
+	va_start(args, msg);
+	char scratch[1];
+	int len = vsnprintf(scratch, 1, msg, args);
+	va_end(args);
+
+	char *buffer = (char *) ulang_alloc(len + 1);
+	va_start(args, msg);
+	vsnprintf(buffer, len + 1, msg, args);
+	va_end(args);
+
+	error->file = ulang_calloc(sizeof(ulang_file));
+	error->file->fileName.data = ulang_calloc(file->fileName.length);
+	error->file->fileName.length = file->fileName.length;
+	memcpy(error->file->fileName.data,  file->fileName.data, file->fileName.length);
+	error->file->data = ulang_alloc(file->length);
+	error->file->length = file->length;
+	memcpy(error->file->data, file->data, file->length);
+
+	error->message.data = buffer;
+	error->message.length = len;
+	error->span = *span;
+	error->span.data.data = error->file->data + (span->data.data - file->data);
+	error->is_set = UL_TRUE;
+}
+
+EMSCRIPTEN_KEEPALIVE void ulang_error_free(ulang_error *error) {
+	if (error->is_set) {
+		ulang_free(error->message.data);
+		ulang_file_free(error->file);
+		ulang_free(error->file);
+	}
+	error->is_set = UL_FALSE;
+	error->file = NULL;
+	error->message.data = NULL;
+	error->message.length = 0;
 }
 
 EMSCRIPTEN_KEEPALIVE void ulang_error_print(ulang_error *error) {
@@ -845,7 +863,7 @@ static ulang_bool tokenize(ulang_file *file, token_array *tokens, ulang_error *e
 }
 
 static ulang_bool token_stream_has_more(token_stream *stream) {
-	return stream->index < stream->tokens->size;
+	return stream->index < stream->end;
 }
 
 static token *token_stream_consume(token_stream *stream) {
@@ -1380,64 +1398,60 @@ static void set_label_targets(label_array *labels, ulang_label_target target, si
 	}
 }
 
-EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *error) {
-	error->is_set = UL_FALSE;
-	init_opcodes_and_registers();
-
-	compiler_context ctx = { .error = error };
-	ctx.resolveLabelsInExpressions = UL_FALSE;
-
-	// tokenize
-	token_array_init_inplace(&ctx.tokens, MAX(16, file->length / 100));
-	if (!tokenize(file, &ctx.tokens, error)) {
-		token_array_free_inplace(&ctx.tokens);
+EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile_file(compiler_context *ctx, const char *filename, ulang_file_read_function fileReadFunction, ulang_error *error) {
+	ulang_file *file = ulang_calloc(sizeof(ulang_file));
+	if (!fileReadFunction(filename, file)) {
+		ulang_free(file);
+		ulang_error_init(error, NULL, NULL, "Couldn't read file %s\n", filename);
 		return UL_FALSE;
 	}
-	ctx.stream = (token_stream){file, &ctx.tokens, 0};
-	patch_array_init_inplace(&ctx.patches, 16);
-	label_array_init_inplace(&ctx.labels, 16);
-	constant_array_init_inplace(&ctx.constants, 16);
-	byte_array_init_inplace(&ctx.code, 16);
-	byte_array_init_inplace(&ctx.data, 16);
-	int_array_init_inplace(&ctx.addressToLine, 16);
+	file_array_add(&ctx->files, file);
 
-	while (token_stream_has_more(&ctx.stream)) {
-		token *tok = token_stream_consume(&ctx.stream);
+	// tokenize
+	int start = ctx->tokens.size;
+	if (!tokenize(file, &ctx->tokens, error)) {
+		token_array_free_inplace(&ctx->tokens);
+		return UL_FALSE;
+	}
+	ctx->stream = (token_stream){file, &ctx->tokens, start, ctx->tokens.size};
+
+	while (token_stream_has_more(&ctx->stream)) {
+		token *tok = token_stream_consume(&ctx->stream);
 		opcode *op = token_matches_opcode(tok);
 		if (!op) {
 			if (tok->type != TOKEN_IDENTIFIER) {
 				ulang_error_init(error, file, &tok->span, "Expected a label, data, or an instruction.");
-				goto _compilation_error;
+				return UL_FALSE;
 			}
 
 			if (ulang_span_matches(&tok->span, STR("byte"))) {
 				while (-1) {
 					token *value;
-					if ((value = token_stream_match(&ctx.stream, TOKEN_STRING, UL_TRUE))) {
+					if ((value = token_stream_match(&ctx->stream, TOKEN_STRING, UL_TRUE))) {
 						int numRepeat = 1;
-						parse_repeat(&ctx, &numRepeat);
-						if (error->is_set) goto _compilation_error;
-						set_label_targets(&ctx.labels, UL_LT_DATA, ctx.data.size);
-						emit_string(&ctx.data, value, numRepeat);
+						parse_repeat(ctx, &numRepeat);
+						if (error->is_set) return UL_FALSE;
+						set_label_targets(&ctx->labels, UL_LT_DATA, ctx->data.size);
+						emit_string(&ctx->data, value, numRepeat);
 					} else {
 						expression_value exprValue;
 						ulang_span span = {0};
-						if (!parse_expression(&ctx, &exprValue, &span)) goto _compilation_error;
+						if (!parse_expression(ctx, &exprValue, &span)) return UL_FALSE;
 						if (exprValue.type != UL_INTEGER) {
 							ulang_error_init(error, file, &span, "Expression must evaluate to an integer value.");
-							goto _compilation_error;
+							return UL_FALSE;
 						}
 						if (exprValue.unresolved) {
 							ulang_error_init(error, file, &span, "Constant expression must not contain undefined constant, or label.");
-							goto _compilation_error;
+							return UL_FALSE;
 						}
 						int numRepeat = 1;
-						parse_repeat(&ctx, &numRepeat);
-						if (error->is_set) goto _compilation_error;
-						set_label_targets(&ctx.labels, UL_LT_DATA, ctx.data.size);
-						emit_byte(&ctx.data, &exprValue, numRepeat);
+						parse_repeat(ctx, &numRepeat);
+						if (error->is_set) return UL_FALSE;
+						set_label_targets(&ctx->labels, UL_LT_DATA, ctx->data.size);
+						emit_byte(&ctx->data, &exprValue, numRepeat);
 					}
-					if (!token_stream_match_string(&ctx.stream, STR(","), UL_TRUE)) break;
+					if (!token_stream_match_string(&ctx->stream, STR(","), UL_TRUE)) break;
 				}
 				continue;
 			}
@@ -1446,21 +1460,21 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 				while (-1) {
 					expression_value exprValue;
 					ulang_span span = {0};
-					if (!parse_expression(&ctx, &exprValue, &span)) goto _compilation_error;
+					if (!parse_expression(ctx, &exprValue, &span)) return UL_FALSE;
 					if (exprValue.type != UL_INTEGER) {
 						ulang_error_init(error, file, &span, "Expression must evaluate to an integer value.");
-						goto _compilation_error;
+						return UL_FALSE;
 					}
 					if (exprValue.unresolved) {
 						ulang_error_init(error, file, &span, "Expression either contains an undefined constant, or a label.");
-						goto _compilation_error;
+						return UL_FALSE;
 					}
 					int numRepeat = 1;
-					parse_repeat(&ctx, &numRepeat);
-					if (error->is_set) goto _compilation_error;
-					set_label_targets(&ctx.labels, UL_LT_DATA, ctx.data.size);
-					emit_short(&ctx.data, &exprValue, numRepeat);
-					if (!token_stream_match_string(&ctx.stream, STR(","), UL_TRUE)) break;
+					parse_repeat(ctx, &numRepeat);
+					if (error->is_set) return UL_FALSE;
+					set_label_targets(&ctx->labels, UL_LT_DATA, ctx->data.size);
+					emit_short(&ctx->data, &exprValue, numRepeat);
+					if (!token_stream_match_string(&ctx->stream, STR(","), UL_TRUE)) break;
 				}
 				continue;
 			}
@@ -1469,21 +1483,21 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 				while (-1) {
 					expression_value exprValue;
 					ulang_span span = {0};
-					if (!parse_expression(&ctx, &exprValue, &span)) goto _compilation_error;
+					if (!parse_expression(ctx, &exprValue, &span)) return UL_FALSE;
 					if (exprValue.type != UL_INTEGER) {
 						ulang_error_init(error, file, &span, "Expression must evaluate to an integer value.");
-						goto _compilation_error;
+						return UL_FALSE;
 					}
 					if (exprValue.unresolved) {
 						ulang_error_init(error, file, &span, "Expression either contains an undefined constant, or a label.");
-						goto _compilation_error;
+						return UL_FALSE;
 					}
 					int numRepeat = 1;
-					parse_repeat(&ctx, &numRepeat);
-					if (error->is_set) goto _compilation_error;
-					set_label_targets(&ctx.labels, UL_LT_DATA, ctx.data.size);
-					emit_int(&ctx.data, &exprValue, numRepeat);
-					if (!token_stream_match_string(&ctx.stream, STR(","), UL_TRUE)) break;
+					parse_repeat(ctx, &numRepeat);
+					if (error->is_set) return UL_FALSE;
+					set_label_targets(&ctx->labels, UL_LT_DATA, ctx->data.size);
+					emit_int(&ctx->data, &exprValue, numRepeat);
+					if (!token_stream_match_string(&ctx->stream, STR(","), UL_TRUE)) break;
 				}
 				continue;
 			}
@@ -1492,99 +1506,99 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 				while (-1) {
 					expression_value exprValue;
 					ulang_span span = {0};
-					if (!parse_expression(&ctx, &exprValue, &span)) goto _compilation_error;
+					if (!parse_expression(ctx, &exprValue, &span)) return UL_FALSE;
 					if (exprValue.type != UL_FLOAT) {
 						ulang_error_init(error, file, &span, "Expression must evaluate to a float value.");
-						goto _compilation_error;
+						return UL_FALSE;
 					}
 					if (exprValue.unresolved) {
 						ulang_error_init(error, file, &span, "Expression either contains an undefined constant, or a label.");
-						goto _compilation_error;
+						return UL_FALSE;
 					}
 					int numRepeat = 1;
-					parse_repeat(&ctx, &numRepeat);
-					if (error->is_set) goto _compilation_error;
-					set_label_targets(&ctx.labels, UL_LT_DATA, ctx.data.size);
-					emit_float(&ctx.data, &exprValue, numRepeat);
-					if (!token_stream_match_string(&ctx.stream, STR(","), UL_TRUE)) break;
+					parse_repeat(ctx, &numRepeat);
+					if (error->is_set) return UL_FALSE;
+					set_label_targets(&ctx->labels, UL_LT_DATA, ctx->data.size);
+					emit_float(&ctx->data, &exprValue, numRepeat);
+					if (!token_stream_match_string(&ctx->stream, STR(","), UL_TRUE)) break;
 				}
 				continue;
 			}
 
 			if (ulang_span_matches(&tok->span, STR("reserve"))) {
 				size_t typeSize = 0;
-				if (token_stream_match_string(&ctx.stream, STR("byte"), UL_TRUE)) typeSize = 1;
-				else if (token_stream_match_string(&ctx.stream, STR("short"), UL_TRUE)) typeSize = 2;
-				else if (token_stream_match_string(&ctx.stream, STR("int"), UL_TRUE)) typeSize = 4;
-				else if (token_stream_match_string(&ctx.stream, STR("float"), UL_TRUE)) typeSize = 4;
+				if (token_stream_match_string(&ctx->stream, STR("byte"), UL_TRUE)) typeSize = 1;
+				else if (token_stream_match_string(&ctx->stream, STR("short"), UL_TRUE)) typeSize = 2;
+				else if (token_stream_match_string(&ctx->stream, STR("int"), UL_TRUE)) typeSize = 4;
+				else if (token_stream_match_string(&ctx->stream, STR("float"), UL_TRUE)) typeSize = 4;
 				else {
-					token *token = token_stream_consume(&ctx.stream);
-					if (!token) token = &ctx.stream.tokens->items[ctx.stream.index - 1];
+					token *token = token_stream_consume(&ctx->stream);
+					if (!token) token = &ctx->stream.tokens->items[ctx->stream.index - 1];
 					ulang_error_init(error, file, &token->span, "Expected byte, short, int, or float.");
-					goto _compilation_error;
+					return UL_FALSE;
 				}
 
-				if (!token_stream_expect_string(&ctx.stream, STR("x"), "after 'reserve <type>'", error)) goto _compilation_error;
+				if (!token_stream_expect_string(&ctx->stream, STR("x"), "after 'reserve <type>'", error)) return UL_FALSE;;
 				expression_value exprValue;
 				ulang_span span = {0};
-				if (!parse_expression(&ctx, &exprValue, &span)) goto _compilation_error;
+				if (!parse_expression(ctx, &exprValue, &span)) return UL_FALSE;
 				if (exprValue.type != UL_INTEGER) {
 					ulang_error_init(error, file, &span, "Expression must evaluate to an integer value.");
-					goto _compilation_error;
+					return UL_FALSE;
 				}
 				if (exprValue.unresolved) {
 					ulang_error_init(error, file, &span, "Expression either contains an undefined constant, or a label.");
-					goto _compilation_error;
+					return UL_FALSE;
 				}
 
 				size_t numBytes = typeSize * exprValue.i;
 				if (numBytes <= 0) {
 					ulang_error_init(error, file, &span, "Number of reserved bytes must be > 0.");
-					goto _compilation_error;
+					return UL_FALSE;
 				}
-				set_label_targets(&ctx.labels, UL_LT_RESERVED_DATA, ctx.numReservedBytes);
-				ctx.numReservedBytes += numBytes;
+				set_label_targets(&ctx->labels, UL_LT_RESERVED_DATA, ctx->numReservedBytes);
+				ctx->numReservedBytes += numBytes;
 				continue;
 			}
 
 			if (ulang_span_matches(&tok->span, STR("const"))) {
-				token *name = token_stream_expect(&ctx.stream, TOKEN_IDENTIFIER, ctx.error);
-				if (!name) goto _compilation_error;
+				token *name = token_stream_expect(&ctx->stream, TOKEN_IDENTIFIER, ctx->error);
+				if (!name) return UL_FALSE;
 				expression_value exprValue;
 				ulang_span span = {0};
-				if (!parse_expression(&ctx, &exprValue, &span)) goto _compilation_error;
+				if (!parse_expression(ctx, &exprValue, &span)) return UL_FALSE;
 				if (exprValue.unresolved) {
 					ulang_error_init(error, file, &span, "Expression either contains an undefined constant, or a label.");
-					goto _compilation_error;
+					return UL_FALSE;
 				}
 				ulang_constant constant = { exprValue.type };
 				constant.name = name->span;
 				if (exprValue.type == UL_INTEGER) constant.i = exprValue.i;
 				else constant.f = exprValue.f;
-				constant_array_add(&ctx.constants, constant);
+				constant_array_add(&ctx->constants, constant);
 				continue;
 			}
 
 			// Otherwise, we must have a label
-			if (!token_stream_expect_string(&ctx.stream, STR(":"), "after label", error)) goto _compilation_error;
+			if (!token_stream_expect_string(&ctx->stream, STR(":"), "after label", error)) return UL_FALSE;
 			ulang_label label = {tok->span, UL_LT_UNINITIALIZED, 0};
-			label_array_add(&ctx.labels, label);
+			label_array_add(&ctx->labels, label);
 		} else {
 			token operands[3];
 			expression_value operandExpressions[3];
 			for (int i = 0; i < op->numOperands; i++) {
-				token *operand = token_stream_match(&ctx.stream, TOKEN_IDENTIFIER, UL_TRUE);
+				token *operand = token_stream_match(&ctx->stream, TOKEN_IDENTIFIER, UL_TRUE);
 				if (operand && token_matches_register(operand)) {
 					operands[i] = *operand;
 					operandExpressions[i] = (expression_value) {0};
 				} else {
-					if (operand) ctx.stream.index--;
-					if (!parse_expression(&ctx, &operandExpressions[i], &operands[i].span)) goto _compilation_error;
+					if (operand) ctx->stream.index--;
+					if (!parse_expression(ctx, &operandExpressions[i], &operands[i].span)) return UL_FALSE;
 					operands[i].type = operandExpressions[i].type == UL_FLOAT ? TOKEN_FLOAT : TOKEN_INTEGER;
 				}
 
 				if (i < op->numOperands - 1) {
-					if (!token_stream_expect_string(&ctx.stream, STR(","), "before the next argument", error)) goto _compilation_error;
+					if (!token_stream_expect_string(&ctx->stream, STR(","), "before the next argument", error)) return UL_FALSE;
 				}
 			}
 
@@ -1647,7 +1661,7 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 				op = &opcodes[op->index + 1];
 			}
 			if (!fittingOp && firstOp != op) {
-				token *lastToken = &ctx.tokens.items[ctx.stream.index - 1];
+				token *lastToken = &ctx->tokens.items[ctx->stream.index - 1];
 				ulang_span span = {0};
 				span.startLine = tok->span.startLine;
 				span.endLine = lastToken->span.endLine;
@@ -1689,18 +1703,39 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 					if (!ulang_string_equals(&op->name, &opcodes[op->index + 1].name)) break;
 					op = &opcodes[op->index + 1];
 				}
-				ulang_error_init(ctx.error, ctx.stream.file, &span, "No matching instructions for the given argument types. Possible alternatives:\n%s", alternatives);
+				ulang_error_init(ctx->error, ctx->stream.file, &span, "No matching instructions for the given argument types. Possible alternatives:\n%s", alternatives);
 				ulang_free(alternatives);
-				goto _compilation_error;
+				return UL_FALSE;
 			}
 			if (error->is_set) ulang_error_free(error);
 
-			set_label_targets(&ctx.labels, UL_LT_CODE, ctx.code.size);
-			int_array_add(&ctx.addressToLine, tok->span.startLine);
-			if (fittingOp->hasValueOperand) int_array_add(&ctx.addressToLine, tok->span.startLine);
-			if (!emit_op(file, fittingOp, operands, operandExpressions, &ctx.patches, &ctx.code, error)) goto _compilation_error;
+			set_label_targets(&ctx->labels, UL_LT_CODE, ctx->code.size);
+			int_array_add(&ctx->addressToLine, tok->span.startLine);
+			if (fittingOp->hasValueOperand) int_array_add(&ctx->addressToLine, tok->span.startLine);
+			if (!emit_op(file, fittingOp, operands, operandExpressions, &ctx->patches, &ctx->code, error)) return UL_FALSE;
 		}
 	}
+	return UL_TRUE;
+}
+
+EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(const char* filename, ulang_file_read_function fileReadFunction, ulang_program *program, ulang_error *error) {
+	error->is_set = UL_FALSE;
+	init_opcodes_and_registers();
+
+	compiler_context ctx = { .error = error };
+	ctx.resolveLabelsInExpressions = UL_FALSE;
+
+	file_array_init_inplace(&ctx.files, 16);
+	token_array_init_inplace(&ctx.tokens, 200);
+	patch_array_init_inplace(&ctx.patches, 16);
+	label_array_init_inplace(&ctx.labels, 16);
+	constant_array_init_inplace(&ctx.constants, 16);
+	byte_array_init_inplace(&ctx.code, 16);
+	byte_array_init_inplace(&ctx.data, 16);
+	int_array_init_inplace(&ctx.addressToLine, 16);
+	file_array_init_inplace(&ctx.addressToFile, 16);
+
+	if (!ulang_compile_file(&ctx, filename, fileReadFunction, error)) goto _compilation_error;
 
 	ctx.resolveLabelsInExpressions = UL_TRUE;
 	for (size_t i = 0; i < ctx.patches.size; i++) {
@@ -1737,28 +1772,41 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(ulang_file *file, ulang_program *p
 	program->labelsLength = ctx.labels.size;
 	program->constants = ctx.constants.items;
 	program->constantsLength = ctx.constants.size;
+	program->files = ctx.files.items;
+	program->filesLength = ctx.files.size;
 	program->addressToLine = ctx.addressToLine.items;
 	program->addressToLineLength = ctx.addressToLine.size;
-	program->file = file;
+	program->addressToFile = ctx.addressToFile.items;
+	program->addressToFileLength = ctx.addressToFile.size;
 	return UL_TRUE;
 
 	_compilation_error:
 	patch_array_free_inplace(&ctx.patches);
-	label_array_free_inplace(&ctx.labels);
-	constant_array_free_inplace(&ctx.constants);
+	token_array_free_inplace(&ctx.tokens);
 	byte_array_free_inplace(&ctx.code);
 	byte_array_free_inplace(&ctx.data);
+	label_array_free_inplace(&ctx.labels);
+	constant_array_free_inplace(&ctx.constants);
+	for (int i = 0; i < (int)ctx.files.size; i++)
+		ulang_free(ctx.files.items[i]);
+	file_array_free_inplace(&ctx.files);
 	int_array_free_inplace(&ctx.addressToLine);
-	token_array_free_inplace(&ctx.tokens);
+	file_array_free_inplace(&ctx.addressToFile);
 	return UL_FALSE;
 }
 
 EMSCRIPTEN_KEEPALIVE void ulang_program_free(ulang_program *program) {
+	for (int i = 0; i < (int)program->filesLength; i++) {
+		ulang_file_free(program->files[i]);
+		ulang_free(program->files[i]);
+	}
+	ulang_free(program->files);
 	ulang_free(program->code);
 	ulang_free(program->data);
 	ulang_free(program->labels);
 	ulang_free(program->constants);
 	ulang_free(program->addressToLine);
+	ulang_free(program->addressToFile);
 }
 
 ulang_bool ulang_vm_debug(ulang_vm *vm) {
@@ -1786,10 +1834,10 @@ ulang_bool ulang_vm_debug(ulang_vm *vm) {
 			goto prompt;
 		}
 
-		token_stream stream = {&input, &tokens, 0};
+		token_stream stream = {&input, &tokens, 0, tokens.size - 1};
 		token *cmd = token_stream_consume(&stream);
 		compiler_context ctx = {
-				.stream = { stream.file, stream.tokens, stream.index },
+				.stream = { stream.file, stream.tokens, stream.index, tokens.size - 1},
 				.error = &error,
 				.tokens = { tokens.size, tokens.capacity, tokens.items },
 		};
@@ -2394,15 +2442,17 @@ EMSCRIPTEN_KEEPALIVE void ulang_vm_print(ulang_vm *vm) {
 		printf("sp+%i: %i (0x%x), %f\n", i * 4, val_i, val_i, val_f);
 	}
 
-	if (vm->program && vm->program->file) {
-		ulang_file_get_lines(vm->program->file);
+	if (vm->program && vm->program->files) {
+		for (int i = 0; i < (int)vm->program->filesLength; i++)
+			ulang_file_get_lines(vm->program->files[i]);
 		uint32_t pc = (vm->registers[14].ui) >> 2;
 		if (pc < 0 || pc >= vm->program->addressToLineLength) return;
 		int lineNum = (int) vm->program->addressToLine[pc];
+		ulang_file *file = vm->program->addressToFile[pc];
 
-		for (int i = MAX(1, lineNum - 2); i < MIN((int) vm->program->file->numLines, lineNum + 3); i++) {
-			ulang_line line = vm->program->file->lines[i];
-			printf("(%.*s:%i): ", (int) vm->program->file->fileName.length, vm->program->file->fileName.data, line.lineNumber);
+		for (int i = MAX(1, lineNum - 2); i < MIN((int) file->numLines, lineNum + 3); i++) {
+			ulang_line line = file->lines[i];
+			printf("(%.*s:%i): ", (int) file->fileName.length, file->fileName.data, line.lineNumber);
 			printf("%s %.*s\n", i == lineNum ? "-->" : "   ", (int) line.data.length, line.data.data);
 		}
 	}
@@ -2517,9 +2567,12 @@ EMSCRIPTEN_KEEPALIVE void ulang_print_offsets() {
 	printf("   labelsLength: %lu\n", offsetof(ulang_program, labelsLength));
 	printf("   constants: %lu\n", offsetof(ulang_program, constants));
 	printf("   constantsLength: %lu\n", offsetof(ulang_program, constantsLength));
-	printf("   file: %lu\n", offsetof(ulang_program, file));
+	printf("   files: %lu\n", offsetof(ulang_program, files));
+	printf("   filesLength: %lu\n", offsetof(ulang_program, filesLength));
 	printf("   addressToLine: %lu\n", offsetof(ulang_program, addressToLine));
 	printf("   addressToLineLength: %lu\n", offsetof(ulang_program, addressToLineLength));
+	printf("   addressToFile: %lu\n", offsetof(ulang_program, addressToFile));
+	printf("   addressToFileLength: %lu\n", offsetof(ulang_program, addressToFileLength));
 
 	printf("ulang_vm (size=%lu)\n", sizeof(ulang_vm));
 	printf("   registers: %lu\n", offsetof(ulang_vm, registers));

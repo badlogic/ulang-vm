@@ -15,7 +15,7 @@ let ulang_file_from_memory: (namePtr: number, dataPtr: number, filePtr: number) 
 let ulang_file_free: (filePtr: number) => void;
 let ulang_error_print: (errorPtr: number) => void;
 let ulang_error_free: (errorPtr: number) => void;
-let ulang_compile: (filePtr: number, programPtr: number, errorPtr: number) => number;
+let ulang_compile: (filenamePtr: number, fileReadFunctionPtr: number, programPtr: number, errorPtr: number) => number;
 let ulang_program_free: (programPtr: number) => void;
 let ulang_vm_init: (vmPtr: number, programPtr: number) => void;
 let ulang_vm_step: (vmPtr: number) => number;
@@ -41,7 +41,8 @@ export let getInt32 = (ptr: number) => new DataView(module.HEAPU8.buffer).getInt
 export let getFloat32 = (ptr: number) => new DataView(module.HEAPU8.buffer).getFloat32(ptr, true);
 export let argbToRgba: (argb: number, rgba: number, numPixels: number) => void;
 export let addFunction: (func: any, descriptor: string) => number;
-export let UTF8ArrayToString: (heap: Uint8Array, ptr: number) => string;;
+export let UTF8ArrayToString: (heap: Uint8Array, ptr: number) => string;
+export let UTF8ToString: (ptr: number) => string;
 export let HEAPU8: () => Uint8Array;
 
 export function createWrappers () {
@@ -52,7 +53,7 @@ export function createWrappers () {
 	ulang_file_free = module.cwrap("ulang_file_free", "void", ["ptr"])
 	ulang_error_print = module.cwrap("ulang_error_print", "void", ["ptr"]);
 	ulang_error_free = module.cwrap("ulang_error_free", "void", ["ptr"]);
-	ulang_compile = module.cwrap("ulang_compile", "number", ["ptr", "ptr", "ptr"]);
+	ulang_compile = module.cwrap("ulang_compile", "number", ["ptr", "ptr", "ptr", "ptr"]);
 	ulang_program_free = module.cwrap("ulang_program_free", "void", ["ptr"]);
 	ulang_vm_init = module.cwrap("ulang_vm_init", "void", ["ptr", "ptr"]);
 	ulang_vm_step = module.cwrap("ulang_vm_step", "number", ["ptr"]);
@@ -71,6 +72,7 @@ export function createWrappers () {
 	argbToRgba = ulang_argb_to_rgba = module.cwrap("ulang_argb_to_rgba", "ptr", ["ptr", "ptr", "number"]);
 	addFunction = module.addFunction;
 	UTF8ArrayToString = module.UTF8ArrayToString;
+	UTF8ToString = module.UTF8ToString;
 	HEAPU8 = () => module.HEAP8 as Uint8Array;
 }
 
@@ -228,8 +230,9 @@ export interface UlangProgram {
 	reservedBytes (): number;
 	labels (): UlangLabel[];
 	constants (): UlangConstant[];
-	file (): UlangFile;
+	files (): UlangFile[];
 	addressToLine (): number[];
+	addressToFile (): UlangFile[];
 	free (): void;
 }
 
@@ -259,18 +262,35 @@ export function ptrToUlangProgram (progPtr: number): UlangProgram {
 			}
 			return constants;
 		},
-		file: () => {
-			return ptrToUlangFile(progPtr + 36);
+		files: () => {
+			let files = [];
+			let filesPtr = getUint32(progPtr + 36);
+			let filesLength = getUint32(progPtr + 40);
+			for (let i = 0; i < filesLength; i++) {
+				files.push(ptrToUlangFile(filesPtr));
+				filesPtr += 4;
+			}
+			return files;
 		},
 		addressToLine: () => {
 			let addressToLine = [];
-			let addressToLinePtr = getUint32(progPtr + 40);
-			let addressToLineLength = getUint32(progPtr + 44);
+			let addressToLinePtr = getUint32(progPtr + 44);
+			let addressToLineLength = getUint32(progPtr + 48);
 			for (let i = 0; i < addressToLineLength; i++) {
 				addressToLine.push(getUint32(addressToLinePtr));
 				addressToLinePtr += 4;
 			}
 			return addressToLine;
+		},
+		addressToFile: () => {
+			let addressToFile = [];
+			let addressToFilePtr = getUint32(progPtr + 52);
+			let addressToFileLength = getUint32(progPtr + 56);
+			for (let i = 0; i < addressToFileLength; i++) {
+				addressToFile.push(getUint32(addressToFilePtr));
+				addressToFilePtr += 4;
+			}
+			return addressToFile;
 		},
 		free: () => {
 			ulang_program_free(progPtr);
@@ -388,26 +408,39 @@ export function newProgram () { return ptrToUlangProgram(allocType(UlangType.UL_
 
 export interface UlangCompilationResult {
 	error: UlangError;
-	file: UlangFile;
 	program: UlangProgram;
 	free (): void;
 }
 
-export function compile (source): UlangCompilationResult {
+let currentSource = "";
+function fileReadFunction (filenamePtr: number, filePtr: number): number {
+	let data = module.allocateUTF8(currentSource);
+	ulang_file_from_memory(filenamePtr, data, filePtr);
+	module._free(data);
+	return -1;
+}
+
+let fileReadFunctionPtr: number;
+
+export function compile (filename: string, source: string): UlangCompilationResult {
+	if (!fileReadFunctionPtr) {
+		fileReadFunctionPtr = module.addFunction(fileReadFunction, "iii");
+	}
+
 	let error = newError();
-	let file = newFile("source", source);
 	let program = newProgram();
 	let result = {
 		error: error,
-		file: file,
 		program: program,
 		free: () => {
 			program.free();
-			file.free();
 			error.free();
 		},
 	}
-	ulang_compile(result.file.ptr, result.program.ptr, result.error.ptr);
+	let filenamePtr = module.allocateUTF8(filename);
+	currentSource = source;
+	ulang_compile(filenamePtr, fileReadFunctionPtr, result.program.ptr, result.error.ptr);
+	module._free(name);
 	return result;
 };
 

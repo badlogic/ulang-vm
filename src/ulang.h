@@ -83,9 +83,12 @@ typedef struct ulang_program {
 	size_t labelsLength;
 	ulang_constant *constants;
 	size_t constantsLength;
-	ulang_file *file;
+	ulang_file **files;
+	size_t filesLength;
 	uint32_t *addressToLine;
 	uint32_t addressToLineLength;
+	ulang_file **addressToFile;
+	uint32_t addressToFileLength;
 } ulang_program;
 
 typedef union ulang_value {
@@ -99,6 +102,7 @@ typedef union ulang_value {
 struct ulang_vm;
 
 typedef ulang_bool (*ulang_syscall)(uint32_t intNum, struct ulang_vm *vm);
+typedef ulang_bool (*ulang_file_read_function)(const char *filename, ulang_file *file);
 
 typedef struct ulang_vm {
 	ulang_value registers[16];
@@ -136,7 +140,7 @@ void ulang_error_free(ulang_error *error);
 
 // compilation
 
-ulang_bool ulang_compile(ulang_file *file, ulang_program *program, ulang_error *error);
+ulang_bool ulang_compile(const char *filename, ulang_file_read_function fileReadFunction, ulang_program *program, ulang_error *error);
 
 void ulang_program_free(ulang_program *program);
 
