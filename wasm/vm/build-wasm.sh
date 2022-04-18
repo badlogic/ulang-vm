@@ -26,7 +26,7 @@ emcc $OPT \
 	-s MALLOC=emmalloc \
 	-s ENVIRONMENT=web \
 	-s EXPORTED_FUNCTIONS='["_malloc", "_free"]' \
-	-s EXPORTED_RUNTIME_METHODS='["cwrap", "allocateUTF8", "UTF8ArrayToString", "addFunction"]' \
+	-s EXPORTED_RUNTIME_METHODS='["cwrap", "allocateUTF8", "UTF8ArrayToString", "UTF8ToString", "addFunction"]' \
 	-s MODULARIZE=1 -s EXPORT_ES6=1 -s USE_ES6_IMPORT_META=0 -s EXPORT_NAME=loadWasm \
 	--no-entry \
 	-I../../src $SOURCES \

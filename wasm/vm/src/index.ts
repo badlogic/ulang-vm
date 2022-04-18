@@ -185,7 +185,7 @@ export class VirtualMachine {
 		return this.bpPtr;
 	}
 
-	run (source: string) {
+	run (filename: string, fileReader: (filename: string) => string) {
 		if (this.compilerResult) {
 			this.compilerResult.free();
 			this.compilerResult = null;
@@ -195,7 +195,7 @@ export class VirtualMachine {
 			this.vm = null;
 		}
 
-		this.compilerResult = ulang.compile(source);
+		this.compilerResult = ulang.compile(filename, fileReader);
 		if (this.compilerResult.error.isSet()) {
 			alert("Can't run program with errors.");
 			this.compilerResult.error.print();
@@ -384,28 +384,34 @@ export async function createPlayerFromGist (canvas: HTMLCanvasElement, gistId: s
 	if (!gist.files || !gist.files["program.ul"] || !gist.files["program.ul"].content) {
 		throw new Error("Gist ${gistId} is not a ulang program.");
 	}
-	return new UlangPlayer(canvas, gist.files["program.ul"].content);
+	return new UlangPlayer(canvas, gist.files);
+}
+
+export type ProgramFiles = {
+	[filename: string]: {
+		content: string
+	}
 }
 
 export class UlangPlayer {
 	vm: VirtualMachine;
-	source: string;
+	files: ProgramFiles
 
-	constructor (canvas: HTMLCanvasElement, source: string) {
+	constructor (canvas: HTMLCanvasElement, files: ProgramFiles) {
 		this.vm = new VirtualMachine(canvas);
-		this.source = source;
+		this.files = files;
 	}
 
 	play () {
-		this.vm.run(this.source);
+		this.vm.run("program.ul", (filename: string) => { return this.files[filename].content; });
 	}
 
 	getVirtualMachine () {
 		return this.vm;
 	}
 
-	getSource () {
-		return this.source;
+	getProgramFiles () {
+		return this.files;
 	}
 
 	dispose () {

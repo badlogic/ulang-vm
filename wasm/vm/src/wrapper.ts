@@ -412,19 +412,22 @@ export interface UlangCompilationResult {
 	free (): void;
 }
 
-let currentSource = "";
+let currentFileReader: (filename: string) => string;
 function fileReadFunction (filenamePtr: number, filePtr: number): number {
-	let data = module.allocateUTF8(currentSource);
+	let filename = UTF8ToString(filenamePtr);
+	let source = currentFileReader(filename);
+	if (!source) return 0;
+	let data = module.allocateUTF8(source);
 	ulang_file_from_memory(filenamePtr, data, filePtr);
 	module._free(data);
 	return -1;
 }
 
-let fileReadFunctionPtr: number;
+let fileReaderFunctionPtr: number;
 
-export function compile (filename: string, source: string): UlangCompilationResult {
-	if (!fileReadFunctionPtr) {
-		fileReadFunctionPtr = module.addFunction(fileReadFunction, "iii");
+export function compile (filename: string, fileReader: (filename: string) => string): UlangCompilationResult {
+	if (!fileReaderFunctionPtr) {
+		fileReaderFunctionPtr = module.addFunction(fileReadFunction, "iii");
 	}
 
 	let error = newError();
@@ -438,8 +441,8 @@ export function compile (filename: string, source: string): UlangCompilationResu
 		},
 	}
 	let filenamePtr = module.allocateUTF8(filename);
-	currentSource = source;
-	ulang_compile(filenamePtr, fileReadFunctionPtr, result.program.ptr, result.error.ptr);
+	currentFileReader = fileReader;
+	ulang_compile(filenamePtr, fileReaderFunctionPtr, result.program.ptr, result.error.ptr);
 	module._free(name);
 	return result;
 };

@@ -2,6 +2,7 @@ import * as monaco from "monaco-editor";
 import { Editor } from "./editor"
 import { VirtualMachine, VirtualMachineState } from "@marioslab/ulang-vm"
 import { UlangLabelTarget, UlangValue, UL_VM_MEMORY_SIZE } from "@marioslab/ulang-vm/src/wrapper";
+import { project } from "src/project";
 
 export class Debugger {
 	private registerView: HTMLElement;
@@ -19,7 +20,9 @@ export class Debugger {
 	constructor (private editor: Editor, private vm: VirtualMachine, private toolbar: Toolbar, debugViewContainer: HTMLElement) {
 		toolbar.getRunButton().addEventListener("click", (e) => {
 			e.stopPropagation();
-			vm.run(editor.getContent());
+			vm.run("program.ul", (filename: string) => {
+				return project.getFileContent(filename);
+			});
 		});
 		toolbar.getContinueButton().addEventListener("click", (e) => {
 			e.stopPropagation();
