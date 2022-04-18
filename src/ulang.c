@@ -405,7 +405,7 @@ EMSCRIPTEN_KEEPALIVE void ulang_free(void *ptr) {
 }
 
 EMSCRIPTEN_KEEPALIVE void ulang_print_memory() {
-	printf("Allocations: %i\nFrees: %i\n", allocs, frees);
+	printf("Allocations: %i\nFrees: %i\nDiff: %i\n", allocs, frees, allocs - frees);
 }
 
 ulang_bool ulang_file_read(const char *fileName, ulang_file *file) {
@@ -1787,8 +1787,10 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(const char* filename, ulang_file_r
 	byte_array_free_inplace(&ctx.data);
 	label_array_free_inplace(&ctx.labels);
 	constant_array_free_inplace(&ctx.constants);
-	for (int i = 0; i < (int)ctx.files.size; i++)
+	for (int i = 0; i < (int)ctx.files.size; i++) {
+		ulang_file_free(ctx.files.items[i]);
 		ulang_free(ctx.files.items[i]);
+	}
 	file_array_free_inplace(&ctx.files);
 	int_array_free_inplace(&ctx.addressToLine);
 	file_array_free_inplace(&ctx.addressToFile);

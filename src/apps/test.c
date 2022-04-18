@@ -65,6 +65,8 @@ ulang_bool test(size_t testNum, test_case *test) {
 	if (error.is_set) {
 		printf("Test #%zu: compilation error\n", testNum);
 		ulang_error_print(&error);
+		ulang_error_free(&error);
+		ulang_program_free(&program);
 		return UL_FALSE;
 	}
 
@@ -334,6 +336,7 @@ int main(int argc, char **argv) {
 	for (size_t i = 0; i < sizeof(tests) / sizeof(test_case); i++) {
 		test_case *t = &tests[i];
 		if (!test(i, t)) {
+			ulang_print_memory();
 			return -1;
 		}
 		printf("Test #%zu: OK\n", i);
