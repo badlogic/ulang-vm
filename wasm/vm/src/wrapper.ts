@@ -438,6 +438,9 @@ export function compile (filename: string, fileReader: (filename: string) => str
 		fileReaderFunctionPtr = module.addFunction(fileReadFunction, "iii");
 	}
 
+	// This needs to go here, otherwise the pointers to error/program may be invalidated
+	// see https://github.com/badlogic/ulang-vm/issues/39
+	let filenamePtr = module.allocateUTF8(filename);
 	let error = newError();
 	let program = newProgram();
 	let result = {
@@ -448,7 +451,6 @@ export function compile (filename: string, fileReader: (filename: string) => str
 			error.free();
 		},
 	}
-	let filenamePtr = module.allocateUTF8(filename);
 	currentFileReader = fileReader;
 	ulang_compile(filenamePtr, fileReaderFunctionPtr, result.program.ptr, result.error.ptr);
 	module._free(name);

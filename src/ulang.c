@@ -1418,7 +1418,6 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile_file(compiler_context *ctx, ulang_
 	// tokenize
 	int start = ctx->tokens.size;
 	if (!tokenize(file, &ctx->tokens, error)) {
-		token_array_free_inplace(&ctx->tokens);
 		return UL_FALSE;
 	}
 	ctx->stream = (token_stream){file, &ctx->tokens, start, ctx->tokens.size};

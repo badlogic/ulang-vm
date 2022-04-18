@@ -107,11 +107,13 @@ function setupUIEvents (explorer: Explorer, editor: Editor, toolbar: Toolbar, vi
 		}
 	}, false);
 
-	window.addEventListener("beforeunload", (ev) => {
-		if (!project.isUnsaved() || localStorage.getItem("authorize-project")) {
-			delete ev['returnValue'];
-		} else {
-			ev.returnValue = true;
-		}
-	});
+	if (!location.href.includes("localhost")) {
+		window.addEventListener("beforeunload", (ev) => {
+			if (!project.isUnsaved() || localStorage.getItem("authorize-project")) {
+				delete ev['returnValue'];
+			} else {
+				ev.returnValue = true;
+			}
+		});
+	}
 }

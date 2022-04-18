@@ -13,7 +13,7 @@ source "${EMSDK}/emsdk_env.sh"
 while getopts ":g" option; do
    case $option in
       g)
-        OPT=-g;;
+        OPT="-g -s SAFE_HEAP=1 ASSERTIONS=1";;
    esac
 done
 

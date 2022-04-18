@@ -8,7 +8,8 @@
 			"type": "pwa-chrome",
 			"request": "launch",
 			"name": "client",
-			"url": "http://localhost:3000/editor/a3929e69602cb54d64ffc2c3f638208b",
+			//"url": "http://localhost:3000/editor/a3929e69602cb54d64ffc2c3f638208b",
+			"url": "http://localhost:3000/editor",
 			"webRoot": "${workspaceFolder}/client/assets"
 		},
 		{
