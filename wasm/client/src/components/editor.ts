@@ -92,7 +92,17 @@ export class Editor {
 	}
 
 	private onDidChangeModelDecorations (e: monaco.editor.IModelDecorationsChangedEvent) {
-
+		let breakpoints = [];
+		let decorations = this.editor.getModel().getAllDecorations();
+		for (let i = 0; i < decorations.length; i++) {
+			let decoration = decorations[i];
+			if (decoration.options.glyphMarginClassName == 'ulang-debug-breakpoint') {
+				let breakpoint = JSON.parse((decoration.options as any).description) as Breakpoint;
+				breakpoint.lineNumber = decoration.range.startLineNumber;
+				breakpoints.push(breakpoint);
+			}
+		}
+		this.currSourceFile.breakpoints = breakpoints;
 		this.emitBreakpoints();
 	}
 
@@ -103,9 +113,11 @@ export class Editor {
 				range: new monaco.Range(bp.lineNumber, 1, bp.lineNumber, 1),
 				options: {
 					isWholeLine: true,
-					glyphMarginClassName: 'ulang-debug-breakpoint'
-				}
-			});
+					glyphMarginClassName: 'ulang-debug-breakpoint',
+					stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges,
+					description: JSON.stringify(bp)
+				},
+			} as any);
 		}
 		if (this.currSourceFile.currLine != -1) {
 			newDecorations.push({
