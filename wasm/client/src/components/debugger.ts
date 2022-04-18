@@ -65,11 +65,12 @@ export class Debugger {
 			switch (state) {
 				case VirtualMachineState.Paused:
 					let lineNum = vm.getCurrentLine();
-					editor.setCurrLine(lineNum);
+					let file = vm.getCurrentFile();
+					editor.setCurrLine(file.fileName().toString(), lineNum);
 					this.updateViews();
 					break;
 				default:
-					editor.setCurrLine(-1);
+					editor.setCurrLine(null, -1);
 					this.lastValues = [];
 					this.updateViews();
 					break;

@@ -291,11 +291,11 @@ export function ptrToUlangProgram (progPtr: number): UlangProgram {
 			return addressToLine;
 		},
 		addressToFile: () => {
-			let addressToFile = [];
+			let addressToFile: UlangFile[] = [];
 			let addressToFilePtr = getUint32(progPtr + 52);
 			let addressToFileLength = getUint32(progPtr + 56);
 			for (let i = 0; i < addressToFileLength; i++) {
-				addressToFile.push(getUint32(addressToFilePtr));
+				addressToFile.push(ptrToUlangFile(getUint32(addressToFilePtr)));
 				addressToFilePtr += 4;
 			}
 			return addressToFile;

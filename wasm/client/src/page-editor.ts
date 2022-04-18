@@ -3,7 +3,7 @@ import "./page-editor.css"
 import { Editor } from "./components/editor"
 import { setupLayout } from "./layout";
 import { auth, checkAuthorizationCode } from "./auth";
-import { loadUlang, VirtualMachine } from "@marioslab/ulang-vm"
+import { Breakpoint, loadUlang, VirtualMachine } from "@marioslab/ulang-vm"
 import { Debugger } from "./components/debugger";
 import { setupLiveEdit } from "./liveedit"
 import { loadProject, project } from "./project";
@@ -64,17 +64,20 @@ function setupUIEvents (explorer: Explorer, editor: Editor, toolbar: Toolbar, vi
 	downloadButton.addEventListener("click", () => project.download());
 
 	// Setup explorer & editor
-	editor.setContentListener((content) => {
-		project.setFileContent(explorer.getSelectedFile(), content);
+	editor.setContentListener((filename, content) => {
+		project.setFileContent(filename, content);
 	});
 
 	explorer.setSelectedCallback((filename) => {
 		if (filename.endsWith(".ul")) {
-			editor.setContent(project.getFileContent(filename));
+			editor.openFile(filename, project.getFileContent(filename));
 		}
 	})
 
-	explorer.selectFile("program.ul");
+	// Load all files into the editor, so we can toggle breakpoints
+	for (let filename of project.getFilenames()) {
+		explorer.selectFile(filename);
+	}
 
 	if (project.getId()) {
 		let bpsJson = localStorage.getItem("bps-" + project.getId());
@@ -82,15 +85,17 @@ function setupUIEvents (explorer: Explorer, editor: Editor, toolbar: Toolbar, vi
 			let bps = JSON.parse(bpsJson);
 			for (let bp of bps) {
 				try {
-					editor.toggleBreakpoint(bp);
+					let breakpoint = bp as Breakpoint;
+					editor.toggleBreakpoint(breakpoint.filename, breakpoint.lineNumber);
 				} catch (e) {
 					// no, breakpoint/source mismatch
 				}
 			}
 		}
 	}
+	explorer.selectFile("program.ul");
 
-	editor.setBreakpointListener((bps: number[]) => {
+	editor.setBreakpointListener((bps: Breakpoint[]) => {
 		if (project.getId()) localStorage.setItem("bps-" + project.getId(), JSON.stringify(bps));
 	});
 

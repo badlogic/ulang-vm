@@ -3,6 +3,7 @@ import * as monaco from "monaco-editor";
 import * as ulang from "@marioslab/ulang-vm"
 import { explorer } from "./explorer";
 import { UlangFile } from "@marioslab/ulang-vm/src/wrapper";
+import { Breakpoint } from "@marioslab/ulang-vm";
 
 (globalThis as any).self.MonacoEnvironment = {
 	getWorkerUrl: function (moduleId, label) {
@@ -10,13 +11,21 @@ import { UlangFile } from "@marioslab/ulang-vm/src/wrapper";
 	},
 };
 
+export interface SourceFile {
+	filename: string;
+	model: monaco.editor.IModel;
+	decorations: string[];
+	breakpoints: Breakpoint[];
+	currLine: number;
+	viewState: monaco.editor.ICodeEditorViewState;
+}
+
 export class Editor {
 	private editor: monaco.editor.IStandaloneCodeEditor;
-	private decorations: string[] = [];
-	private breakpoints: monaco.editor.IModelDeltaDecoration[] = [];
-	private currLine: monaco.editor.IModelDeltaDecoration = null;
-	private breakpointListeners: ((bps: number[]) => void)[] = [];
-	private contentListener: (content: string) => void = null;
+	private sourceFiles: { [filename: string]: SourceFile } = {};
+	private currSourceFile: SourceFile = null;
+	private breakpointListeners: ((bps: Breakpoint[]) => void)[] = [];
+	private contentListener: (filename: string, content: string) => void = null;
 
 	constructor (private container: HTMLElement) {
 		defineUlangLanguage();
@@ -29,11 +38,11 @@ export class Editor {
 		});
 
 		this.editor.onDidChangeModelContent(() => this.onDidChangeModelContent());
-		this.editor.onDidChangeModelDecorations((e) => this.onDidChangeModelDecorations());
+		this.editor.onDidChangeModelDecorations((e) => this.onDidChangeModelDecoration(e));
 
 		this.editor.onMouseDown((e) => {
-			if (e.target.type !== 2) return;
-			this.toggleBreakpoint(e.target.range.startLineNumber);
+			if (e.target.type != 2 && e.target.type != 3) return;
+			this.toggleBreakpoint(this.currSourceFile.filename, e.target.range.startLineNumber);
 		});
 	}
 
@@ -79,42 +88,42 @@ export class Editor {
 		}
 		result.free();
 		ulang.printMemory();
-		if (this.contentListener) this.contentListener(this.editor.getValue());
+		if (this.contentListener) this.contentListener(this.currSourceFile.filename, this.editor.getValue());
 	}
 
-	private onDidChangeModelDecorations () {
-		this.breakpoints = this.getBreakpointDecorations();
-		let breakpointLinenumbers = this.breakpoints.map(bp => bp.range.startLineNumber);
-		for (let listener of this.breakpointListeners) listener(breakpointLinenumbers)
+	private onDidChangeModelDecorations (e: monaco.editor.IModelDecorationsChangedEvent) {
+
+		this.emitBreakpoints();
 	}
 
 	private updateDecorations () {
 		let newDecorations: monaco.editor.IModelDeltaDecoration[] = [];
-		for (let i = 0; i < this.breakpoints.length; i++) newDecorations.push(this.breakpoints[i]);
-		if (this.currLine) newDecorations.push(this.currLine);
-		this.decorations = this.editor.deltaDecorations(this.decorations, newDecorations);
-	}
-
-	private getBreakpointDecorations () {
-		let breakpoints: monaco.editor.IModelDeltaDecoration[] = [];
-		let decorations = this.editor.getModel().getAllDecorations();
-		for (let i = 0; i < decorations.length; i++) {
-			let decoration = decorations[i];
-			if (decoration.options.glyphMarginClassName == 'ulang-debug-breakpoint') {
-				breakpoints.push({
-					range: decoration.range,
-					options: decoration.options
-				})
-			}
+		for (let bp of this.currSourceFile.breakpoints) {
+			newDecorations.push({
+				range: new monaco.Range(bp.lineNumber, 1, bp.lineNumber, 1),
+				options: {
+					isWholeLine: true,
+					glyphMarginClassName: 'ulang-debug-breakpoint'
+				}
+			});
 		}
-		return breakpoints;
+		if (this.currSourceFile.currLine != -1) {
+			newDecorations.push({
+				range: new monaco.Range(this.currSourceFile.currLine, 1, this.currSourceFile.currLine, 1000),
+				options: {
+					isWholeLine: true,
+					className: "ulang-debug-curr-line",
+				}
+			});
+		}
+		this.currSourceFile.decorations = this.editor.deltaDecorations(this.currSourceFile.decorations, newDecorations);
 	}
 
-	toggleBreakpoint (lineNumber: number) {
-		this.breakpoints = this.getBreakpointDecorations();
+	toggleBreakpoint (filename: string, lineNumber: number) {
 		let foundBreakpoint = false;
-		this.breakpoints = this.breakpoints.filter(e => {
-			if (e.range.startLineNumber == lineNumber) {
+		let sourceFile = this.sourceFiles[filename];
+		sourceFile.breakpoints = sourceFile.breakpoints.filter(e => {
+			if (e.lineNumber == lineNumber) {
 				foundBreakpoint = true;
 				return false;
 			} else {
@@ -122,47 +131,70 @@ export class Editor {
 			}
 		})
 		if (!foundBreakpoint) {
-			this.breakpoints.push({
-				range: new monaco.Range(lineNumber, 1, lineNumber, 1),
-				options: {
-					isWholeLine: true,
-					glyphMarginClassName: 'ulang-debug-breakpoint'
-				}
-			});
+			sourceFile.breakpoints.push({ filename: filename, lineNumber: lineNumber });
 		}
+		this.emitBreakpoints();
 		this.updateDecorations();
 	}
 
-	setCurrLine = (lineNum: number) => {
-		if (lineNum == -1) {
-			this.currLine = null;
+	private emitBreakpoints () {
+		let allBreakpoints: Breakpoint[] = [];
+		for (let file in this.sourceFiles) {
+			let sourceFile = this.sourceFiles[file];
+			for (let bp of sourceFile.breakpoints)
+				allBreakpoints.push(bp);
+		}
+		for (let l of this.breakpointListeners) l(allBreakpoints);
+	}
+
+	setCurrLine (filename: string, lineNumber: number) {
+		this.currSourceFile.currLine = -1;
+		if (lineNumber == -1) {
+			this.currSourceFile.currLine = -1;
 			this.updateDecorations();
 			return;
 		}
-		this.currLine = {
-			range: new monaco.Range(lineNum, 1, lineNum, 1000),
-			options: {
-				isWholeLine: true,
-				className: "ulang-debug-curr-line",
-			}
-		}
+		this.openFile(filename);
+		this.currSourceFile.currLine = lineNumber;
 		this.updateDecorations();
-		this.editor.revealPositionInCenter({ lineNumber: lineNum, column: 1 });
+		this.editor.revealPositionInCenter({ lineNumber: lineNumber, column: 1 });
+		explorer.selectFile(filename, false)
 	}
 
 	getContent () {
 		return this.editor.getValue();
 	}
 
-	setContent (source: string) {
-		return this.editor.setValue(source);
+	openFile (filename: string, source?: string) {
+		if (this.currSourceFile) {
+			this.currSourceFile.viewState = this.editor.saveViewState()
+		}
+		this.currSourceFile = this.sourceFiles[filename];
+		if (!this.currSourceFile) {
+			let model = monaco.editor.createModel(source ? source : "", "ulang", monaco.Uri.parse("f:/" + filename));
+			this.currSourceFile = {
+				filename: filename,
+				model: model,
+				decorations: [],
+				breakpoints: [],
+				currLine: -1,
+				viewState: null
+			};
+			this.sourceFiles[filename] = this.currSourceFile;
+		}
+		this.editor.setModel(this.currSourceFile.model);
+		if (this.currSourceFile.viewState) {
+			this.editor.restoreViewState(this.currSourceFile.viewState);
+			this.updateDecorations();
+		}
+		this.onDidChangeModelContent();
 	}
 
-	setBreakpointListener (listener: (bps: number[]) => void) {
+	setBreakpointListener (listener: (bps: Breakpoint[]) => void) {
 		this.breakpointListeners.push(listener);
 	}
 
-	setContentListener (listener: (content) => void) {
+	setContentListener (listener: (filename: string, content: string) => void) {
 		this.contentListener = listener;
 	}
 
@@ -186,7 +218,8 @@ function defineUlangLanguage () {
 			"call", "ret", "retn",
 			"syscall",
 			"reserve", "byte", "short", "int", "float",
-			"const"
+			"const",
+			"include"
 		],
 		operators: ["~", "+", "-", "|", "&", "^", "/", "*", "%"],
 		registers: ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "pc", "sp"],

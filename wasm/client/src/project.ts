@@ -24,7 +24,9 @@ export async function loadProject () {
 		if (!gistId && pathElements.length > 0) gistId = pathElements[0];
 
 		if (!params.code && authorizeProject) {
-			project = authorizeProject;
+			project = new Project(authorizeProject["title"], authorizeProject["owner"], authorizeProject["id"], authorizeProject["files"], authorizeProject["forkedFrom"]);
+			if (authorizeProject["screenshot"]) project.setScreenshot(authorizeProject["screenshot"]);
+			project.setUnsaved(authorizeProject["unsaved"]);
 		} else if (gistId) {
 			dialog = showDialog("", "Loading Gist", [], false);
 			gist = await getGist(gistId, auth.getAccessToken());
@@ -45,8 +47,8 @@ export async function loadProject () {
 
 	if (!project) {
 		project = new Project("Untitled", null, null, {}, null);
-		project.newFile("program.ul", "halt");
-		project.newFile("utils.ul", "halt");
+		project.newFile("program.ul", 'include "utils.ul"\n\nhalt');
+		project.newFile("utils.ul", "mov 123, r1\n\nmov 345, r2");
 	}
 }
 
@@ -57,7 +59,6 @@ export interface Fork {
 
 export class Project {
 	private title: string;
-	private titleModified: boolean;
 	private owner: string;
 	private id: string;
 	private files: GistFiles;
@@ -67,7 +68,6 @@ export class Project {
 
 	constructor (title: string, owner: string, id: string, files: GistFiles, private forkedFrom: Fork) {
 		this.title = title || "Untitled";
-		this.titleModified = false;
 		this.owner = owner;
 		this.id = id;
 		this.files = files;
@@ -89,7 +89,6 @@ export class Project {
 
 	fromGist (gist: Gist) {
 		this.title = gist.description;
-		this.titleModified = false;
 		this.owner = gist.owner.login;
 		this.id = gist.id;
 		this.files = Project.copyFiles(gist.files);
@@ -230,13 +229,11 @@ export class Project {
 
 	setUnsaved (isUnsaved: boolean) {
 		this.unsaved = isUnsaved;
-		if (!isUnsaved) this.titleModified = false;
 		if (this.unsavedListener) this.unsavedListener(isUnsaved);
 	}
 
 	setTitle (title: string) {
 		if (this.title == title.trim()) return;
-		this.titleModified = true;
 		this.title = title.trim();
 		this.setUnsaved(true);
 	}

@@ -6,6 +6,11 @@ export enum VirtualMachineState {
 	Stopped, Running, Paused
 }
 
+export interface Breakpoint {
+	filename: string,
+	lineNumber: number
+}
+
 export enum LogLevel {
 	None,
 	Info
@@ -25,7 +30,7 @@ export class VirtualMachine {
 	private executedInstructions = 0;
 	private vsyncHit = false;
 	private debugSyscallHit = false;
-	private breakpoints: number[] = [];
+	private breakpoints: Breakpoint[] = [];
 	private bpPtr = 0;
 	private numBps = 0;
 	private syscallHandlerPtr = 0;
@@ -156,7 +161,7 @@ export class VirtualMachine {
 		this.stateChangeListener = listener;
 	}
 
-	setBreakpoints (breakpoints: number[]) {
+	setBreakpoints (breakpoints: Breakpoint[]) {
 		this.breakpoints = breakpoints;
 		if (this.bpPtr != 0) {
 			ulang.free(this.bpPtr);
@@ -170,11 +175,12 @@ export class VirtualMachine {
 		if (this.bpPtr != 0) return this.bpPtr;
 		// Needs to come before the next line, as WASM memory can grow and pointers may get relocated
 		let addressToLine = this.vm.program().addressToLine();
+		let addressToFile = this.vm.program().addressToFile();
 		let p = this.bpPtr = ulang.alloc(4 * this.breakpoints.length);
 		for (let i = 0; i < this.breakpoints.length; i++) {
-			let bpLine = this.breakpoints[i];
+			let bp = this.breakpoints[i];
 			for (let j = 0; j < addressToLine.length; j++) {
-				if (addressToLine[j] == bpLine) {
+				if (addressToLine[j] == bp.lineNumber && addressToFile[j].fileName().toString() == bp.filename) {
 					ulang.setUint32(p, j * 4);
 					p += 4;
 					this.numBps++;
@@ -260,6 +266,14 @@ export class VirtualMachine {
 		let addressToLine: number[] = this.vm.program().addressToLine();
 		if (pc >= addressToLine.length) return -1;
 		return addressToLine[pc];
+	}
+
+	getCurrentFile () {
+		if (this.state != VirtualMachineState.Paused) return null;
+		let pc = this.vm.registers()[14].ui() >> 2;
+		let addressToFile = this.vm.program().addressToFile();
+		if (pc >= addressToFile.length) return null;
+		return addressToFile[pc];
 	}
 
 	getState () {

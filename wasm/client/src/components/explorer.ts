@@ -116,7 +116,7 @@ export class Explorer {
 		throw new Error(`Couldn't find DOM for file ${filename}`);
 	}
 
-	selectFile (filename: string) {
+	selectFile (filename: string, callListener?: boolean) {
 		if (!this.project.fileExists(filename)) {
 			showDialog("Sorry", `<p>File ${filename} doesn't exist in this project.</p>`, [], true, "OK");
 			return;
