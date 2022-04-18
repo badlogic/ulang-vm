@@ -38,7 +38,7 @@ export class Editor {
 		});
 
 		this.editor.onDidChangeModelContent(() => this.onDidChangeModelContent());
-		this.editor.onDidChangeModelDecorations((e) => this.onDidChangeModelDecoration(e));
+		this.editor.onDidChangeModelDecorations((e) => this.onDidChangeModelDecorations(e));
 
 		this.editor.onMouseDown((e) => {
 			if (e.target.type != 2 && e.target.type != 3) return;
