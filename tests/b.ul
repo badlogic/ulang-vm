@@ -1,0 +1,3 @@
+include "include/c.ul"
+mov 1, r1
+mov C, r2

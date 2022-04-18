@@ -158,6 +158,9 @@ ulang_bool test(size_t testNum, test_case *test) {
 	error:
 	printf("Test #%zu\n---\n%s\n---\n", testNum, test->code);
 	if (checkErrorMessage[0]) printf("Error: %s", checkErrorMessage);
+	ulang_vm_free(&vm);
+	ulang_error_free(&error);
+	ulang_program_free(&program);
 	return UL_FALSE;
 }
 
@@ -329,7 +332,10 @@ int main(int argc, char **argv) {
 			{"const OFF 2\ndata: reserve int x 4\nmov 123, r1\nsto r1, data + OFF, 0", {{MEM_INT, .address = 4 * 4 + 2, .val_int = 123}}},
 
 			// fib
-			{"tests/fib.ul", {{REG_INT, .reg = R14, .val_uint = 832040}}}
+			{"tests/fib.ul", {{REG_INT, .reg = R14, .val_uint = 832040}}},
+
+			// include
+			{"tests/a.ul",                                                                                     {{REG_INT, .reg = R1, .val_uint = 1}, {REG_INT, .reg = R2, .val_uint = 3}}},
 	};
 	// @formatter:on
 

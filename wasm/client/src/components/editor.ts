@@ -45,17 +45,23 @@ export class Editor {
 		if (result.error.isSet()) {
 			result.error.print();
 			let file: UlangFile = result.error.file();
-			let base = file.data().data();
-			let startLineNumber = result.error.span().startLine();
-			let startLine = file.lines()[startLineNumber].data().data() - base;
-			let endLineNumber = result.error.span().endLine();
-			let endLine = file.lines()[endLineNumber].data().data() - base;
+			let startLineNumber = 0;
+			let endLineNumber = 0;
+			let startCol = 1;
+			let endCol = 1;
+			if (file) {
+				let base = file.data().data();
+				startLineNumber = result.error.span().startLine();
+				let startLine = file.lines()[startLineNumber].data().data() - base;
+				endLineNumber = result.error.span().endLine();
+				let endLine = file.lines()[endLineNumber].data().data() - base;
 
-			let spanStart = result.error.span().data().data() - base;
-			let spanEnd = spanStart + result.error.span().data().length();
+				let spanStart = result.error.span().data().data() - base;
+				let spanEnd = spanStart + result.error.span().data().length();
 
-			let startCol = spanStart - startLine + 1;
-			let endCol = spanEnd - endLine + 1;
+				startCol = spanStart - startLine + 1;
+				endCol = spanEnd - endLine + 1;
+			}
 
 			let markers = [
 				{

@@ -505,26 +505,37 @@ void ulang_error_init(ulang_error *error, ulang_file *file, ulang_span *span, co
 	vsnprintf(buffer, len + 1, msg, args);
 	va_end(args);
 
-	error->file = ulang_calloc(sizeof(ulang_file));
-	error->file->fileName.data = ulang_calloc(file->fileName.length);
-	error->file->fileName.length = file->fileName.length;
-	memcpy(error->file->fileName.data,  file->fileName.data, file->fileName.length);
-	error->file->data = ulang_alloc(file->length);
-	error->file->length = file->length;
-	memcpy(error->file->data, file->data, file->length);
+	if (file != NULL) {
+		error->file = ulang_calloc(sizeof(ulang_file));
+		error->file->fileName.data = ulang_calloc(file->fileName.length);
+		error->file->fileName.length = file->fileName.length;
+		memcpy(error->file->fileName.data, file->fileName.data, file->fileName.length);
+		error->file->data = ulang_alloc(file->length);
+		error->file->length = file->length;
+		memcpy(error->file->data, file->data, file->length);
+	} else {
+		error->file = NULL;
+	}
 
 	error->message.data = buffer;
 	error->message.length = len;
-	error->span = *span;
-	error->span.data.data = error->file->data + (span->data.data - file->data);
+
+	if (span != NULL) {
+		error->span = *span;
+		error->span.data.data = error->file->data + (span->data.data - file->data);
+	} else {
+		error->span = (ulang_span){0};
+	}
 	error->is_set = UL_TRUE;
 }
 
 EMSCRIPTEN_KEEPALIVE void ulang_error_free(ulang_error *error) {
 	if (error->is_set) {
 		ulang_free(error->message.data);
-		ulang_file_free(error->file);
-		ulang_free(error->file);
+		if (error->file) {
+			ulang_file_free(error->file);
+			ulang_free(error->file);
+		}
 	}
 	error->is_set = UL_FALSE;
 	error->file = NULL;
@@ -533,6 +544,11 @@ EMSCRIPTEN_KEEPALIVE void ulang_error_free(ulang_error *error) {
 }
 
 EMSCRIPTEN_KEEPALIVE void ulang_error_print(ulang_error *error) {
+	if (!error->file) {
+		printf("Error: %.*s\n", error->message.length, error->message.data);
+		return;
+	}
+
 	ulang_file *source = error->file;
 	ulang_file_get_lines(source);
 	ulang_line *line = &source->lines[error->span.startLine];
@@ -877,7 +893,7 @@ static token *token_stream_peek(token_stream *stream) {
 }
 
 static token *token_stream_match(token_stream *stream, token_type type, ulang_bool consume) {
-	if (stream->index >= stream->tokens->size) return UL_FALSE;
+	if (!token_stream_has_more(stream)) return UL_FALSE;
 	token *token = &stream->tokens->items[stream->index];
 	if (token->type == type) {
 		if (consume) stream->index++;
@@ -887,7 +903,7 @@ static token *token_stream_match(token_stream *stream, token_type type, ulang_bo
 }
 
 static token *token_stream_match_string(token_stream *stream, const char *text, size_t len, ulang_bool consume) {
-	if (stream->index >= stream->tokens->size) return UL_FALSE;
+	if (!token_stream_has_more(stream)) return UL_FALSE;
 	token *token = &stream->tokens->items[stream->index];
 	if (ulang_span_matches(&token->span, text, len)) {
 		if (consume) stream->index++;
@@ -899,7 +915,7 @@ static token *token_stream_match_string(token_stream *stream, const char *text, 
 static token *
 token_stream_expect(token_stream *stream, token_type type, ulang_error *error) {
 	if (!token_stream_match(stream, type, UL_TRUE)) {
-		token *lastToken = stream->index < stream->tokens->size ? &stream->tokens->items[stream->index] : NULL;
+		token *lastToken = token_stream_has_more(stream) ? &stream->tokens->items[stream->index] : NULL;
 
 		if (lastToken == NULL) {
 			ulang_file_get_lines(stream->file);
@@ -921,7 +937,7 @@ token_stream_expect(token_stream *stream, token_type type, ulang_error *error) {
 static token *
 token_stream_expect_string(token_stream *stream, char *str, size_t len, const char *message, ulang_error *error) {
 	if (!token_stream_match_string(stream, str, len, UL_TRUE)) {
-		token *lastToken = stream->index < stream->tokens->size ? &stream->tokens->items[stream->index] : NULL;
+		token *lastToken = token_stream_has_more(stream) ? &stream->tokens->items[stream->index] : NULL;
 
 		if (lastToken == NULL) {
 			ulang_file_get_lines(stream->file);
@@ -1398,15 +1414,7 @@ static void set_label_targets(label_array *labels, ulang_label_target target, si
 	}
 }
 
-EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile_file(compiler_context *ctx, const char *filename, ulang_file_read_function fileReadFunction, ulang_error *error) {
-	ulang_file *file = ulang_calloc(sizeof(ulang_file));
-	if (!fileReadFunction(filename, file)) {
-		ulang_free(file);
-		ulang_error_init(error, NULL, NULL, "Couldn't read file %s\n", filename);
-		return UL_FALSE;
-	}
-	file_array_add(&ctx->files, file);
-
+EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile_file(compiler_context *ctx, ulang_file *file, ulang_file_read_function fileReadFunction, ulang_error *error) {
 	// tokenize
 	int start = ctx->tokens.size;
 	if (!tokenize(file, &ctx->tokens, error)) {
@@ -1420,8 +1428,60 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile_file(compiler_context *ctx, const 
 		opcode *op = token_matches_opcode(tok);
 		if (!op) {
 			if (tok->type != TOKEN_IDENTIFIER) {
-				ulang_error_init(error, file, &tok->span, "Expected a label, data, or an instruction.");
+				ulang_error_init(error, file, &tok->span, "Expected a label, data, include, or an instruction.");
 				return UL_FALSE;
+			}
+
+			if (ulang_span_matches(&tok->span, STR("include"))) {
+				ulang_bool raw = token_stream_match_string(&ctx->stream, STR("raw"), UL_TRUE) != NULL;
+				token *includedFileToken = token_stream_expect(&ctx->stream, TOKEN_STRING, error);
+				if (!includedFileToken) return UL_FALSE;
+				ulang_string filename = includedFileToken->span.data;
+				filename.data[filename.length - 1] = 0;
+				filename.data++;
+				filename.length -= 2;
+
+				int idx = -1;
+				for (int i = 0; i < (int)file->fileName.length; i++) {
+					if (file->fileName.data[i] == '/') {
+						idx = i;
+					}
+				}
+				char *resolvedFile = NULL;
+				if (idx > -1) {
+					resolvedFile = ulang_calloc(idx + 1 + filename.length + 1);
+					memcpy(resolvedFile, file->fileName.data, idx + 1);
+					memcpy(resolvedFile + idx + 1, filename.data, filename.length);
+				} else {
+					resolvedFile = ulang_calloc(filename.length + 1);
+					memcpy(resolvedFile, filename.data, filename.length + 1);
+				}
+
+				ulang_bool alreadyCompiled = UL_FALSE;
+				for  (int i = 0; i < ctx->files.size; i++) {
+					if (strcmp(ctx->files.items[i]->fileName.data, resolvedFile) == 0) {
+						alreadyCompiled = UL_TRUE;
+					}
+				}
+				if (alreadyCompiled) {
+					ulang_free(resolvedFile);
+					continue;
+				}
+
+				ulang_file *includedFile = ulang_calloc(sizeof(ulang_file));
+				if (!fileReadFunction(resolvedFile, includedFile)) {
+					ulang_free(resolvedFile);
+					ulang_free(includedFile);
+					ulang_error_init(error, file, &includedFileToken->span, "Couldn't read file %s\n", filename);
+					return UL_FALSE;
+				}
+				ulang_free(resolvedFile);
+				file_array_add(&ctx->files, includedFile); //
+
+				token_stream oldStream = ctx->stream;
+				if (!ulang_compile_file(ctx, includedFile, fileReadFunction, error)) return UL_FALSE;
+				ctx->stream = oldStream;
+				continue;
 			}
 
 			if (ulang_span_matches(&tok->span, STR("byte"))) {
@@ -1711,7 +1771,11 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile_file(compiler_context *ctx, const 
 
 			set_label_targets(&ctx->labels, UL_LT_CODE, ctx->code.size);
 			int_array_add(&ctx->addressToLine, tok->span.startLine);
-			if (fittingOp->hasValueOperand) int_array_add(&ctx->addressToLine, tok->span.startLine);
+			file_array_add(&ctx->addressToFile, file);
+			if (fittingOp->hasValueOperand) {
+				int_array_add(&ctx->addressToLine, tok->span.startLine);
+				file_array_add(&ctx->addressToFile, file);
+			}
 			if (!emit_op(file, fittingOp, operands, operandExpressions, &ctx->patches, &ctx->code, error)) return UL_FALSE;
 		}
 	}
@@ -1719,6 +1783,13 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile_file(compiler_context *ctx, const 
 }
 
 EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(const char* filename, ulang_file_read_function fileReadFunction, ulang_program *program, ulang_error *error) {
+	ulang_file *file = ulang_calloc(sizeof(ulang_file));
+	if (!fileReadFunction(filename, file)) {
+		ulang_free(file);
+		ulang_error_init(error, NULL, NULL, "Couldn't read file %s\n", filename);
+		return UL_FALSE;
+	}
+
 	error->is_set = UL_FALSE;
 	init_opcodes_and_registers();
 
@@ -1735,7 +1806,9 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(const char* filename, ulang_file_r
 	int_array_init_inplace(&ctx.addressToLine, 16);
 	file_array_init_inplace(&ctx.addressToFile, 16);
 
-	if (!ulang_compile_file(&ctx, filename, fileReadFunction, error)) goto _compilation_error;
+	file_array_add(&ctx.files, file);
+
+	if (!ulang_compile_file(&ctx, file, fileReadFunction, error)) goto _compilation_error;
 
 	ctx.resolveLabelsInExpressions = UL_TRUE;
 	for (size_t i = 0; i < ctx.patches.size; i++) {

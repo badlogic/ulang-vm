@@ -165,8 +165,16 @@ export interface UlangError {
 export function ptrToUlangError (errorPtr: number): UlangError {
 	return {
 		ptr: errorPtr,
-		file: () => ptrToUlangFile(getUint32(errorPtr)),
-		span: () => ptrToUlangSpan(errorPtr + 4),
+		file: () => {
+			let filePtr = getUint32(errorPtr);
+			if (filePtr != 0) return ptrToUlangFile(filePtr);
+			else return null;
+		},
+		span: () => {
+			let filePtr = getUint32(errorPtr);
+			if (filePtr != 0) return ptrToUlangSpan(errorPtr + 4);
+			else return null;
+		},
 		message: () => ptrToUlangString(errorPtr + 20),
 		isSet: () => getInt32(errorPtr + 28) != 0,
 		print: () => ulang_error_print(errorPtr),
