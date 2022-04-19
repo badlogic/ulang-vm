@@ -21,6 +21,7 @@ export class Debugger {
 		toolbar.getRunButton().addEventListener("click", (e) => {
 			e.stopPropagation();
 			vm.run("program.ul", (filename: string) => {
+				if (!project.fileExists(filename)) return null;
 				return project.getFileContent(filename);
 			});
 		});

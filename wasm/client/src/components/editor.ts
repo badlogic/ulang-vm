@@ -4,6 +4,7 @@ import * as ulang from "@marioslab/ulang-vm"
 import { explorer } from "./explorer";
 import { UlangFile } from "@marioslab/ulang-vm/src/wrapper";
 import { Breakpoint } from "@marioslab/ulang-vm";
+import { project } from "src/project";
 
 (globalThis as any).self.MonacoEnvironment = {
 	getWorkerUrl: function (moduleId, label) {
@@ -47,9 +48,10 @@ export class Editor {
 	}
 
 	private onDidChangeModelContent () {
-		let result = ulang.compile(explorer.getSelectedFile(), () => {
-			let source = this.editor.getValue();
-			return source;
+		if (this.contentListener) this.contentListener(this.currSourceFile.filename, this.editor.getValue());
+		let result = ulang.compile(explorer.getSelectedFile(), (filename) => {
+			if (!project.fileExists(filename)) return null;
+			else return project.getFileContent(filename);
 		});
 		if (result.error.isSet()) {
 			result.error.print();
@@ -88,7 +90,6 @@ export class Editor {
 		}
 		result.free();
 		ulang.printMemory();
-		if (this.contentListener) this.contentListener(this.currSourceFile.filename, this.editor.getValue());
 	}
 
 	private onDidChangeModelDecorations (e: monaco.editor.IModelDecorationsChangedEvent) {

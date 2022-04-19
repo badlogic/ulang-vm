@@ -1471,7 +1471,7 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile_file(compiler_context *ctx, ulang_
 				if (!fileReadFunction(resolvedFile, includedFile)) {
 					ulang_free(resolvedFile);
 					ulang_free(includedFile);
-					ulang_error_init(error, file, &includedFileToken->span, "Couldn't read file %s\n", filename);
+					ulang_error_init(error, file, &includedFileToken->span, "Couldn't read file %s\n", filename.data);
 					return UL_FALSE;
 				}
 				ulang_free(resolvedFile);

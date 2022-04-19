@@ -41,6 +41,7 @@ typedef struct test_case {
 
 static const char *testCode;
 ulang_bool read_test(const char *filename, ulang_file *file) {
+	if (strcmp(filename, "test.ul")) return UL_FALSE;
 	return ulang_file_from_memory(filename, testCode, file);
 }
 
