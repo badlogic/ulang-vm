@@ -4,7 +4,7 @@ import bcrypt from "bcrypt"
 import Knex from "knex";
 import path from "path";
 
-const saltRounds = 10;
+const saltRounds = 8;
 let pool: Pool;
 
 interface Project {
@@ -68,18 +68,23 @@ async function query (query: string, values?: any[]) {
 }
 
 export async function isAuthorized (user: string, accessToken: string) {
-	let con = await pool.getConnection();
-	let rows = await con.query("select hash, user from hashes where user=?", [user]) as UserHash[];
-	if (rows.length < 1) throw new Error("User not authorized.");
+	let con: PoolConnection | null = null;
+	try {
+		con = await pool.getConnection();
+		let rows = await con.query("select hash, user from hashes where user=?", [user]) as UserHash[];
+		if (rows.length < 1) throw new Error("User not authorized.");
 
-	for (let i = 0; i < rows.length; i++) {
-		let hash = rows[i].hash;
-		if (await bcrypt.compare(accessToken, hash)) {
-			return;
+		for (let i = 0; i < rows.length; i++) {
+			let hash = rows[i].hash;
+			if (await bcrypt.compare(accessToken, hash)) {
+				return;
+			}
 		}
-	}
 
-	throw new Error("User not authorized.");
+		throw new Error("User not authorized.");
+	} finally {
+		if (con) con.end();
+	}
 }
 
 export async function createUser (user: string, accessToken: string) {

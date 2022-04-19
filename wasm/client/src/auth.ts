@@ -14,26 +14,28 @@ export async function checkAuthorizationCode () {
 	let finalUrl = localStorage.getItem("authorize-final-url");
 	localStorage.removeItem("authorize-state");
 	localStorage.removeItem("authorize-final-url");
-	if (!authorizeState) return;
+	if (!authorizeState) return false;
 	if (!finalUrl) {
 		showDialog("Sorry", "<p>Couldn't log you in. No redirect URL was set.</p>", [], true, "OK");
-		return;
+		return false;
 	}
 
 	try {
 		let params = querystring.parse(location.search);
 		if (!params.code || !params.state) {
 			showDialog("Sorry", "<p>Couldn't log you in. GitHub didn't return an authorization token.</p>", [], true, "OK");
-			return;
+			return false;
 		}
 		if (!params.state || params.state != authorizeState) throw new Error("State does not match");
 		let userResponse = await axios.post("/api/access_token", { code: params.code });
 		localStorage.setItem("user", JSON.stringify(userResponse.data));
 		window.location.href = finalUrl;
+		return true;
 	} catch (e) {
 		console.log("Error: " + JSON.stringify(e));
 		showDialog("Sorry", "<p>Couldn't log you in. GitHub didn't return an authorization token.</p>", [], true, "OK");
 	}
+	return false;
 }
 
 export class Auth {

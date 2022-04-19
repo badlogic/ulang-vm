@@ -7,7 +7,7 @@ import { checkAuthorizationCode } from "./auth";
 import { setupLiveEdit } from "./liveedit";
 
 (async () => {
-	await checkAuthorizationCode();
+	if (await checkAuthorizationCode()) return;
 	await loadUlang();
 
 	new Toolbar(document.querySelector(".toolbar"));

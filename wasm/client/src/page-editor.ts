@@ -13,7 +13,7 @@ import { decode } from "html-entities";
 import { Explorer } from "./components/explorer";
 
 (async function () {
-	await checkAuthorizationCode();
+	if (await checkAuthorizationCode()) return;
 	await loadUlang();
 	await loadProject();
 

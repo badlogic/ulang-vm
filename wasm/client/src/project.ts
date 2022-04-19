@@ -15,18 +15,17 @@ export async function loadProject () {
 
 	try {
 		let authorizeProject: Project = localStorage.getItem("authorize-project") ? JSON.parse(localStorage.getItem("authorize-project")) : null;
-		let params: any = querystring.parse(location.search);
 		let pathElements = location.pathname.split("/");
 		pathElements.splice(0, 2);
 		let gistId = null;
 
-		if (params.id) gistId = params.id;
 		if (!gistId && pathElements.length > 0) gistId = pathElements[0];
 
-		if (!params.code && authorizeProject) {
+		if (authorizeProject) {
 			project = new Project(authorizeProject["title"], authorizeProject["owner"], authorizeProject["id"], authorizeProject["files"], authorizeProject["forkedFrom"]);
 			if (authorizeProject["screenshot"]) project.setScreenshot(authorizeProject["screenshot"]);
 			project.setUnsaved(authorizeProject["unsaved"]);
+			if (gistId) gist = await getGist(gistId, auth.getAccessToken());
 		} else if (gistId) {
 			dialog = showDialog("", "Loading Gist", [], false);
 			gist = await getGist(gistId, auth.getAccessToken());

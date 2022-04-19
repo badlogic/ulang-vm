@@ -10,7 +10,7 @@ import { createUserProjectDom, UserProject } from "./components/user-project"
 import axios from "axios";
 
 (async () => {
-	await checkAuthorizationCode();
+	if (await checkAuthorizationCode()) return;
 	await loadUlang();
 
 	new Toolbar(document.querySelector(".toolbar"));
