@@ -1,5 +1,11 @@
 FROM node:16
 
-RUN git clone https://github.com/emscripten-core/emsdk.git /emsdk && cd /emsdk && git pull && ./emsdk install latest && ./emsdk activate latest
-WORKDIR /ulang/wasm
+RUN groupadd -g 999 ulang && \
+	useradd -r -u 999 -g ulang ulang
+USER ulang
+
+WORKDIR /home/ulang
+RUN ls .
+RUN git clone https://github.com/emscripten-core/emsdk.git ./emsdk && cd ./emsdk && git pull && ./emsdk install latest && ./emsdk activate latest
+WORKDIR /home/ulang/ulang/wasm
 ENTRYPOINT ["./docker/main.sh"]

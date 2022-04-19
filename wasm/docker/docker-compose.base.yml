@@ -10,7 +10,7 @@ services:
             - ./server.conf:/etc/nginx/conf.d/default.conf
             - ./data/logs:/logs
             - ./data/images:/images
-            - ../..:/ulang
+            - ../..:/home/ulang/ulang
         networks:
             - ulang_network
     site:
@@ -28,7 +28,7 @@ services:
             - ULANG_DATA_DIR=${ULANG_DATA_DIR}
             - ULANG_DB_PASSWORD=${ULANG_DB_PASSWORD}
         volumes:
-            - ../..:/ulang
+            - ../..:/home/ulang/ulang
             - ./data/images:/images
         networks:
             - ulang_network
