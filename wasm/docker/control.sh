@@ -28,7 +28,7 @@ pushd $dir > /dev/null
 case "$1" in
 start)
 	git pull
-	docker-compose -p ulang -f docker-compose.base.yml -f docker-compose.prod.yml build
+	docker-compose -p ulang -f docker-compose.base.yml -f docker-compose.prod.yml build --no-cache
 	docker-compose -p ulang -f docker-compose.base.yml -f docker-compose.prod.yml up -d
 	;;
 startdev)	
