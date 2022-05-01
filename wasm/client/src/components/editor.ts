@@ -227,7 +227,7 @@ function defineUlangLanguage () {
 			"jmp", "je", "jne", "jl", "jg", "jle", "jge",
 			"mov",
 			"ld", "sto", "ldb", "stob", "lds", "stos",
-			"push", "stackalloc", "pop",
+			"push", "pusha", "stackalloc", "pop", "popa",
 			"call", "ret", "retn",
 			"syscall",
 			"reserve", "byte", "short", "int", "float",
@@ -235,7 +235,7 @@ function defineUlangLanguage () {
 			"include"
 		],
 		operators: ["~", "+", "-", "|", "&", "^", "/", "*", "%"],
-		registers: ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "pc", "sp"],
+		registers: ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "sp", "pc"],
 		escapes: /\\(?:[abfnrtv\\"']|x[0-9A-Fa-f]{1,4}|u[0-9A-Fa-f]{4}|U[0-9A-Fa-f]{8})/,
 		tokenizer: {
 			root: [

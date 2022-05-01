@@ -1,0 +1,4 @@
+include "utils.ul"
+
+push 0xffffffff
+call _gfx_clear

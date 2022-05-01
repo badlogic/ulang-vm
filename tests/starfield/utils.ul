@@ -1,0 +1,29 @@
+# The frame buffer, 320x240 pixels, RGBA
+_gfx_buffer: reserve int x 320 * 240
+
+#--------------------------------------------------
+# Clears the frame buffer with the given color
+#
+# [SP + 0]: color
+#--------------------------------------------------
+_gfx_clear:
+   pusha
+
+   ld sp, 15 * 4, r1
+   mov _gfx_buffer, r2
+
+   _gfx_clear_loop:
+      sto r1, r2, 0
+      add r2, 4, r2
+      cmp r2, _gfx_buffer + 320 * 240 * 4, r4
+      jl r4, _gfx_clear_loop
+
+   popa
+   retn 1
+
+#--------------------------------------------------
+# Blits the frame buffer to the screen
+#--------------------------------------------------
+_gfx_show:
+   push _gfx_buffer
+   syscall 0x1

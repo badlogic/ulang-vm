@@ -262,7 +262,7 @@ export class VirtualMachine {
 
 	getCurrentLine () {
 		if (this.state != VirtualMachineState.Paused) return -1;
-		let pc = this.vm.registers()[14].ui() >> 2;
+		let pc = this.vm.registers()[15].ui() >> 2;
 		let addressToLine: number[] = this.vm.program().addressToLine();
 		if (pc >= addressToLine.length) return -1;
 		return addressToLine[pc];
@@ -270,7 +270,7 @@ export class VirtualMachine {
 
 	getCurrentFile () {
 		if (this.state != VirtualMachineState.Paused) return null;
-		let pc = this.vm.registers()[14].ui() >> 2;
+		let pc = this.vm.registers()[15].ui() >> 2;
 		let addressToFile = this.vm.program().addressToFile();
 		if (pc >= addressToFile.length) return null;
 		return addressToFile[pc];

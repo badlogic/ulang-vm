@@ -103,8 +103,8 @@ export class Debugger {
 			let register = registers[i - 1];
 			this.registerView.appendChild(this.createItem("r" + i, register.i(), register.f(), this.checkValueChanged("reg" + (i - 1), register)));
 		}
-		this.registerView.appendChild(this.createItem("pc", registers[14].i(), registers[14].f(), this.checkValueChanged("reg" + 14, registers[14])));
-		this.registerView.appendChild(this.createItem("sp", registers[15].i(), registers[15].f(), this.checkValueChanged("reg" + 15, registers[15])));
+		this.registerView.appendChild(this.createItem("sp", registers[14].i(), registers[14].f(), this.checkValueChanged("reg" + 14, registers[14])));
+		this.registerView.appendChild(this.createItem("pc", registers[15].i(), registers[15].f(), this.checkValueChanged("reg" + 15, registers[15])));
 
 		// Stack		
 		let maxStackEntries = Number.parseInt(this.maxStackEntries.value);
@@ -137,8 +137,8 @@ export class Debugger {
 					break;
 				}
 			}
-			if (value == "pc") address = registers[14].ui();
-			if (value == "sp") address = registers[15].ui();
+			if (value == "sp") address = registers[14].ui();
+			if (value == "pc") address = registers[15].ui();
 		}
 
 		// Check if its a label
@@ -269,7 +269,7 @@ export class Debugger {
 					if (startCol > endCol) return null;
 
 					let token = line.substring(startCol, endCol);
-					let regs = ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "pc", "sp"];
+					let regs = ["r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "sp", "pc"];
 					let regIdx = -1;
 					for (let i = 0; i < regs.length; i++) {
 						if (token == regs[i]) {

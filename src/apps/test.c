@@ -4,10 +4,10 @@
 #include "ulang.h"
 
 typedef enum reg {
-	R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12, R13, R14, PC, SP
+	R1, R2, R3, R4, R5, R6, R7, R8, R9, R10, R11, R12, R13, R14, SP, PC
 } reg;
 const char *reg_names[] = {"r1", "r2", "r3", "r4", "r5", "r6", "r7", "r8", "r9", "r10", "r11", "r12", "r13", "r14",
-						   "pc", "sp"};
+						   "sp", "pc"};
 
 typedef enum check_type {
 	NONE,
@@ -32,7 +32,7 @@ typedef struct check {
 	};
 } check;
 
-#define MAX_CHECKS 10
+#define MAX_CHECKS 20
 
 typedef struct test_case {
 	const char *code;
@@ -168,6 +168,27 @@ ulang_bool test(size_t testNum, test_case *test) {
 int main(int argc, char **argv) {
 	// @formatter:off
 	test_case tests[] = {
+			// starfield
+			// { "tests/starfield/program.ul", {}},
+
+			// pusha, popa
+			{ "tests/pusha.ul", {
+				{REG_INT, .reg = R1, .val_uint = 1},
+				{REG_INT, .reg = R2, .val_uint = 2},
+				{REG_INT, .reg = R3, .val_uint = 3},
+				{REG_INT, .reg = R4, .val_uint = 4},
+				{REG_INT, .reg = R5, .val_uint = 5},
+				{REG_INT, .reg = R6, .val_uint = 6},
+				{REG_INT, .reg = R7, .val_uint = 7},
+				{REG_INT, .reg = R8, .val_uint = 8},
+				{REG_INT, .reg = R9, .val_uint = 9},
+				{REG_INT, .reg = R10, .val_uint = 10},
+				{REG_INT, .reg = R11, .val_uint = 11},
+				{REG_INT, .reg = R12, .val_uint = 12},
+				{REG_INT, .reg = R13, .val_uint = 13},
+				{REG_INT, .reg = R14, .val_uint = 14},
+				{REG_INT, .reg = SP, .val_uint = UL_VM_MEMORY_SIZE},
+			}},
 			{"halt",                                                                                     {{REG_INT, .reg = PC, .val_uint = 4}}},
 
 			// Test mov first, as we need it for the other tests
@@ -337,6 +358,9 @@ int main(int argc, char **argv) {
 
 			// include
 			{"tests/a.ul",                                                                                     {{REG_INT, .reg = R1, .val_uint = 1}, {REG_INT, .reg = R2, .val_uint = 3}}},
+
+			// Jump to label at end of file without an instruction
+			{"jmp end\nend: halt",                                                                                     {{REG_INT, .reg = PC, .val_uint = 12}, }},
 	};
 	// @formatter:on
 

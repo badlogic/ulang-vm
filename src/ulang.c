@@ -13,9 +13,10 @@
 
 #define STR(str) str, sizeof(str) - 1
 #define STR_OBJ(str) (ulang_string){ str, sizeof(str) - 1 }
-#define MAX(a, b) (a > b ? a : b)
-#define MIN(a, b) (a < b ? a : b)
+#define MAX(a, b) ((a) > (b) ? (a) : (b))
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 
+// NOLINTBEGIN
 #define ARRAY_IMPLEMENT(name, itemType) \
     typedef struct name { size_t size; size_t capacity; itemType* items; } name; \
     name* name##_init(size_t initialCapacity) { \
@@ -47,13 +48,13 @@
         name##_ensure(self, 1); \
         self->items[self->size++] = value; \
     }
+// NOLINTEND
 
 typedef struct expression_value {
 	value_type type;
 	int32_t i;
 	float f;
 	uint32_t startToken;
-	uint32_t endToken;
 	ulang_bool unresolved;
 } expression_value;
 
@@ -121,6 +122,7 @@ typedef struct compiler_context {
 
 typedef enum ulang_opcode {
 	HALT,
+	NOP,
 	BREAK,
 	ADD,
 	ADD_VAL,
@@ -197,9 +199,11 @@ typedef enum ulang_opcode {
 	STORE_SHORT_VAL,
 	PUSH_REG,
 	PUSH_VAL,
+	PUSH_A,
 	STACKALLOC,
 	POP_REG,
 	POP_OFF,
+	POP_A,
 	CALL_REG,
 	CALL_VAL,
 	RET,
@@ -228,6 +232,7 @@ typedef struct opcode {
 
 static opcode opcodes[] = {
 		{HALT,                   STR_OBJ("halt")},
+		{NOP,                   STR_OBJ("nop")},
 		{BREAK,                  STR_OBJ("brk"),        {UL_REG,         UL_LBL_INT_FLT}},
 		{ADD,                    STR_OBJ("add"),        {UL_REG,         UL_REG,     UL_REG}},
 		{ADD_VAL,                STR_OBJ("add"),        {UL_REG,         UL_LBL_INT, UL_REG}},
@@ -313,11 +318,13 @@ static opcode opcodes[] = {
 
 		{PUSH_REG,               STR_OBJ("push"),       {UL_REG}},
 		{PUSH_VAL,               STR_OBJ("push"),       {UL_LBL_INT_FLT}},
+		{PUSH_A,                    STR_OBJ("pusha")},
 
 		{STACKALLOC,             STR_OBJ("stackalloc"), {UL_OFF}},
 
 		{POP_REG,                STR_OBJ("pop"),        {UL_REG}},
 		{POP_OFF,                STR_OBJ("pop"),        {UL_OFF}},
+		{POP_A,                    STR_OBJ("popa")},
 
 		{CALL_REG,               STR_OBJ("call"),       {UL_REG}},
 		{CALL_VAL,               STR_OBJ("call"),       {UL_LBL_INT}},
@@ -351,8 +358,8 @@ static reg registers[] = {
 		{{STR("r12")}},
 		{{STR("r13")}},
 		{{STR("r14")}},
-		{{STR("pc")}},
-		{{STR("sp")}}
+		{{STR("sp")}},
+		{{STR("pc")}}
 };
 
 static ulang_bool initialized = UL_FALSE;
@@ -1059,7 +1066,8 @@ static ulang_bool parse_unary_operator(compiler_context *ctx, expression_value *
 					if (!ctx->resolveLabelsInExpressions) {
 						value->unresolved = UL_TRUE;
 						value->type = UL_INTEGER;
-						value->i = value->f = 0;
+						value->i = 0;
+						value->f = 0;
 						return UL_TRUE;
 					} else {
 						ulang_label *label = NULL;
@@ -1221,7 +1229,6 @@ static ulang_bool parse_expression(compiler_context *ctx, expression_value *valu
 	value->unresolved = UL_FALSE;
 	ulang_span *startSpan = &ctx->stream.tokens->items[ctx->stream.index].span;
 	ulang_bool result = parse_binary_operator(ctx, value, 0);
-	if (result) value->endToken = ctx->stream.index;
 	if (span) {
 		ulang_span *endSpan = &ctx->stream.tokens->items[ctx->stream.index - 1].span;
 		span->data = startSpan->data;
@@ -1416,7 +1423,7 @@ static void set_label_targets(label_array *labels, ulang_label_target target, si
 
 EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile_file(compiler_context *ctx, ulang_file *file, ulang_file_read_function fileReadFunction, ulang_error *error) {
 	// tokenize
-	int start = ctx->tokens.size;
+	int start = (int)ctx->tokens.size;
 	if (!tokenize(file, &ctx->tokens, error)) {
 		return UL_FALSE;
 	}
@@ -1457,7 +1464,7 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile_file(compiler_context *ctx, ulang_
 				}
 
 				ulang_bool alreadyCompiled = UL_FALSE;
-				for  (int i = 0; i < ctx->files.size; i++) {
+				for  (int i = 0; i < (int)ctx->files.size; i++) {
 					if (strcmp(ctx->files.items[i]->fileName.data, resolvedFile) == 0) {
 						alreadyCompiled = UL_TRUE;
 					}
@@ -1810,6 +1817,7 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_compile(const char* filename, ulang_file_r
 	if (!ulang_compile_file(&ctx, file, fileReadFunction, error)) goto _compilation_error;
 
 	ctx.resolveLabelsInExpressions = UL_TRUE;
+	ctx.stream.end = ctx.tokens.size;
 	for (size_t i = 0; i < ctx.patches.size; i++) {
 		patch *p = &ctx.patches.items[i];
 		ctx.stream.index = p->expr.startToken;
@@ -2084,7 +2092,7 @@ EMSCRIPTEN_KEEPALIVE void ulang_vm_init(ulang_vm *vm, ulang_program *program) {
 	memset(vm->memory, 0, vm->memorySizeBytes);
 	memcpy(vm->memory, program->code, program->codeLength);
 	memcpy(vm->memory + program->codeLength, program->data, program->dataLength);
-	vm->registers[15].ui = vm->memorySizeBytes;
+	vm->registers[14].ui = vm->memorySizeBytes;
 	vm->program = program;
 }
 
@@ -2100,12 +2108,12 @@ EMSCRIPTEN_KEEPALIVE void ulang_vm_init(ulang_vm *vm, ulang_program *program) {
 #define REG1_F regs[DECODE_REG(word, 0)].f
 #define REG2_F regs[DECODE_REG(word, 1)].f
 #define REG3_F regs[DECODE_REG(word, 2)].f
-#define VAL *((int32_t *) &vm->memory[regs[14].ui]); regs[14].ui += 4
-#define VAL_U *((uint32_t *) &vm->memory[regs[14].ui]); regs[14].ui += 4
-#define VAL_F *((float *) &vm->memory[regs[14].ui]); regs[14].ui += 4
+#define VAL *((int32_t *) &vm->memory[regs[15].ui]); regs[15].ui += 4
+#define VAL_U *((uint32_t *) &vm->memory[regs[15].ui]); regs[15].ui += 4
+#define VAL_F *((float *) &vm->memory[regs[15].ui]); regs[15].ui += 4
 #define SIGNUM(v) (((v) < 0) ? -1 : (((v) > 0) ? 1 : 0))
-#define PC regs[14].ui
-#define SP regs[15].ui
+#define SP regs[14].ui
+#define PC regs[15].ui
 
 EMSCRIPTEN_KEEPALIVE ulang_bool ulang_vm_step(ulang_vm *vm) {
 	ulang_value *regs = vm->registers;
@@ -2117,6 +2125,8 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_vm_step(ulang_vm *vm) {
 	switch (op) {
 		case HALT:
 			return UL_FALSE;
+		case NOP:
+			break;
 		case BREAK: {
 			uint32_t val = VAL_U;
 			if (val == REG1_U) {
@@ -2423,6 +2433,11 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_vm_step(ulang_vm *vm) {
 			memcpy(vm->memory + SP, &val, 4);
 			break;
 		}
+		case PUSH_A: {
+			SP -= 15 * 4;
+			memcpy(vm->memory + SP, regs, 15 * 4);
+			break;
+		}
 		case STACKALLOC: {
 			uint32_t numWords = DECODE_OFF(word);
 			SP -= numWords << 2;
@@ -2436,6 +2451,11 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_vm_step(ulang_vm *vm) {
 		case POP_OFF: {
 			memcpy(&regs[DECODE_REG(word, 0)].ui, vm->memory + SP, 4);
 			SP += DECODE_OFF(word) << 2;
+			break;
+		}
+		case POP_A: {
+			memcpy(regs, vm->memory + SP, 15 * 4);
+			SP += 15 * 4;
 			break;
 		}
 		case CALL_REG: {
@@ -2473,7 +2493,7 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_vm_step(ulang_vm *vm) {
 			break;
 		}
 		default:
-			vm->registers[14].ui -= 4; // reset PC to the unknown instruction.
+			vm->registers[15].ui -= 4; // reset PC to the unknown instruction.
 			return UL_FALSE;
 	}
 	return UL_TRUE;
@@ -2488,8 +2508,8 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_vm_step_n(ulang_vm *vm, uint32_t numInstru
 
 EMSCRIPTEN_KEEPALIVE int32_t ulang_vm_step_n_bp(ulang_vm *vm, uint32_t numInstructions, uint32_t *breakpoints, uint32_t numBreakpoints) {
 	while (numInstructions--) {
-		uint32_t pc = vm->registers[14].ui;
-		for (size_t i = 0; i < numBreakpoints; i++) {
+		uint32_t pc = vm->registers[15].ui;
+		for (int i = 0; i < (int)numBreakpoints; i++) {
 			if (breakpoints[i] == pc) return i + 1;
 		}
 		if (!ulang_vm_step(vm)) return UL_FALSE;
@@ -2506,7 +2526,7 @@ EMSCRIPTEN_KEEPALIVE void ulang_vm_print(ulang_vm *vm) {
 	}
 
 	for (int i = 0; i < 5; i++) {
-		uint32_t stackAddr = vm->registers[15].ui;
+		uint32_t stackAddr = vm->registers[14].ui;
 		stackAddr += i * 4;
 		if (stackAddr > UL_VM_MEMORY_SIZE - 4) break;
 		int32_t val_i;
@@ -2519,7 +2539,7 @@ EMSCRIPTEN_KEEPALIVE void ulang_vm_print(ulang_vm *vm) {
 	if (vm->program && vm->program->files) {
 		for (int i = 0; i < (int)vm->program->filesLength; i++)
 			ulang_file_get_lines(vm->program->files[i]);
-		uint32_t pc = (vm->registers[14].ui) >> 2;
+		uint32_t pc = (vm->registers[15].ui) >> 2;
 		if (pc < 0 || pc >= vm->program->addressToLineLength) return;
 		int lineNum = (int) vm->program->addressToLine[pc];
 		ulang_file *file = vm->program->addressToFile[pc];
@@ -2534,38 +2554,38 @@ EMSCRIPTEN_KEEPALIVE void ulang_vm_print(ulang_vm *vm) {
 
 EMSCRIPTEN_KEEPALIVE int32_t ulang_vm_pop_int(ulang_vm *vm) {
 	int32_t val;
-	memcpy(&val, vm->memory + vm->registers[15].ui, 4);
-	vm->registers[15].ui += 4;
+	memcpy(&val, vm->memory + vm->registers[14].ui, 4);
+	vm->registers[14].ui += 4;
 	return val;
 }
 
 EMSCRIPTEN_KEEPALIVE uint32_t ulang_vm_pop_uint(ulang_vm *vm) {
 	uint32_t val;
-	memcpy(&val, vm->memory + vm->registers[15].ui, 4);
-	vm->registers[15].ui += 4;
+	memcpy(&val, vm->memory + vm->registers[14].ui, 4);
+	vm->registers[14].ui += 4;
 	return val;
 }
 
 EMSCRIPTEN_KEEPALIVE float ulang_vm_pop_float(ulang_vm *vm) {
 	float val;
-	memcpy(&val, vm->memory + vm->registers[15].ui, 4);
-	vm->registers[15].ui += 4;
+	memcpy(&val, vm->memory + vm->registers[14].ui, 4);
+	vm->registers[14].ui += 4;
 	return val;
 }
 
 EMSCRIPTEN_KEEPALIVE void ulang_vm_push_int(ulang_vm *vm, int32_t val) {
-	vm->registers[15].ui -= 4;
-	memcpy(vm->memory + vm->registers[15].ui, &val, 4);
+	vm->registers[14].ui -= 4;
+	memcpy(vm->memory + vm->registers[14].ui, &val, 4);
 }
 
 EMSCRIPTEN_KEEPALIVE void ulang_vm_push_uint(ulang_vm *vm, uint32_t val) {
-	vm->registers[15].ui -= 4;
-	memcpy(vm->memory + vm->registers[15].ui, &val, 4);
+	vm->registers[14].ui -= 4;
+	memcpy(vm->memory + vm->registers[14].ui, &val, 4);
 }
 
 EMSCRIPTEN_KEEPALIVE void ulang_vm_push_float(ulang_vm *vm, float val) {
-	vm->registers[15].ui -= 4;
-	memcpy(vm->memory + vm->registers[15].ui, &val, 4);
+	vm->registers[14].ui -= 4;
+	memcpy(vm->memory + vm->registers[14].ui, &val, 4);
 }
 
 EMSCRIPTEN_KEEPALIVE void ulang_vm_free(ulang_vm *vm) {
@@ -2590,6 +2610,8 @@ EMSCRIPTEN_KEEPALIVE int ulang_sizeof(UlangType type) {
 			return sizeof(ulang_program);
 		case UL_TYPE_VM:
 			return sizeof(ulang_vm);
+		default:
+			return 0;
 	}
 }
 
