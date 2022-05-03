@@ -9,7 +9,8 @@
 			"request": "launch",
 			"name": "client",
 			//"url": "http://localhost:3000/editor/a3929e69602cb54d64ffc2c3f638208b",
-			"url": "http://localhost:3000/editor",
+			// "url": "http://localhost:3000/editor",
+			"url": "http://localhost:3000/editor/07cfe6828a92fe4ea13bd770dbc25be4",
 			"webRoot": "${workspaceFolder}/client/assets"
 		},
 		{

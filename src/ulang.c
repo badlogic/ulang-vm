@@ -2358,7 +2358,8 @@ EMSCRIPTEN_KEEPALIVE ulang_bool ulang_vm_step(ulang_vm *vm) {
 			REG1 = VAL;
 			break;
 		case LOAD_REG: {
-			uint32_t addr = REG1_U + DECODE_OFF(word);
+			uint32_t offset = DECODE_OFF(word);
+			uint32_t addr = REG1_U + offset;
 			memcpy(&REG2_U, &vm->memory[addr], 4);
 			break;
 		}

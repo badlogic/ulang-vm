@@ -108,14 +108,14 @@ export class Debugger {
 
 		// Stack		
 		let maxStackEntries = Number.parseInt(this.maxStackEntries.value);
-		let stackAddress = registers[15].ui();
+		let stackAddress = registers[14].ui();
 		let entries = 0;
 		for (let i = 0; i < maxStackEntries; i++) {
 			let addr = stackAddress + i * 4;
 			if (addr > UL_VM_MEMORY_SIZE - 4) break;
 			let intVal = vm.getInt(addr);
 			let floatVal = vm.getFloat(addr);
-			this.stackView.appendChild(this.createItem("sp - " + i, intVal, floatVal, this.checkValueChanged("sp" + i, { intVal: intVal, floatVal: floatVal })))
+			this.stackView.appendChild(this.createItem("sp + " + i, intVal, floatVal, this.checkValueChanged("sp" + i, { intVal: intVal, floatVal: floatVal })))
 			entries++;
 		}
 		if (entries == 0) {
@@ -233,7 +233,7 @@ export class Debugger {
 				dom.innerHTML = `
 					<span class="debug-view-item-name">${address}</span>
 					<span class="${changedClass}">${intVal}</span>
-					<span class="${changedClass}">0x${intVal.toString(16)}</span>
+					<span class="${changedClass}">0x${(intVal & 0xffffffff).toString(16)}</span>
 				`;
 				break;
 			case "Float":

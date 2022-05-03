@@ -1,6 +1,8 @@
 # The frame buffer, 320x240 pixels, RGBA
 _gfx_buffer: reserve int x 320 * 240
 
+jmp _utils_ul_end
+
 #--------------------------------------------------
 # Clears the frame buffer with the given color
 #
@@ -27,3 +29,6 @@ _gfx_clear:
 _gfx_show:
    push _gfx_buffer
    syscall 0x1
+
+_utils_ul_end:
+   nop
